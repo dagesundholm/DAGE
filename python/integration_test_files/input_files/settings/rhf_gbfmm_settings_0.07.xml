@@ -1,0 +1,4 @@
+<?xml version="1.0"?>
+<settings name="rhf_gbfmm_settings_0.07" extends_path="gbfmm_settings_0.07.xml">
+    <scf_settings method="hartree-fock" update_weight="1.0" type="helmholtz" />
+</settings>

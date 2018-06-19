@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<scf_energetics>
+    <nuclear_repulsion_energy>      0.7142857142857143</nuclear_repulsion_energy>
+    <scf_iteration_energetics iteration_number="1" total_energy="     -0.5747027985142857" eigen_values="      0.0000000000000000,       0.0000000000000000,       0.0000000000000000,       0.0000000000000000" />
+    <scf_iteration_energetics iteration_number="2" total_energy="     -1.1195006961383513" eigen_values="     -0.4286385626417561,       0.1841081199946170,       0.5071454748780182,       1.0435576917249390" />
+    <scf_iteration_energetics iteration_number="3" total_energy="     -1.1244691417856387" eigen_values="     -0.5863051409569897,       0.1998521155500464,       0.4809518572272015,       1.0440677573313666" />
+    <scf_iteration_energetics iteration_number="4" total_energy="     -1.1245642168528946" eigen_values="     -0.5921045613409800,       0.1975181058688018,       0.4787694858410186,       1.0375460925208828" />
+    <scf_iteration_energetics iteration_number="5" total_energy="     -1.1245684467549313" eigen_values="     -0.5930235934232628,       0.1969863318001539,       0.4783493282370425,       1.0362393960366536" />
+    <scf_iteration_energetics iteration_number="6" total_energy="     -1.1245687429061140" eigen_values="     -0.5931977136320659,       0.1968816524112144,       0.4782673355629080,       1.0359869402590951" />
+    <scf_iteration_energetics iteration_number="7" total_energy="     -1.1245687666953272" eigen_values="     -0.5932309129187713,       0.1968615502492470,       0.4782515923212018,       1.0359386527175962" />
+ </scf_energetics>

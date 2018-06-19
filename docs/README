@@ -1,0 +1,841 @@
+!!!!! This is a documentation of the DAGE code           !!!!!
+!!!!! By: Mooses Mehine                                  !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!  Order for compilation                             !!!!!
+!!!!!                                                    !!!!!
+!!!!!  1. kinds.F90 - Defines SP, DP etc.                !!!!! kinds_m
+!!!!!  2. pprinter.F90 - Prints stuff prettily           !!!!! ppreinter
+!!!!!  3. getkw.F90 - reads python parsed input          !!!!! getkw_class
+!!!!!  4. globals.F90 - defines global parameters,       !!!!! globals_m
+!!!!!     functions, available to all sub-modules        !!!!! 
+!!!!!  5. xmatrix.F90 - defines matrix operations        !!!!! xmatrix_m
+!!!!!  6. lip.F90 - Lagrange Interpolated Polynominals   !!!!! lip_class 
+!!!!!     class. Defines them, their coefficients and    !!!!!
+!!!!!     some operations on them.                       !!!!!
+!!!!!  7. timer.F90 - Takes the time for a certain       !!!!! timer_m 
+!!!!!     process.                                       !!!!! 
+!!!!!  8. pbc.F90 - Deals with periodic boundraries.     !!!!! pbc_class
+!!!!!  9. grid.F90 - Grid management.                    !!!!! grid_class 
+!!!!! 10. boysf.F90 - Calculates the incomplete gamma    !!!!! boys_m
+!!!!!     function.                                      !!!!! 
+!!!!! 11. mpi.F90 - Overrides mpi subroutines to perform !!!!! mpi_m
+!!!!!     stuff easier and allows compatibility with     !!!!! 
+!!!!!     non-mpi installations.                         !!!!!
+!!!!! 12. gauss.F90 - The module for integrating using   !!!!! gauss_class
+!!!!! gaussian quadrature.                               !!!!!
+!!!!! 13. gopenmol.F90 - ???                             !!!!! gopenmol_m
+!!!!! 14. cubeplot_m.F90 - Create Guassian type cube     !!!!! cubeplot_m
+!!!!!     files.                                         !!!!!
+!!!!!                                                    !!!!!
+!!!!! 15. io.F90 - Central management of IO.             !!!!! io_m
+!!!!! 16. function.F90 - Defines the function_t object   !!!!! function_class
+!!!!!     type, and methods related to it.               !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!----------------------------------------------------!!!!!
+!!!!!  1. kinds.F90 - Defines SP, DP etc.                !!!!! kinds_m
+!!!!!                                                    !!!!!
+!!!!!  Global variables                                  !!!!!
+!!!!!  ----------------                                  !!!!!
+!!!!!                                                    !!!!!
+!!!!!  MP                                                !!!!!
+!!!!!  SP                                                !!!!!
+!!!!!  DP                                                !!!!!
+!!!!!  QP - #ifdef HAVE_QP                               !!!!!
+!!!!!  I2                                                !!!!!
+!!!!!  I4                                                !!!!!
+!!!!!  I8                                                !!!!!
+!!!!!                                                    !!!!!
+!!!!!----------------------------------------------------!!!!!
+!!!!!  2. pprinter.F90 - pretty print                    !!!!! pprinter
+!!!!!                                                    !!!!!
+!!!!!  Based on modules: kinds                           !!!!!
+!!!!!                                                    !!!!!
+!!!!!  Global variables                                  !!!!!
+!!!!!  ----------------                                  !!!!!
+!!!!!                                                    !!!!!
+!!!!!  STDOUT                                            !!!!!
+!!!!!  STDERR                                            !!!!!
+!!!!!  DEVNULL                                           !!!!!
+!!!!!  NONSTDOUT                                         !!!!!
+!!!!!  PPBUFSZ                                           !!!!!
+!!!!!  ppbuf                                             !!!!!
+!!!!!  ppwrn                                             !!!!!
+!!!!!  pperr                                             !!!!!
+!!!!!  ppdbg                                             !!!!!
+!!!!!                                                    !!!!!
+!!!!!  Private variables                                 !!!!!
+!!!!!  -----------------                                 !!!!!
+!!!!!                                                    !!!!!
+!!!!!  level                                             !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!  Available Functions Subroutines/Interfaces        !!!!!
+!!!!!  ------------------------------------------        !!!!!
+!!!!!                                                    !!!!!
+!!!!!  xstr - transforms argument to string              !!!!!
+!!!!!         len(xstr)=PPBUFSZ                          !!!!!
+!!!!!  pprint - prints a string or file                  !!!!!
+!!!!!                                                    !!!!!
+!!!!!  There are various printing subroutines defined    !!!!!
+!!!!!  in this module to print errors, warnings etc. in  !!!!!
+!!!!!  a nice format.                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!----------------------------------------------------!!!!!
+!!!!!  3. getkw.F90 -                                    !!!!! getkw_class
+!!!!!                                                    !!!!!
+!!!!!  Based on modules: kinds, pprinter                 !!!!!
+!!!!!                                                    !!!!!
+!!!!!  Global variables                                  !!!!!
+!!!!!  ----------------                                  !!!!!
+!!!!!                                                    !!!!!
+!!!!!  LINELEN - line length                             !!!!!
+!!!!!                                                    !!!!!
+!!!!!  Available Functions Subroutines/Interfaces        !!!!!
+!!!!!  ------------------------------------------        !!!!!
+!!!!!                                                    !!!!!
+!!!!!  new_getkw, del_getkw, getkw, getkw_ptr, setkw,    !!!!!
+!!!!!  save_keys                                         !!!!!
+!!!!!  push_section, pop_section, has_keyword            !!!!!
+!!!!!  keyword_is_set, section_is_set                    !!!!!
+!!!!!  addkw, add_section, delkw, del_section            !!!!!
+!!!!!  getsect, set_verbose, set_strict                  !!!!!
+!!!!!  kword_t, section_t, getkw_t                       !!!!!
+!!!!!  memtrack, typtrack                                !!!!!
+!!!!!  print_tree                                        !!!!!
+!!!!!                                                    !!!!!
+!!!!!  Introduced types                                  !!!!!
+!!!!!  ----------------                                  !!!!!
+!!!!!                                                    !!!!!
+!!!!!  kword_t                                           !!!!!
+!!!!!   dval - real                                      !!!!!
+!!!!!   ival - integer                                   !!!!!
+!!!!!   bool - logical                                   !!!!!
+!!!!!   set=.false - logical                             !!!!!
+!!!!!   str - character, pointer                         !!!!!
+!!!!!   dvec - real, pointer                             !!!!!
+!!!!!   ivec - integer, pointer                          !!!!!
+!!!!!   lvec - logical, pointer                          !!!!!
+!!!!!   next - kword_t, pointer                          !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!  This fortran file will read the python parsed     !!!!!
+!!!!!  input file such that the integration can be       !!!!!
+!!!!!  performed.                                        !!!!!
+!!!!!                                                    !!!!!
+!!!!!----------------------------------------------------!!!!!
+!!!!!  4. globals.F90 - defines global parameters,       !!!!! globals_m
+!!!!!     functions, available to all sub-modules        !!!!! 
+!!!!!                                                    !!!!!
+!!!!!  Based on modules: kinds, pprinter, getkw_class    !!!!!
+!!!!!                                                    !!!!!
+!!!!!  Global variables                                  !!!!!
+!!!!!  ----------------                                  !!!!!
+!!!!!                                                    !!!!!
+!!!!!  <  Parameters, integers  >                        !!!!!
+!!!!!                                                    !!!!!
+!!!!!  BUFLEN=256                                        !!!!!
+!!!!!  LINESZ=128                                        !!!!!
+!!!!!  MAX_LINE_LEN=200                                  !!!!!
+!!!!!  X_=1                                              !!!!!
+!!!!!  Y_=2                                              !!!!!
+!!!!!  Z_=3                                              !!!!!
+!!!!!  T_=4                                              !!!!!
+!!!!!  RECLEN=4                                          !!!!!
+!!!!!  SL_COORD=X_ -  Slice coordinate, default X coord. !!!!!
+!!!!!  debug_g=0                                         !!!!!
+!!!!!  verbo_g=0                                         !!!!!
+!!!!!                                                    !!!!!
+!!!!!  <  File units (file descriptors)  >               !!!!!
+!!!!!                                                    !!!!!
+!!!!!  READ_FD=22                                        !!!!!
+!!!!!  WRITE_FD=42                                       !!!!!
+!!!!!  CUBE_FD=43                                        !!!!!
+!!!!!  INPUT_FD=87                                       !!!!!
+!!!!!  DEBUG_FD=88                                       !!!!!
+!!!!!  OUTPUT_FD=89                                      !!!!!
+!!!!!  GOM_FD=90                                         !!!!!
+!!!!!  DDEN_FD=30                                        !!!!!
+!!!!!  DPOT_FD=31                                        !!!!!
+!!!!!  QPOT_FD=32                                        !!!!!
+!!!!!  QPOT2_FD=33                                       !!!!!
+!!!!!  BUBLIB_FD=34                                      !!!!!
+!!!!!  AXIS_FD=35                                        !!!!!
+!!!!!                                                    !!!!!
+!!!!!  <  Parameters, real(DP)  >                        !!!!!
+!!!!!                                                    !!!!!
+!!!!!  PI                                                !!!!!
+!!!!!  FOURPI - 4*PI                                     !!!!!
+!!!!!  PI_FAC - (0.5/PI)**0.75                           !!!!!
+!!!!!  twooversqrtpi - 2/sqrt(PI)                        !!!!!
+!!!!!  C_AU - 1/(fine-structure constant)                !!!!!
+!!!!!  ALPHA - fine-structure constant                   !!!!!
+!!!!!  ALPHA2 - 2*(fine-structure constant)              !!!!!
+!!!!!  ZETA=0.5d0                                        !!!!!
+!!!!!  AU2M - bohr's radius, atomic units to meters      !!!!!
+!!!!!  AU2NM - bohr's radius, atomic units to nanometers !!!!!
+!!!!!  AU2A - bohr's radius, atomic units to angstrom    !!!!!
+!!!!!  AU2PM - bohr's radius, atomic units to picometers !!!!!
+!!!!!  NM2AU - bohr's radius, nanometers to atomic units !!!!!
+!!!!!  PM2AU - bohr's radius, picometers to atomic units !!!!!
+!!!!!                                                    !!!!!
+!!!!!  <  Logical variables  >  default_value=.false.    !!!!!
+!!!!!                                                    !!!!!
+!!!!!  bert_is_evil                                      !!!!!
+!!!!!  mpirun_p                                          !!!!!
+!!!!!  master_p                                          !!!!!
+!!!!!  io_node_p                                         !!!!!
+!!!!!  direct_p                                          !!!!!
+!!!!!  iomode_p                                          !!!!!
+!!!!!  bubbles_p                                         !!!!!
+!!!!!  nuclear_p                                         !!!!!
+!!!!!  errpot_p                                          !!!!!
+!!!!!  selfint_p                                         !!!!!
+!!!!!  spectrum_p                                        !!!!!
+!!!!!                                                    !!!!!
+!!!!!  <  Variables  >                                   !!!!!
+!!!!!                                                    !!!!!
+!!!!!  io_comm - integer                                 !!!!!
+!!!!!  input - type(getkw_t), saved value                !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!  Available Functions Subroutines/Interfaces        !!!!!
+!!!!!  ------------------------------------------        !!!!!
+!!!!!                                                    !!!!!
+!!!!!  xchar - moves integer or real to a (max) 20       !!!!!
+!!!!!  length string                                     !!!!!
+!!!!!  xtrim(str) - removes a characters ending empty    !!!!!
+!!!!!  spaces                                            !!!!!
+!!!!!  getnlines(fd) - calculates how many lines a 'fd'  !!!!!
+!!!!!  (file descriptor) has                             !!!!!
+!!!!!  basename(fname,bname) - takes in the string fname !!!!!
+!!!!!  and reproduces it up to the first '.' in bname,   !!!!!
+!!!!!  finds a strings basename                          !!!!!
+!!!!!  filext(fname) - produces the external part of the !!!!!
+!!!!!  of the string fname (3 characters long)           !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!----------------------------------------------------!!!!!
+!!!!!  5. xmatrix.F90 - defines matrix operations        !!!!! xmatrix_m
+!!!!!                                                    !!!!!
+!!!!!  Based on modules: kinds, blas95 or blas           !!!!!
+!!!!!                                                    !!!!!
+!!!!!  Available Functions Subroutines/Interfaces        !!!!!
+!!!!!  ------------------------------------------        !!!!!
+!!!!!                                                    !!!!!
+!!!!!  xmatmul - multiplies a matrix with another, a     !!!!!
+!!!!!            matrix with a vector.                   !!!!!
+!!!!!  dot3_product - a dot product for a 3d matrix.     !!!!!
+!!!!!                                                    !!!!!
+!!!!!----------------------------------------------------!!!!!
+!!!!!  6. Lip.F90 - Lagrange Interpolated Polynominals   !!!!! lip_class 
+!!!!!     class. Defines them, their coefficients and    !!!!!
+!!!!!     some operations on them.                       !!!!!
+!!!!!                                                    !!!!!
+!!!!!  Based on modules: globals_m, xmatrix_m            !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!  Introduced types                                  !!!!!
+!!!!!  ----------------                                  !!!!!
+!!!!!                                                    !!!!!
+!!!!!  lip_t                                             !!!!!
+!!!!!   w - Real, dimension(n,m), pointer, integrals     !!!!!
+!!!!!   dw - Real, dimension(n,m), pointer, integral of  !!!!!
+!!!!!   derivatives                                      !!!!!
+!!!!!   coeffs - Real, dimension(n,m), pointer           !!!!!
+!!!!!   polynominal coefficients                         !!!!!
+!!!!!   dercoeffs - Real, dimension(n,m,k), pointer      !!!!!
+!!!!!   coefficients of derivatives                      !!!!!
+!!!!!   primcoeffs - Real, dimension(n,m), pointer       !!!!!
+!!!!!   in_ints - Real, dimension(n,m), pointer          !!!!!
+!!!!!   inward integral                                  !!!!!
+!!!!!   out_ints - Real, dimension(n,m), pointer         !!!!!
+!!!!!   outward Integral                                 !!!!!
+!!!!!   nlip - Int, Order of LIP.                        !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!  Global variables                                  !!!!!
+!!!!!  ----------------                                  !!!!!
+!!!!!                                                    !!!!!
+!!!!!  maxorder=2 - integer parameter                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!  Available Functions Subroutines/Interfaces        !!!!!
+!!!!!  ------------------------------------------        !!!!!
+!!!!!                                                    !!!!!
+!!!!!  new_lip - initializes a type(lip_t) objects       !!!!!
+!!!!!  (referred to as self) values.                     !!!!!
+!!!!!  Starts by initializes the Lagrange polynominals   !!!!!
+!!!!!  coefficients, the matrix self%coeffs (self%nlip,  !!!!!
+!!!!!  self%nlip). self%coeffs(i,j) is the i:th          !!!!!
+!!!!!  coefficient of the j:th polynominal. The basis    !!!!!
+!!!!!  polynominals may have zeros from (1-self%nlip)/2  !!!!!
+!!!!!  to self%nlip/2.                                   !!!!!
+!!!!!  Example: For self%nlip=3 self%coeffs becomes the  !!!!!
+!!!!!  the coefficients of the three Lagrange            !!!!!
+!!!!!  polynominals with zeros -1, 0 and 1:              !!!!!
+!!!!!  0.0  -0.5   0.5                                   !!!!!
+!!!!!  1.0   0.0  -1.0                                   !!!!!
+!!!!!  0.0   0.5   0.5                                   !!!!!
+!!!!!  For self%nlip self%coeffs becomes the             !!!!!
+!!!!!  coefficients of the three Lagrange polynominals   !!!!!
+!!!!!  with zeros -1, 0, 1 and 2, and so on.             !!!!!
+!!!!!                                                    !!!!!
+!!!!!  It then continues on by initializing the          !!!!!
+!!!!!  self%dercoeffs matrix. For example                !!!!!
+!!!!!  self%dercoeffs(i,j,k) is the i:th coefficient of  !!!!!
+!!!!!  the k:th derivative of the j:th polynominal. The  !!!!!
+!!!!!  variable maxorder tells us the maximum derivative !!!!!
+!!!!!  concerned.                                        !!!!!
+!!!!!                                                    !!!!!
+!!!!!  Finally the self%primcoeffs are initialized.      !!!!!
+!!!!!  self%primcoeffs is a (self%nlip+1,selfnlip)       !!!!!
+!!!!!  matrix. This is the coefficients of the           !!!!!
+!!!!!  integrated lagrange polynominals.                 !!!!!
+!!!!!                                                    !!!!!
+!!!!!----------------------------------------------------!!!!!
+!!!!!  7. timer.F90 - Takes the time for a certain       !!!!! timer_m 
+!!!!!     process.                                       !!!!! 
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!  Based on modules: pprinter, kinds_m               !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!  Available Functions Subroutines/Interfaces        !!!!!
+!!!!!  ------------------------------------------        !!!!!
+!!!!!                                                    !!!!!
+!!!!!  stockas_klocka() - a fine tuned version of        !!!!!
+!!!!!  etime.                                            !!!!!
+!!!!!  swatch(foo) - a fine tuned version of dtime. Is   !!!!!
+!!!!!  executed only if argument foo>0.                  !!!!!
+!!!!!  progress_bar(cur,tot_in) - prints out the         !!!!!
+!!!!!  progress, where cur(Int) is the current operation !!!!!
+!!!!!  and tot_in is the total jobs need to be done.     !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!----------------------------------------------------!!!!!
+!!!!!  8. pbc.F90 - Deals with periodic boundraries.     !!!!! pbc_class
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!  Based on modules: globals_m                       !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!  Available Functions Subroutines/Interfaces        !!!!!
+!!!!!  ------------------------------------------        !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!  init_pbc(pbc_string) -                            !!!!!
+!!!!!                                                    !!!!!
+!!!!!  any_pbc(self) - checks whether any element in     !!!!!
+!!!!!  self%pbc_dim is true.                             !!!!!
+!!!!!  pbc_at_dim(crd,self) - grabs the logical value at !!!!!
+!!!!!  self%pbc_dim(crd).                                !!!!!
+!!!!!  belongs_to_pbc(i,crd,self) - checks whether       !!!!!
+!!!!!  lims(crd,1)<= i <=lims(crd,2) is true.            !!!!!
+!!!!!  num_pbc(self) - grabs the self%num_pbc variable,  !!!!!
+!!!!!  a variable which tells how many dimensions the    !!!!!
+!!!!!  system has.                                       !!!!!
+!!!!!                                                    !!!!!
+!!!!!  recursive update_tv(self,tv,a,finished) - This is !!!!!
+!!!!!  a subroutine, when used recursively, it produces  !!!!!
+!!!!!  a vectors for every point in a 3D grid space      !!!!!
+!!!!!  (N³). It does so by going through every point on  !!!!!
+!!!!!  a shell with the shape of a octahedron, beginning !!!!!
+!!!!!  at the origin. For all points on the a:th         !!!!!
+!!!!!  octahedron shell we have |x|+|y|+|z|=a.           !!!!!
+!!!!!  For example if a=3 the routine goes through the   !!!!!
+!!!!!  points on the eight octahedron:                   !!!!!
+!!!!!  (3,0,0)->(2,1,0)->(2,0,1)->(1,2,0)->(1,1,1)->     !!!!!
+!!!!!  (1,0,2)->(0,3,0)->(0,2,1)->(0,1,2)->(0,0,3).      !!!!!
+!!!!!                                                    !!!!!
+!!!!!  This is illustrated in the diagram below.         !!!!!
+!!!!!                                                    !!!!!
+!!!!!                /-\                                 !!!!!
+!!!!!                /  -\                               !!!!!
+!!!!!              10     -\                             !!!!!
+!!!!!              /        -\                           !!!!!
+!!!!!             6   9       -\        |z__y            !!!!!
+!!!!!             /      8      -\      /x               !!!!! 
+!!!!!            3   5       7---                        !!!!! 
+!!!!!            /       4---                            !!!!! 
+!!!!!           /    2---                                !!!!! 
+!!!!!           /1---                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!  It also swaps signs unless all coordinates are    !!!!!
+!!!!!  negative. E.g. the vector (1,1,1) goes through    !!!!!
+!!!!!  the points:                                       !!!!!
+!!!!!   (1,1,1)->(1,1,-1)->(1,-1,1)->(1,-1,-1)->         !!!!!
+!!!!!  (-1,1,1)->(-1,1,-1)->(-1,-1,1)->(-1,-1,-1)        !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!              7__ ___ 5                             !!!!!
+!!!!!            /      / |                              !!!!!
+!!!!!           /      /  |                              !!!!!
+!!!!!          3__ ___1   |                              !!!!!
+!!!!!         |    8  |   |6                             !!!!!
+!!!!!         |       |  /                               !!!!!
+!!!!!         |       | /                                !!!!!
+!!!!!         |4__ ___|2                                 !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!----------------------------------------------------!!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!  9. grid.F90 - Grid management.                    !!!!! grid_class 
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!  Based on modules: globals_m, pbc_class and        !!!!!
+!!!!!  lip_class.                                        !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!  Introduced types                                  !!!!!
+!!!!!  ----------------                                  !!!!!
+!!!!!                                                    !!!!!
+!!!!!  grid1d_t                                          !!!!!
+!!!!!   qmin - Real, Lower bound of range.               !!!!!
+!!!!!   qmax - Real, Upper bound of range.               !!!!!
+!!!!!   ndim - Int, Number of gridpoints?                !!!!!
+!!!!!   ncell - Int, Number of cells.                    !!!!!
+!!!!!   nlip - Int, Order of LIP.                        !!!!!
+!!!!!   grid(:) - Real, Coordinates?                     !!!!!
+!!!!!   cellh(:) - Real, Spacing of a cell.              !!!!!
+!!!!!   cellen(:) - Real, Length of a cell.              !!!!!
+!!!!!   celld(:) - Real, Starting point of a cell.       !!!!!
+!!!!!   slice_n - Int, Number of slices in this          !!!!!
+!!!!!   dimension.                                       !!!!!
+!!!!!   slice_rank - Int, Index of ther slice in the     !!!!!
+!!!!!   processor.                                       !!!!!
+!!!!!   slice_start - Int, Starting index of the slice.  !!!!!
+!!!!!   slice_tot - Int, Total dimensions without        !!!!!
+!!!!!   slicing.                                         !!!!!
+!!!!!   total_size - Total size without slicing.         !!!!!
+!!!!!                                                    !!!!!
+!!!!! grid_t                                             !!!!!
+!!!!!  x,y,z - Grid1d_t, Pointer at coord(1), coord(2)   !!!!!
+!!!!!  and coord(3). If ejemplo is a grid_t object, then !!!!!
+!!!!!  ejemplo%x=>ejemplo%coord(1).                      !!!!!
+!!!!!  coord(:) - Grid1d_t, Grid specification for each  !!!!!
+!!!!!  dimension. Usually coord(:)=coord(1:3).           !!!!!
+!!!!!  lip - Lip_t, pointer to the lip object associated !!!!!
+!!!!!  with this grid.                                   !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!  Available Functions Subroutines/Interfaces        !!!!!
+!!!!!  ------------------------------------------        !!!!!
+!!!!!                                                    !!!!!
+!!!!!  new_grid(self...) - initializes a new grid_t or   !!!!!
+!!!!!  or grid1d_t.                                      !!!!!
+!!!!!  init_explicit_grid(self,gdims,xrange,yrange,      !!!!!
+!!!!!  zrange,nlip) - Initializes a 3D grid objcect      !!!!!
+!!!!!  from the explicit parameters.                     !!!!!
+!!!!!  del_grid - deallocates a grid_t or a grid1d_t     !!!!!
+!!!!!  object.                                           !!!!!
+!!!!!  read_grid - allocates a grid_t object.            !!!!!
+!!!!!  write_grid - writes a self into unit lun.         !!!!!
+!!!!!  Can be 3D or 1D grid.                             !!!!!
+!!!!!                                                    !!!!!
+!!!!!  get_grid_XXX(self) - Gets the variable XXX from   !!!!!
+!!!!!  self. XXX can be ndim, nlip, ncell, r.            !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!----------------------------------------------------!!!!!
+!!!!!                                                    !!!!!
+!!!!! 10. boysf.F90 - Calculates the incomplete gamma    !!!!! boys_m
+!!!!!     function.                                      !!!!! 
+!!!!!                                                    !!!!!
+!!!!!  Based on modules: kinds_m, pprinter               !!!!!
+!!!!!                                                    !!!!!
+!!!!!  Available Functions Subroutines/Interfaces        !!!!!
+!!!!!  ------------------------------------------        !!!!!
+!!!!!                                                    !!!!!
+!!!!!  boysf -                                           !!!!!
+!!!!!  xboysf -                                          !!!!!
+!!!!!  setup_boysf -                                     !!!!!
+!!!!!  delete_boysf -                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!----------------------------------------------------!!!!!
+!!!!!                                                    !!!!!
+!!!!! 11. mpi.F90 - Overrides mpi subroutines to perform !!!!! mpi_m
+!!!!!     stuff easier and allows compatibility with     !!!!! 
+!!!!!     non-mpi installations.                         !!!!!
+!!!!!                                                    !!!!!
+!!!!!     MPI - Message Processing Interface, rather     !!!!!
+!!!!!     than a library, it is a standard on how a      !!!!!
+!!!!!     library should look like. A standard for       !!!!!
+!!!!!     parallel programming.                          !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!  Based on modules: globals_m, kinds_m              !!!!!
+!!!!!                                                    !!!!!
+!!!!!  Introduced types                                  !!!!!
+!!!!!  ----------------                                  !!!!!
+!!!!!                                                    !!!!!
+!!!!!  xmpi_scatter_t                                    !!!!!
+!!!!!   ndim - Int, Dimension of the vector to be        !!!!!
+!!!!!   scattered. May be 1,2, or 3.                     !!!!!
+!!!!!   chunks(:) - Int, sends how much data a processor !!!!!
+!!!!!   needs to work on.                                !!!!!
+!!!!!   ifrom(:) - Int, info on from what CPU to sent.   !!!!!
+!!!!!   ito(:) - Int, info on to what CPU to send.       !!!!!
+!!!!!   send_d[X] - Real(DP), Pointer to the ndim-       !!!!!
+!!!!!   dimensional array to be scattered. X specifies   !!!!!
+!!!!!   the dimension.                                   !!!!!
+!!!!!   recv_d[X] - Real(DP), Pointer to the ndim-       !!!!!
+!!!!!   dimensional array to be scattered. X specifies   !!!!!
+!!!!!   the dimension.                                   !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!  Available Functions Subroutines/Interfaces        !!!!!
+!!!!!  ------------------------------------------        !!!!!
+!!!!!                                                    !!!!!
+!!!!!  start_mpi - Determines the rank of the calling    !!!!!
+!!!!!  process in the communicator.                      !!!!!
+!!!!!  stop_mpi - Terminates the MPI execution           !!!!!
+!!!!!  environment.                                      !!!!!
+!!!!!  get_mpi_rank - Grabs the rank for a process.      !!!!!
+!!!!!  gen_mpi_fname(str, fname) - Assigns fname as str  !!!!!
+!!!!!  in a formatted manner or not.                     !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!----------------------------------------------------!!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!! 12. gauss.F90 - The module for integrating using   !!!!! gauss_class
+!!!!! gaussian quadrature.                               !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!  Based on modules: globals_m, mpi_m, pprinter      !!!!!
+!!!!!                                                    !!!!!
+!!!!!  Introduced types                                  !!!!!
+!!!!!  ----------------                                  !!!!!
+!!!!!                                                    !!!!!
+!!!!!  gauss_t                                           !!!!!
+!!!!!   ngauss - Int, the number of ordinary t points.   !!!!!
+!!!!!   logngauss - Int, the number of ordinary u        !!!!!
+!!!!!   points.                                          !!!!!
+!!!!!   totngauss - Int, totngauss = ngauss + logngauss. !!!!!
+!!!!!   logstart - Real, the point where the logarithmic !!!!!
+!!!!!   scale starts.                                    !!!!!
+!!!!!   last - Real, the grid's last point.              !!!!!
+!!!!!   tpoints - Real, dimension(ngauss)                !!!!!
+!!!!!   tweight - Real, dimension(ngauss) the weight for !!!!!
+!!!!!   the tpoints.                                     !!!!!
+!!!!!   tpp - Real, dimension(logngauss), the log points !!!!!
+!!!!!   (the u points).                                  !!!!!
+!!!!!   twp - Real, dimension(logngauss), the weight on  !!!!!
+!!!!!   the u points.                                    !!!!!
+!!!!!   scatt - Type(xmpi_scatter_t) - Scattering array. !!!!!
+!!!!!   scatw - Type(xmpi_scatter_t) - Scattering array. !!!!!
+!!!!!                                                    !!!!!
+!!!!!  The scatt and scarw lines aren't used in the      !!!!!
+!!!!!  gauss.mod. Perhaps later in main?                 !!!!!
+!!!!!                                                    !!!!!
+!!!!!  Available Functions Subroutines/Interfaces        !!!!!
+!!!!!  ------------------------------------------        !!!!!
+!!!!!                                                    !!!!!
+!!!!!  init_gauss - creates a gauss_t type of object     !!!!!
+!!!!!  from keyword input.                               !!!!!
+!!!!!  The Gauss integration package using 12 point      !!!!!
+!!!!!  formulae and a given number of intervals          !!!!! 
+!!!!!                                                    !!!!!
+!!!!!  The input is tmin and tmax, a semi-logaritmic     !!!!!
+!!!!!  grid is constructed.                              !!!!!
+!!!!!                                                    !!!!!
+!!!!!  del_gauss - deallocates object of type gauss_t.   !!!!!
+!!!!!  gauss_integeration - This is the final integral   !!!!!
+!!!!!  t-space. Arguments g(gauss_t), tvalues(:),        !!!!!
+!!!!!  t_integral.                                       !!!!!
+!!!!!  t_integral = sum(g%tweight*tvalues).              !!!!!
+!!!!!                                                    !!!!!
+!!!!!  get_gauss_npoints(self) - Grabs the               !!!!!
+!!!!!  self%totngauss value.                             !!!!!
+!!!!!  get_gauss_tpoints(self,r) - Makes r=>             !!!!!
+!!!!!  self%tpoints.                                     !!!!!
+!!!!!  get_gauss_weights(self,r) - Makes r=>             !!!!!
+!!!!!  self%tweight.                                     !!!!!
+!!!!!  init_gauss_spectrum - Creates also a gauss_t type !!!!!
+!!!!!  object from keyword input.                        !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!----------------------------------------------------!!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!! 13. gopenmol.F90 - ???                             !!!!! gopenmol_m
+!!!!!                                                    !!!!!
+!!!!!  Based on modules: globals_m                       !!!!!
+!!!!!                                                    !!!!!
+!!!!!  Available Functions Subroutines/Interfaces        !!!!!
+!!!!!  ------------------------------------------        !!!!!
+!!!!!                                                    !!!!!
+!!!!!  read_grid_gopendmol - SubArg: fname(char),        !!!!!
+!!!!!  funit(Int), gdims(Real, dim(3)),                  !!!!!
+!!!!!  dranges(Real, dim(2,3)).                          !!!!!
+!!!!!  read_cube_gopenmol - SubArg: fname(char)          !!!!!
+!!!!!  funit(Int), cube.                                 !!!!!
+!!!!!  write_gopenmol - SubArg: fname(char), funit(Int)  !!!!!
+!!!!!  gdims(Real, dim(3)), dranges(Real,dim(2,3)),      !!!!!
+!!!!!  cube(:,:,:) pointer.                              !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!----------------------------------------------------!!!!!
+!!!!!                                                    !!!!!
+!!!!! 14. cubeplot_m.F90 - Create Guassian type cube     !!!!! cubeplot_m
+!!!!!     files.                                         !!!!!
+!!!!!                                                    !!!!!
+!!!!!  Based on modules: globals_m, timer_m              !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!  Available Functions Subroutines/Interfaces        !!!!!
+!!!!!  ------------------------------------------        !!!!!
+!!!!!                                                    !!!!!
+!!!!!----------------------------------------------------!!!!!
+!!!!! 15. io.F90 - Central management of IO.             !!!!! io_m
+!!!!!                                                    !!!!!
+!!!!!  Based on modules: globals_m, gopenmol_m,          !!!!!
+!!!!!  cubeplot_m                                        !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!  Available Functions Subroutines/Interfaces        !!!!!
+!!!!!  ------------------------------------------        !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!----------------------------------------------------!!!!!
+!!!!!                                                    !!!!!
+!!!!! 16. function.F90 - Defines the function_t object   !!!!! function_class
+!!!!!     type, and methods related to it.               !!!!!
+!!!!!                                                    !!!!!
+!!!!!  Based on modules: globals_m, xmatrix_m, lip_class !!!!!
+!!!!!  grid_class, kernel_class, bubbles_class, io_m     !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!  Available Functions Subroutines/Interfaces        !!!!!
+!!!!!  ------------------------------------------        !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!
+!!!!!                                                    !!!!!

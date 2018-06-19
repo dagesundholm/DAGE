@@ -1,0 +1,34 @@
+
+Compilation on Taito GPU
+
+# Add to ~/.bash_profile
+# set up the correct modules
+module purge
+module load gcc/4.8.2
+module load intelmpi/4.1.3
+module load mkl/11.1.1
+module load python-env/2.7.6
+module load cuda/6.0
+
+# Compile with cmake28 (CMake 2.8)
+
+    mkdir build
+    cd build
+    cmake28 ..
+    
+    ccmake28 ..
+    # Configure build options
+    - build type: Release
+    - enable MPI
+    - enable CUDA
+
+    # Give linker flags to Intel MKL (Blas routines)
+    USER_DEFINED_LIBS=-lmkl_gf_lp64 -lmkl_core -lmkl_sequential -lpthread -lm
+
+    - configure, generate and exit
+
+    # Fix bug with CMake (it does not found the proper MPI modules automatically)
+    cmake28 -DMPI_CXX_INCLUDE_PATH=/appl/opt/intelmpi/gcc-4.8.2/intel64/include/gfortran/4.8.2/ ..
+
+    # Build with make
+    make

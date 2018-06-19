@@ -1,0 +1,58 @@
+module Settings_class
+    use ISO_FORTRAN_ENV
+    use globals_m
+    use LCAO_m
+    use Function3D_class
+    implicit none
+
+    public :: ProgramSettings
+
+!TYPES_START
+    type :: Function3DSettings
+    end type
+    
+    type :: QuadratureSettings
+    end type
+
+    type :: Coulomb3DSettings
+    end type
+    
+    type :: Helmholtz3DSettings
+    end type
+!TYPES_END 
+
+    type :: ProgramSettings
+        type(Function3DSettings) :: function3d_settings
+        type(QuadratureSettings) :: quadrature_settings
+        type(Helmholtz3DSettings):: helmholtz3d_settings
+        type(Coulomb3DSettings)  :: coulomb3d_settings
+
+        !> If Grid based fast multipole method will be used in the program, 
+        !! specifically this decides if the coulomb, helmholtz and laplacian
+        !! operators are suited for GBFMM or not 
+        logical,       public                 :: gbfmm         = .FALSE.
+        !> The input step size. In the actual program execution a step_size 
+        !! that is close to this but not equal to this is used. The actual
+        !! size depends on atom positions and bubble radius, as well as
+        !! the step_size here
+        real(REAL64),  public                 :: step_size     = 0.05d0
+        real(REAL64),  public                 :: cube_cutoff_radius = 7.0d0
+        real(REAL64),  public                 :: bubble_cutoff_radius = 30.0d0
+        integer     ,  public                 :: bubble_cell_count = 6000
+        integer     ,  public                 :: bubble_lmax   = 2
+        logical     ,  public                 :: timings       = .FALSE.
+        integer     ,  public                 :: number_of_virtual_orbitals = 0
+        integer     ,  public                 :: output_level  = 0
+        !> The maximum angular momentum quantum number l used in the 
+        !! calculation of GBFMM Coulomb potential
+        integer     ,  public                 :: lmax          = 20
+        !> The maximum angular momentum quantum number l used in the 
+        !! calculation of GBFMM Helmholtz potential
+        integer     ,  public                 :: helmholtz_lmax          = 12
+        integer     ,  public                 :: helmholtz_input_lmax    = 12
+        logical     ,  public                 :: dump          = .FALSE.
+        integer     ,  public                 :: result_fd     = OUTPUT_UNIT
+        character(100), public                :: input_file = ""
+    end type
+    
+end module

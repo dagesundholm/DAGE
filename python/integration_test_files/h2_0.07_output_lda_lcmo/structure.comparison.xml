@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<structure multiplicity="1"
+           name="H2_lcmo"
+           basis_set_name="cc-pVDZ"
+           number_of_virtual_orbitals="3" >
+    <atom atom_type="1" charge=" 1.0000" coordinates="   0.00000000,    0.00000000,    0.70000000" />
+    <atom atom_type="1" charge=" 1.0000" coordinates="   0.00000000,    0.00000000,   -0.70000000" />
+    <molecular_orbital orbital_spin="0" orbital_coefficients="-0.41080345E+00, -0.17351266E+00, -0.41080330E+00, -0.17351255E+00" />
+    <molecular_orbital orbital_spin="0" orbital_coefficients="-0.25367199E+00, -0.17961467E+01,  0.25367187E+00,  0.17961469E+01" />
+    <molecular_orbital orbital_spin="0" orbital_coefficients=" 0.71061464E+00, -0.72826955E+00,  0.71061436E+00, -0.72826852E+00" />
+    <molecular_orbital orbital_spin="0" orbital_coefficients="-0.12591658E+01,  0.17522231E+01,  0.12591660E+01, -0.17522233E+01" />
+ </structure>

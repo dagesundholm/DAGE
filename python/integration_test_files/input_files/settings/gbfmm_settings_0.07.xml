@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<settings name="gbfmm_settings_0.07">
+    <function3d_settings taylor_order="2" bubble_cutoff_radius="14.0" cube_nlip="7">
+        <bubble_cell_count>1500</bubble_cell_count>
+        <cube_grid_spacing>0.07</cube_grid_spacing>
+        <bubble_lmax>3</bubble_lmax>
+        <cube_cutoff_radius>7.00</cube_cutoff_radius>
+        <bubbles_center_offset>2.5, 2.5, -2.2</bubbles_center_offset>
+    </function3d_settings>
+    <coulomb3d_settings gbfmm="true" />
+    <helmholtz3d_settings gbfmm="true" />
+    <quadrature_settings nlin="40" nlog="32" tlin="2.0" tlog="500.0" />
+    <scfoptimizer_settings maximum_iterations="200" optimizer_type="power-method"
+                           total_energy_convergence_threshold="0.0000001" /> 
+</settings>

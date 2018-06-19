@@ -1,0 +1,28 @@
+verbosity=3
+debug=3
+density {
+     origin=test
+     #writetestdens=off
+     ncells=[20,20,20]
+     xrange= [ -6.0, 6.0 ]
+     yrange= [ -6.0, 6.0 ]
+     zrange= [ -6.0, 6.0 ]
+     #pbc=x-3:3
+    $gaussian
+#     expo ctr coord
+     1.0  2.0   0.0 0.0 0.0
+    $end
+}
+potential {
+    file=pot.cub
+#    new_grid=no
+#    ncells=[6,6,6]
+#    xrange= [ -6.0, 6.0 ]
+#    yrange= [ -6.0, 6.0 ]
+#    zrange= [ -6.0, 6.0 ]
+}
+#integral {
+#    nlin=25
+#    nlog=25
+#    tlog=2.0
+#}

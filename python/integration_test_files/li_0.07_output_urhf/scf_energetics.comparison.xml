@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<scf_energetics>
+    <nuclear_repulsion_energy>      0.0000000000000000</nuclear_repulsion_energy>
+    <scf_iteration_energetics iteration_number="1" total_energy="     -5.9915094237999993" eigen_values="     -1.7593744212999995" />
+    <scf_iteration_energetics iteration_number="2" total_energy="     -7.2908640810399987" eigen_values="     -2.3245881082899995" />
+    <scf_iteration_energetics iteration_number="3" total_energy="     -7.4276839639199981" eigen_values="     -2.4976940234199994" />
+    <scf_iteration_energetics iteration_number="4" total_energy="     -7.4320463865999997" eigen_values="     -2.4946025757999992" />
+    <scf_iteration_energetics iteration_number="5" total_energy="     -7.4326097253599990" eigen_values="     -2.4909241354600002" />
+    <scf_iteration_energetics iteration_number="6" total_energy="     -7.4327155629000004" eigen_values="     -2.4888119121500001" />
+    <scf_iteration_energetics iteration_number="7" total_energy="     -7.4327395830399992" eigen_values="     -2.4877173180899996" />
+    <scf_iteration_energetics iteration_number="8" total_energy="     -7.4327454595599995" eigen_values="     -2.4871672287600002" />
+    <scf_iteration_energetics iteration_number="9" total_energy="     -7.4327469368700001" eigen_values="     -2.4868943527700003" />
+    <scf_iteration_energetics iteration_number="10" total_energy="     -7.4327474000599985" eigen_values="     -2.4867601186099999" />
+    <scf_iteration_energetics iteration_number="11" total_energy="     -7.4327474916700016" eigen_values="     -2.4866945749700013" />
+    <scf_iteration_energetics iteration_number="12" total_energy="     -7.4327475404700012" eigen_values="     -2.4866629410200005" />
+    <scf_iteration_energetics iteration_number="13" total_energy="     -7.4327475162299992" eigen_values="     -2.4866477797799997" />
+    <scf_iteration_energetics iteration_number="14" total_energy="     -7.4327475471299982" eigen_values="     -2.4866407073799985" />
+ </scf_energetics>

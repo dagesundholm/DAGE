@@ -1,0 +1,47 @@
+INSTALLATION INSTRUCTIONS
+=========================
+
+Requirements
+------------
+
+    * GFortran >= 4.7
+    * LAPACK
+    * BLAS
+    * Python 2.7
+    * CMake >= 2.6 (build system)
+    * Doxygen >= 1.8.1 (optional, documentation)
+
+Any other Fortran 2003/2008 standard compliant Fortran compiler should
+in principle also work.
+
+Building and installation
+-------------------------
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Building
+    # NOTE: The build can only be done in the directory this file is in
+
+    $ mkdir build
+    $ cd build
+    $ cmake $PATH_TO_SOURCE
+    $ ccmake $PATH_TO_SOURCE # Finetune build options
+    $ make 
+    $ make doc # Optionally produce documentation with doxygen
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Installation (in build directory)
+
+    # Make sure that the value of `CMAKE_INSTALL_PREFIX` is appropriate to
+    # your system
+    $ make install # Install everything
+
+    # Installing only certain components and overriding the installation
+    # destination
+
+    # make list_install_components # Show available components
+    make && cmake -DCMAKE_INSTALL_PREFIX=<path of your choice> -DCOMPONENT=<name of component> -P cmake_install.cmake
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+# vim: set ft=markdown tw=72 sw=2 smartindent:

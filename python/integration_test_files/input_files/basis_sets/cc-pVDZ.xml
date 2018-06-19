@@ -1,0 +1,171 @@
+<basis_set name="cc-pVDZ" basis_set_type="gto" size="8">
+    <shell atom_type="1"  exponentials="1.3010700999999999e+01,  1.9622572000000000e+00,  4.4453796000000001e-01" >
+        <subshell l="0" coefficients="3.3485484812988658e-02,  2.3472187088124863e-01,  8.1377028525955353e-01" />
+    </shell>
+    <shell atom_type="1"  exponentials="1.2194961999999999e-01" >
+        <subshell l="0" coefficients="1.0000000000000000e+00" />
+    </shell>
+
+    <shell atom_type="2"  exponentials="38.3600000, 5.7700000, 1.2400000" >
+        <subshell l="0" coefficients="0.0238090,  0.1548910,  0.4699870" />
+    </shell>
+    <shell atom_type="2"  exponentials="0.2976000" >
+        <subshell l="0" coefficients="1.0000000000000000e+00" />
+    </shell>
+    <shell atom_type="2"  exponentials="1.2750000" >
+        <subshell l="1" coefficients="1.0000000000000000e+00" />
+    </shell>
+
+    <shell atom_type="3"  exponentials="1467.55426442, 219.90959664, 48.31061694, 12.88488293, 3.93833592, 1.34077556" >
+        <subshell l="0" coefficients="0.0007642,  0.0059761,  0.0323452,  0.1273631,  0.3253596, 0.4539207" />
+    </shell>
+    <shell atom_type="3"  exponentials="0.49506113" >
+        <subshell l="0" coefficients="1.0000000000000000e+00" />
+    </shell>
+    <shell atom_type="3"  exponentials="0.07748193" >
+        <subshell l="0" coefficients="1.0000000000000000e+00" />
+    </shell>
+    <shell atom_type="3"  exponentials="0.02917883" >
+        <subshell l="0" coefficients="1.0000000000000000e+00" />
+    </shell>
+    <shell atom_type="3"  exponentials="3.24722245, 0.64804185,  0.16900956, 0.05563182" >
+        <subshell l="1" coefficients="0.0122361,  0.0672413,  0.2964133, 0.7446554" />
+    </shell>
+    <shell atom_type="3"  exponentials="0.02046171" >
+        <subshell l="1" coefficients="1.0000000000000000e+00" />
+    </shell>
+    <shell atom_type="3" shell_number="3" exponentials="0.09489967" >
+        <subshell l="2" coefficients="9.9999999999999989e-01" />
+    </shell>
+
+    <shell atom_type="4"  exponentials="1467.55426442, 219.90959664, 48.31061694, 12.88488293, 3.93833592, 1.34077556" >
+        <subshell l="0" coefficients="0.0007642,  0.0059761,  0.0323452,  0.1273631,  0.3253596, 0.4539207" />
+    </shell>
+    <shell atom_type="4"  exponentials="0.49506113" >
+        <subshell l="0" coefficients="1.0000000000000000e+00" />
+    </shell>
+    <shell atom_type="4"  exponentials="0.07748193" >
+        <subshell l="0" coefficients="1.0000000000000000e+00" />
+    </shell>
+    <shell atom_type="4"  exponentials="0.02917883" >
+        <subshell l="0" coefficients="1.0000000000000000e+00" />
+    </shell>
+    <shell atom_type="4"  exponentials="3.24722245, 0.64804185,  0.16900956, 0.05563182" >
+        <subshell l="1" coefficients="0.0122361,  0.0672413,  0.2964133, 0.7446554" />
+    </shell>
+    <shell atom_type="4"  exponentials="0.02046171" >
+        <subshell l="1" coefficients="1.0000000000000000e+00" />
+    </shell>
+    <shell atom_type="4" shell_number="3" exponentials="0.09489967" >
+        <subshell l="2" coefficients="9.9999999999999989e-01" />
+    </shell>
+
+    <shell atom_type="6" exponentials="6665.0000000, 1000.0000000, 228.0000000, 64.7100000, 21.0600000, 7.4950000, 2.7970000, 0.5215000" >
+        <subshell l="0" coefficients="0.0006920,  0.0053290,  0.0270770,  0.1013800,  0.2747400, 0.4485640, 0.2850740, 0.0152040" />
+        <subshell l="0" coefficients="-0.0001460, -0.0011540,  -0.0057250,  -0.0233120,  -0.0639550, -0.1499810, -0.1272620, 0.5445290" />
+    </shell>
+    <shell atom_type="6" exponentials="0.1596000" >
+        <subshell l="0" coefficients="1.0000000000000000e+00" />
+    </shell>
+    <shell atom_type="6" exponentials="9.4390000, 2.0020000,  0.5456000" >
+        <subshell l="1" coefficients="0.0381090,  0.2094800,  0.5085570" />
+    </shell>
+    <shell atom_type="6" exponentials="0.1517000" >
+        <subshell l="1" coefficients="1.0" />
+    </shell>
+    <shell atom_type="6" exponentials="0.55" >
+        <subshell l="2" coefficients="1.0000000000000000e+00" />
+    </shell>
+
+    <shell atom_type="5"  exponentials="4570.00000002, 685.9000000, 156.5000000, 44.4700000, 14.4800000, 5.1310000, 1.8980000, 0.3329000" >
+        <subshell l="0" coefficients="0.0006960,  0.0053530,  0.0271340,  0.1013800,  0.2720550, 0.4484030, 0.2901230, 0.0143220" />
+    </shell>
+    <shell atom_type="5"  exponentials="0.1043000" >
+        <subshell l="0" coefficients="1.0000000000000000e+00" />
+    </shell>
+    <shell atom_type="5"  exponentials="0.0310500" >
+        <subshell l="0" coefficients="1.0000000000000000e+00" />
+    </shell>
+    <shell atom_type="5"  exponentials="6.0010000, 1.2410000,  0.3364000" >
+        <subshell l="1" coefficients="0.0354810,  0.1980720,  0.5052300" />
+    </shell>
+    <shell atom_type="5"  exponentials="0.0953800" >
+        <subshell l="1" coefficients="1.0000000000000000e+00" />
+    </shell>
+
+    <shell atom_type="7"  exponentials="2.2661767785000002e+03,  3.4087010191000002e+02,  7.7363135166999996e+01,  2.1479644940000000e+01,  6.6589433123999999e+00" >
+        <subshell l="0" coefficients="-5.3893503921742967e-03, -4.0234721388960157e-02, -1.8008184205525826e-01, -4.6828857657650913e-01, -4.4692617160187292e-01" />
+    </shell>
+    <shell atom_type="7"  exponentials="8.0975975668000000e-01" >
+        <subshell l="0" coefficients="1.0000000000000000e+00" />
+    </shell>
+    <shell atom_type="7"  exponentials="2.5530772233999999e-01" >
+        <subshell l="0" coefficients="1.0000000000000000e+00" />
+    </shell>
+    <shell atom_type="7"  exponentials="1.7721504317000001e+01, 3.8635505440000002e+00,  1.0480920883000000e+00" >
+        <subshell l="1" coefficients="6.2630248763161020e-02,  3.3331138482351769e-01,  7.4148638308122339e-01" />
+    </shell>
+    <shell atom_type="7"  exponentials="2.7641544411000002e-01" >
+        <subshell l="1" coefficients="1.0000000000000000e+00" />
+    </shell>
+    <shell atom_type="7"  exponentials="1.2000000000000000e+00" >
+        <subshell l="2" coefficients="9.9999999999999989e-01" />
+    </shell>
+        
+    <shell atom_type="8"  exponentials="2.2661767785000002e+03,  3.4087010191000002e+02,  7.7363135166999996e+01,  2.1479644940000000e+01,  6.6589433123999999e+00" >
+        <subshell l="0" coefficients="-5.3893503921742967e-03, -4.0234721388960157e-02, -1.8008184205525826e-01, -4.6828857657650913e-01, -4.4692617160187292e-01" />
+    </shell>
+    <shell atom_type="8"  exponentials="8.0975975668000000e-01" >
+        <subshell l="0" coefficients="1.0000000000000000e+00" />
+    </shell>
+    <shell atom_type="8"  exponentials="2.5530772233999999e-01" >
+        <subshell l="0" coefficients="1.0000000000000000e+00" />
+    </shell>
+    <shell atom_type="8" exponentials="1.7721504317000001e+01, 3.8635505440000002e+00,  1.0480920883000000e+00" >
+        <subshell l="1" coefficients="6.2630248763161020e-02,  3.3331138482351769e-01,  7.4148638308122339e-01" />
+    </shell>
+    <shell atom_type="8"  exponentials="2.7641544411000002e-01" >
+        <subshell l="1" coefficients="1.0000000000000000e+00" />
+    </shell>
+    <shell atom_type="8"  exponentials="1.2000000000000000e+00" >
+        <subshell l="2" coefficients="9.9999999999999989e-01" />
+    </shell>
+
+    <shell atom_type="10"  exponentials="2.2661767785000002e+03,  3.4087010191000002e+02,  7.7363135166999996e+01,  2.1479644940000000e+01,  6.6589433123999999e+00" >
+        <subshell l="0" coefficients="-5.3893503921742967e-03, -4.0234721388960157e-02, -1.8008184205525826e-01, -4.6828857657650913e-01, -4.4692617160187292e-01" />
+    </shell>
+    <shell atom_type="10"  exponentials="8.0975975668000000e-01" >
+        <subshell l="0" coefficients="1.0000000000000000e+00" />
+    </shell>
+    <shell atom_type="10"  exponentials="2.5530772233999999e-01" >
+        <subshell l="0" coefficients="1.0000000000000000e+00" />
+    </shell>
+    <shell atom_type="10" exponentials="1.7721504317000001e+01, 3.8635505440000002e+00,  1.0480920883000000e+00" >
+        <subshell l="1" coefficients="6.2630248763161020e-02,  3.3331138482351769e-01,  7.4148638308122339e-01" />
+    </shell>
+    <shell atom_type="10"  exponentials="2.7641544411000002e-01" >
+        <subshell l="1" coefficients="1.0000000000000000e+00" />
+    </shell>
+    <shell atom_type="10"  exponentials="1.2000000000000000e+00" >
+        <subshell l="2" coefficients="9.9999999999999989e-01" />
+    </shell>
+
+    <shell atom_type="11"  exponentials="2.2661767785000002e+03,  3.4087010191000002e+02,  7.7363135166999996e+01,  2.1479644940000000e+01,  6.6589433123999999e+00" >
+        <subshell l="0" coefficients="-5.3893503921742967e-03, -4.0234721388960157e-02, -1.8008184205525826e-01, -4.6828857657650913e-01, -4.4692617160187292e-01" />
+    </shell>
+    <shell atom_type="11"  exponentials="8.0975975668000000e-01" >
+        <subshell l="0" coefficients="1.0000000000000000e+00" />
+    </shell>
+    <shell atom_type="11"  exponentials="2.5530772233999999e-01" >
+        <subshell l="0" coefficients="1.0000000000000000e+00" />
+    </shell>
+    <shell atom_type="11" exponentials="1.7721504317000001e+01, 3.8635505440000002e+00,  1.0480920883000000e+00" >
+        <subshell l="1" coefficients="6.2630248763161020e-02,  3.3331138482351769e-01,  7.4148638308122339e-01" />
+    </shell>
+    <shell atom_type="11"  exponentials="2.7641544411000002e-01" >
+        <subshell l="1" coefficients="1.0000000000000000e+00" />
+    </shell>
+    <shell atom_type="11"  exponentials="1.2000000000000000e+00" >
+        <subshell l="2" coefficients="9.9999999999999989e-01" />
+    </shell>
+</basis_set>

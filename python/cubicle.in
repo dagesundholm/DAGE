@@ -1,0 +1,99 @@
+#!/usr/bin/env @PYTHON@
+# -*- coding: latin-1 -*-
+#
+# Written by Jonas Juselius <jonas.juselius@chem.uit.no> 
+# University of Tromsø, 2006
+#
+# vim:syntax=python
+
+import sys,os
+sys.path.append("@libexecpath@")
+os.environ['PATH']=".:@binexecpath@:"+os.environ['PATH']
+
+import re
+import optparse
+import getkw
+
+def main():
+	usage="usage: %prog [options] density diffdens"
+	cmdln=optparse.OptionParser(usage=usage)
+	cmdln.add_option('-d','--debug', action='store', dest='debug',
+			default='0', help='debug level')
+	cmdln.add_option('-o','--output', action='store', dest='outfile',
+			help='name for output file(s)')
+	cmdln.add_option('-p','--plot', action='store', dest='plotfile',
+			help='name for output file(s)')
+	cmdln.add_option('-D','--dim', action='store', dest='outdim',
+			help='use test grid of dimension NxNxN')
+	cmdln.add_option('-a','--ascii', action='store_true', dest='ascii',
+			help='write output in ascii format')
+#    cmdln.add_option('-l','--lip', action='store', dest='lip',
+#            help='lip order (default 7)')
+#    cmdln.add_option('-v','--verbose', action='store_true', dest='verbose',
+#            help='be verbose')
+#    cmdln.add_option('-q','--quiet', action='store_false', dest='verbose',
+#            help='be quiet')
+	(opts, args)=cmdln.parse_args()
+
+	
+	fil1=None
+	fil2=None
+	if (len(args) == 1):
+		fil1=args[0]
+		diffmode=False
+		mode='plot'
+	elif (len(args) == 2):
+		diffmode=True
+		fil1=args[0]
+		fil2=args[1]
+		mode='diff'
+	else:
+		cmdln.error('incorrect number of files')
+		sys.exit(0)
+	
+	start=getkw.Section('start')
+	start.set_status(True)
+	start.add_kw('debug', 'INT', 1)
+	start.add_kw('outfile', 'STR', 1)
+	start.add_kw('in1', 'STR', 1)
+	start.add_kw('in2', 'STR', 1)
+	start.add_kw('plot', 'STR', 1)
+	start.add_kw('calc', 'STR', None)
+	start.add_kw('outdim', 'INT', 3)
+	start.add_kw('diff', 'BOOL', (diffmode,))
+	start.add_kw('ascii', 'BOOL', (False,))
+	start.add_kw('mode', 'STR', (mode,))
+	
+#    input=getkw.GetkwParser()
+#    inkw=input.parseFile(inpfil)
+#    inkw.equalize(start)
+
+	start.setkw('in1', fil1)
+	if fil2:
+		start.setkw('in2', fil2)
+
+	if opts.debug:
+		start.setkw('debug', opts.debug)
+	if opts.outfile:
+		start.setkw('outfile', opts.outfile)
+	if opts.plotfile:
+		start.setkw('plot', opts.plotfile)
+	if opts.ascii:
+		start.setkw('ascii', opts.ascii)
+	if opts.outdim:
+		start.setkw('outdim', (opts.outdim, opts.outdim, opts.outdim))
+#    if opts.mode:
+#        inkw.setkw('mode', opts.mode)
+	
+	start.validate()
+
+	infile='CUBICLE.' + str(os.getpid())
+	fd=open(infile,'w')
+	print >>fd, start
+	fd.close()
+	os.system('cubicle.x < ' + infile)
+	os.unlink(infile)
+
+if __name__ == '__main__':
+	main()
+				

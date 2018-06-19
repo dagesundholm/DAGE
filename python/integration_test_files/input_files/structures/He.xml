@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<structure name="He" number_of_virtual_orbitals="4" basis_set_name="cc-pVDZ" multiplicity="singlet">
+    <atom atom_type="2" charge="2" coordinates="0.0, 0.0, 0.0"/>
+    <molecular_orbital orbital_coefficients="1.0,  0.0, 0.0, 0.0, 0.0"/>
+    <molecular_orbital orbital_coefficients="0.0,  1.0, 0.0, 0.0, 0.0"/>
+    <molecular_orbital orbital_coefficients="0.0,  0.0, 1.0, 0.0, 0.0"/>
+    <molecular_orbital orbital_coefficients="0.0,  0.0, 0.0, 1.0, 0.0"/>
+    <molecular_orbital orbital_coefficients="0.0,  0.0, 0.0, 0.0, 1.0"/>
+</structure>

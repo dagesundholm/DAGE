@@ -1,0 +1,29 @@
+nuclear_pot=on
+bubbles=on
+lip_points=7
+
+density {
+     origin=bubbles_test
+     writetestdens=off
+     ncells=[4,4,4]
+     xrange= [ -9.6,  9.6 ]
+     yrange= [ -9.6,  9.6 ]
+     zrange= [ -9.6,  9.6 ]
+    $slater
+      1        1.0      -0.8660254037844387  -0.5   0.1
+      0        0        1.0 1.0
+      1        1.0       0.8660254037844387   0.5   0.1
+      0        0        1.0 1.0
+    $end
+}
+
+potential {
+     analytical=on
+}
+
+integral {
+	nlin=10
+	nlog=8
+    tlog=2.0
+    tend=500.0
+}

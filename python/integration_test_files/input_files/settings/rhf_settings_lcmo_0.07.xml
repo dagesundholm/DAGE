@@ -1,0 +1,4 @@
+<?xml version="1.0"?>
+<settings name="rhf_settings_lcmo_0.07" extends_path="settings_0.07.xml">
+    <scf_settings method="hartree-fock" update_weight="1.0" type="lcmo" />
+</settings>

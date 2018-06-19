@@ -1,0 +1,4 @@
+<?xml version="1.0"?>
+<settings name="ci_settings_lcmo_0.07" extends_path="rhf_settings_lcmo_0.07.xml">
+    <ci_settings evaluate_ci="true" singles="true" doubles="true" />
+</settings>
