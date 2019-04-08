@@ -375,7 +375,7 @@ module Function3D_class
     interface assignment(=)
         module procedure :: function3d_assign_real64
         module procedure :: Function3D_assign_Function3D
-        module procedure :: Function3D_assign_poly
+!        module procedure :: Function3D_assign_poly
     end interface
 
     interface operator(*)
@@ -2086,18 +2086,19 @@ contains
         function1%cube = function2%cube
     end subroutine
     
-    subroutine Function3D_assign_poly(function1, function2)
-        class(Function3D), intent(inout), allocatable :: function1
-        class(Function3D), intent(in)                :: function2
-        if(allocated(function1)) then
-            call function1%destroy()
-            deallocate(function1)
-        end if
-        allocate(function1, source = function2)
-        nullify(function1%cube)
-        call function1%init_cube()
-        function1%cube = function2%cube
-    end subroutine
+! the following function seems redundant
+!    subroutine Function3D_assign_poly(function1, function2)
+!        class(Function3D), intent(inout), allocatable :: function1
+!        class(Function3D), intent(in)                :: function2
+!        if(allocated(function1)) then
+!            call function1%destroy()
+!            deallocate(function1)
+!        end if
+!        allocate(function1, source = function2)
+!        nullify(function1%cube)
+!        call function1%init_cube()
+!        function1%cube = function2%cube
+!    end subroutine
     
     subroutine Operator3D_assign(operator1, operator2)
         class(Operator3D), intent(inout), allocatable :: operator1
