@@ -1780,7 +1780,9 @@ contains
             end do
             deallocate(self%input_parallel_infos)
         end if 
+#ifdef HAVE_CUDA
         call check_cuda_errors_from_fortran(1)
+#endif
         if(allocated(self%output_parallel_infos)) then
             do i = 1, size(self%output_parallel_infos)
                 call self%output_parallel_infos(i)%destroy()
@@ -1804,7 +1806,9 @@ contains
             end do
             deallocate(self%output_grids)
         end if 
+#ifdef HAVE_CUDA
         call check_cuda_errors_from_fortran(1)
+#endif
         
         if(allocated(self%interaction_matrices)) then
             do i = 1, size(self%interaction_matrices)
@@ -1822,9 +1826,13 @@ contains
         nullify(self%gridin)
         nullify(self%gridout)
         if (allocated(self%w))  deallocate(self%w)
+#ifdef HAVE_CUDA
         call check_cuda_errors_from_fortran(1)
+#endif
         call self%nuclear_potential%destroy()
+#ifdef HAVE_CUDA
         call check_cuda_errors_from_fortran(1)
+#endif
     end subroutine
     
     
