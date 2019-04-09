@@ -88,11 +88,11 @@ if (ENABLE_DFT)
     find_library(LIBXC xc)
     find_library(LIBXCF90 xcf90)
     if(LIBXC AND LIBXCF90)
-        set(LIBS "${LIBS} -lxc -lxcf90")   
-        message("libs ${LIBS}")
-        set(F2PY_LIBS "${F2PY_LIBS} -lxc -lxcf90") 
+        set(LIBS ${LIBS} -lxc -lxcf90)   
+        # message("libs ${LIBS}")
+        set(F2PY_LIBS ${F2PY_LIBS} -lxc -lxcf90)
         set(F2PY_INCLUDE_DIRS ${F2PY_INCLUDE_DIRS} ${LIBXC} ${LIBXCF90})
-        message("f2py inc dir ${F2PY_INCLUDE_DIRS}")
+        # message("f2py inc dir ${F2PY_INCLUDE_DIRS}")
         add_definitions(-DHAVE_DFT)
     else()
         message("LibXC was not found")
@@ -179,11 +179,8 @@ endif ()
 # Where to look for Fortran module files
 include_directories(
     ${PROJECT_BINARY_DIR}/modules
-)
-
-# Where to look for Fortran module files
-include_directories(
     ${CMAKE_INSTALL_PREFIX}/include
+    /usr/include
 )
 
 # Where to dump libraries...
