@@ -139,7 +139,9 @@ contains
         if (.not. initialized) then
             call streamcontainer_init(stream_container, STREAMS_PER_DEVICE);
             call streamcontainer_enable_peer_to_peer(stream_container)
+#ifdef HAVE_CUDA_PROFILING
             call start_cuda_profiling()
+#endif
         end if
 #endif
         success = .TRUE.
