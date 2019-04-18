@@ -50,25 +50,28 @@ module globals_m
 
     integer, parameter :: SL_COORD=X_ ! Coordinate to slice: X for the moment
 
+    ! math constants
     real(REAL64), parameter :: PI=3.141592653589793D0
     real(REAL64), parameter :: FOURPI=1.2566370614359173D1
     !real(REAL64), parameter :: PI=atan(1.d0)*4.d0
     real(REAL64), parameter :: PI_FAC=6.349363593424098D-002 ! (0.5/PI)**0.75
     real(REAL64), parameter :: TWOOVERSQRTPI=1.1283791670955125739D0
 !    real(REAL64), parameter :: PI_INV=3.183098861837907D-001 ! 1/PI
-    real(REAL64), parameter :: C_AU=137.035999 !137.0359895
-    real(REAL64), parameter :: ALPHA=1.d0/C_AU !0.007297351
-    real(REAL64), parameter :: ALPHA2=ALPHA**2
     real(REAL64), parameter :: ZETA=0.5d0
     real(REAL64), parameter :: LN2=LOG(2.0)
 
-    real(REAL64), parameter :: AU2M = 0.52917726e-10
-    real(REAL64), parameter :: AU2NM = 0.52917726e-1
-    real(REAL64), parameter :: AU2A = 0.52917726
-    real(REAL64), parameter :: AU2PM = 52.917726
-    real(REAL64), parameter :: A2AU = 1.889725949
-    real(REAL64), parameter :: NM2AU = 1.889725949e+1
-    real(REAL64), parameter :: PM2AU = 1.889725949e+3
+    ! physics constants
+    real(REAL64), parameter :: C_AU = 137.035999139d0
+    real(REAL64), parameter :: ALPHA = 1.d0/C_AU ! 0.0072973525664
+    real(REAL64), parameter :: ALPHA2 = ALPHA**2
+    ! according to NIST, 2014
+    real(REAL64), parameter :: AU2M  = 0.52917721067d-10
+    real(REAL64), parameter :: AU2NM = 0.52917721067d-1
+    real(REAL64), parameter :: AU2A  = 0.52917721067d0
+    real(REAL64), parameter :: AU2PM = 52.917726067d0
+    real(REAL64), parameter :: A2AU  = 1.88972612546d0
+    real(REAL64), parameter :: NM2AU = 1.88972612546d+1
+    real(REAL64), parameter :: PM2AU = 1.88572612546d-2
 
     ! default filenames
     character(*), parameter :: DEFAULT_INPUT='genpot.inp'

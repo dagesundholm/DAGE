@@ -41,7 +41,7 @@
 !! is necessary to resort to relatively low-order LIPs that only work in
 !! a subinterval of the total grid, thus forming a basis in a *cell*.
 !!
-!! An one-dimensional grid can be constructed explicitly by specifying the
+!! A one-dimensional grid can be constructed explicitly by specifying the
 !! minimum value of the grid \math q_{min}\math, the number of cells, the order of
 !! the LIPs, \math(N_{lip}-1)\math, and the step size in each cell. Each
 !! cell has then \math N_{lip}\math points distributed so that the last point
@@ -422,7 +422,7 @@ contains
 
 ! %%%%%%%%%%%%%%%%%%%%%%%% Grid1D constructors %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-    !> Constructs an 1D grid from explicit parameters.
+    !> Constructs a 1D grid from explicit parameters.
     !!
     !!
     function Grid1D_init_step(qmin, ncell, nlip, step) result(new)
@@ -595,7 +595,7 @@ contains
     !! @param stepz     Steps in each cell along the z axis.
     !! @param pbc       Passed if the system has PBC's.
     function Grid3D_init_step(qmin, ncell, nlip,&
-                            stepx, stepy, stepz, pbc_string) result(new)
+                              stepx, stepy, stepz, pbc_string) result(new)
         real(REAL64), intent(in)                :: qmin(3)
         integer, intent(in)                     :: ncell(3)
         integer, intent(in)                     :: nlip

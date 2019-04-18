@@ -24,6 +24,7 @@
 ! Auxiliary module for reading xyz files
 module read_xyz_file_m
     use ISO_FORTRAN_ENV
+    use globals_m
     implicit none
     public :: read_xyz_file
     private
@@ -35,7 +36,6 @@ contains
         real(REAL64) :: xyz(3)
         character(len=2) :: element
         integer :: natom, iatom
-        real(REAL64), parameter :: ANG2BOHR = 1.88972612d0
 
         open(unit=44, file=fname, action='read')
         read(unit=44, fmt=*) natom
@@ -50,7 +50,7 @@ contains
         enddo
 
         ! The coordinates in xyz files are in angstroms by definition
-        pos(1:, :) = ANG2BOHR*pos(1:, :)
+        pos(1:, :) = A2AU*pos(1:, :)
 
         close(44)
     end subroutine

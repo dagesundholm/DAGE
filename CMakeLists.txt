@@ -19,7 +19,7 @@
 #    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, #
 #    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE #
 #    SOFTWARE.                                                                     #
-#----------------------------------------------------------------------------------# 
+#----------------------------------------------------------------------------------#
 # Master CMakeLists.txt file for libbubbles
 
 set(F2PY_LIBS   "")
@@ -88,7 +88,7 @@ if (ENABLE_DFT)
     find_library(LIBXC xc)
     find_library(LIBXCF90 xcf90)
     if(LIBXC AND LIBXCF90)
-        set(LIBS "${LIBS} -lxc -lxcf90")   
+        set(LIBS "${LIBS} -lxc -lxcf90")
         # message("libs ${LIBS}")
         set(F2PY_LIBS "${F2PY_LIBS} -lxc -lxcf90")
         set(F2PY_INCLUDE_DIRS ${F2PY_INCLUDE_DIRS} ${LIBXC} ${LIBXCF90})
@@ -107,7 +107,7 @@ if(ENABLE_MPI)
         set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${MPI_COMPILE_FLAGS}")
         set(CMAKE_CXX_COMPILER ${MPI_CXX_COMPILER})
         set(CMAKE_Fortran_COMPILER ${MPI_Fortran_COMPILER})
-    
+
         message("-- CMake fortran flags \"${MPI_COMPILE_FLAGS}\"")
         message("-- MPI CXX compiler \"${MPI_CXX_COMPILER}\"")
         message("-- MPI Fortran compiler \"${MPI_Fortran_COMPILER}\"")
@@ -123,7 +123,7 @@ if(ENABLE_OMP)
     set(F2PY_LIBS "${F2PY_LIBS} -lgomp")
     #set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${OpenMP_COMPILE_FLAGS}")
     #include_directories(${OpenMP_INCLUDE_PATH})
-    
+
 endif()
 
 if (ENABLE_CUDA)
@@ -153,11 +153,11 @@ if (ENABLE_CUDA)
                         "-gencode arch=compute_${ARCH},code=sm_${ARCH}"
                         )
         endforeach()
-        
-        set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} 
+
+        set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS}
                         "-I${CMAKE_INSTALL_PREFIX}/include/"
                         )
-        
+
         message("cuda nvcc flags ${CUDA_NVCC_FLAGS}")
         message(WARNING "
         >> Remember to set CUDA_HOST_COMPILER to the correct version
@@ -171,7 +171,7 @@ endif ()
 add_definitions(-DBUBBLES_REVISION_NUMBER=\"${BUBBLES_REVISION_NUMBER}\")
 
 if (DEBUG_MEMORY_LEAKS)
-    add_definitions(-DDEBUG_MEMORY_LEAKS) 
+    add_definitions(-DDEBUG_MEMORY_LEAKS)
 endif ()
 
 
