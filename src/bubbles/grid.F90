@@ -196,8 +196,8 @@ module Grid_class
         procedure :: get_cell_starts => Grid1D_get_celld
         procedure :: get_cell_center => Grid1D_get_cell_center
         procedure :: get_cell_deltas => Grid1D_get_cellen
-        
-        ! Get part of the grid and initialize a new grid from 
+
+        ! Get part of the grid and initialize a new grid from
         procedure :: get_subgrid => Grid1D_get_subgrid
 
         ! Workers
@@ -208,36 +208,36 @@ module Grid_class
                          Grid1D_coordinate_to_grid_point_coordinate
         procedure, private :: Grid1D_x2cell, Grid1D_x2cell_icell
         generic   :: x2cell    => Grid1D_x2cell, Grid1D_x2cell_icell
-        
+
         ! Similarity / Equality checks
         procedure :: is_similar => Grid1D_is_similar
-        
+
         procedure :: is_point_within_range => Grid1D_is_point_within_range
 
         ! MPI Accessors
         procedure :: get_slice_start
         procedure :: get_slice_rank
         procedure :: get_slice_tot
-        
+
         ! xwh, \int r^2\chi(r) dr
         procedure :: r2int => Grid1D_r2int
-        
+
         ! xwh, \int chi(r) dr, nlip for each cell
         procedure :: ints  => Grid1D_ints
 
         ! xwh, \chi'(x) for all lips in the cell
         ! x is arbitrary
-        procedure :: lip_dev => Grid1D_lip_dev 
+        procedure :: lip_dev => Grid1D_lip_dev
 
         ! xwh, \chi'(x) for all lips in the cell
         ! x: all the grids in a cell
-        procedure :: lip_dev_m => Grid1D_lip_dev_m 
-        
+        procedure :: lip_dev_m => Grid1D_lip_dev_m
+
         ! xwh, dr/ds = h_i^{-1}, i = grid index
         ! for adjoint points, average the steps
-        ! 
-        procedure :: dr_ds => Grid1D_dr_ds 
-        
+        !
+        procedure :: dr_ds => Grid1D_dr_ds
+
 
 #ifdef HAVE_CUDA
         procedure :: cuda_init => Grid1D_cuda_init
@@ -249,7 +249,7 @@ module Grid_class
         ! Destructor
         procedure :: destroy => Grid1D_destroy
     end type
-  
+
 #ifdef HAVE_CUDA
 
     interface
@@ -269,7 +269,7 @@ module Grid_class
             type(C_PTR),    value :: streamContainer
         end function
     end interface
-    
+
     interface
         subroutine Grid1D_upload_cuda(grid) bind(C)
             use ISO_C_BINDING
@@ -283,7 +283,7 @@ module Grid_class
             type(C_PTR), value    :: grid
         end subroutine
     end interface
-    
+
 #endif
 
     type :: Grid1DPointer
@@ -333,39 +333,39 @@ module Grid_class
         ! xwh, the index of the first grid in the cell
         procedure :: cartesian_coordinates_to_cube_coordinates => &
                          Grid3D_cartesian_coordinates_to_cube_coordinates
-        
-        ! Get part of the grid and initialize a new grid from 
+
+        ! Get part of the grid and initialize a new grid from
         procedure :: get_subgrid => Grid3D_get_subgrid
-        
+
         ! Cell specific
         procedure :: get_icell => Grid3D_get_icell
         procedure :: get_ncell => Grid3D_get_ncell
         procedure :: coordinates_to_grid_point_coordinates => &
                          Grid3D_coordinates_to_grid_point_coordinates
         procedure :: get_cell_center => Grid3D_get_cell_center
-        
-        ! \int chi_i(x) chi_j(y) chi_k(z) d\vec{r} 
+
+        ! \int chi_i(x) chi_j(y) chi_k(z) d\vec{r}
         procedure :: ints => Grid3D_ints
-        
-        
+
+
         ! Similarity / Equality checks
         procedure :: is_equal => Grid3D_is_equal
         procedure :: is_similar => Grid3D_is_similar
-            
-            
+
+
         procedure :: is_point_within_range => Grid3D_is_point_within_range
         procedure :: get_all_grid_points => Grid3D_get_all_grid_points
-        
+
         ! CUDA procedures
 #ifdef HAVE_CUDA
-        procedure :: cuda_init    => Grid3D_cuda_init 
+        procedure :: cuda_init    => Grid3D_cuda_init
         procedure :: cuda_destroy => Grid3D_cuda_destroy
 #endif
 
         ! Destructor
         procedure :: destroy => Grid3D_grid_destroy
     end type
-    
+
 !------------ Grid3D CUDA Interfaces ----------------- !
 
 #ifdef HAVE_CUDA
@@ -376,7 +376,7 @@ module Grid_class
             type(C_PTR), value    :: streamContainer
         end function
     end interface
-    
+
     interface
         type(C_PTR) function Grid3D_cuda_init_ibox(shape, grid_points_x, grid_points_y,&
                                                 grid_points_z, ibox, evaluator) bind(C)
@@ -396,7 +396,7 @@ module Grid_class
             type(C_PTR), value    :: grid
         end subroutine
     end interface
-    
+
 #endif
 
     !> Constructor interface for 3D grids.
@@ -438,7 +438,7 @@ contains
         new%nlip  = nlip
         new%ncell = ncell
         new%ndim  = new%ncell*(new%nlip-1) + 1
-        
+
         allocate(new%cellh (new%ncell), source=0.0_REAL64)
         allocate(new%cellen(new%ncell), source=0.0_REAL64)
         allocate(new%celld (new%ncell), source=0.0_REAL64)
@@ -447,9 +447,9 @@ contains
         new%qmin = qmin
         new%cellh = step
         ! This should not be generalized
-        new%lip=LIPBasisInit(new%nlip)
+        new%lip=LIPBasisInit(new%nlip)        ! FIXME this is where the implied grid is called
         new%lower_lip=LIPBasisInit(new%nlip-1)
-        
+
         ! Grid points
         ipoint=1
         new%grid(1)=new%qmin
@@ -505,7 +505,7 @@ contains
         s = (ranges(2)-ranges(1)) / (ncell*(nlip-1))
         cellh = s
         if (present(step)) step = s
-            
+
         ! call the init_step constructor
         new = Grid1D(ranges(1), ncell, nlip, cellh)
         new%equidistant = .TRUE.
@@ -607,7 +607,7 @@ contains
         type(Grid3D)                            :: new
 
         new%nlip = nlip
-        new%lip=LIPBasisInit(new%nlip)
+        new%lip=LIPBasisInit(new%nlip)        ! FIXME this is where the implied grid is called
         new%lower_lip=LIPBasisInit(new%nlip-1)
         allocate(new%axis(3))
         new%axis(1) = Grid1D(qmin(1), ncell(1), nlip, stepx)
@@ -617,7 +617,7 @@ contains
         new%axis(3) = Grid1D(qmin(3), ncell(3), nlip, stepz)
         new%axis(3)%equidistant = .TRUE.
         new%gbfmm_maxlevel = 2
-        
+
         if (present(pbc_string)) then
             new%pbc=PBC(pbc_string)
         else
@@ -654,7 +654,7 @@ contains
         real(REAL64), allocatable                   :: cellh(:)
 
         new%nlip = nlip
-        new%lip=LIPBasisInit(new%nlip)
+        new%lip=LIPBasisInit(new%nlip)        ! FIXME this is where the implied grid is called
         new%lower_lip=LIPBasisInit(new%nlip-1)
         allocate(new%axis(3))
         do i=1, 3
@@ -663,7 +663,7 @@ contains
             ! Adjust step size so that the range is exactly reproduced
             s(i) = (ranges(2,i)-ranges(1,i)) / (ncell*(nlip-1))
             cellh = s(i)
-            
+
             new%axis(i) = Grid1D(ranges(1,i), ncell, nlip, cellh)
             deallocate(cellh)
         enddo
@@ -694,7 +694,7 @@ contains
         real(REAL64), allocatable                   :: cellh(:)
 
         new%nlip = nlip
-        new%lip=LIPBasisInit(new%nlip)
+        new%lip=LIPBasisInit(new%nlip)        ! FIXME this is where the implied grid is called
         new%lower_lip=LIPBasisInit(new%nlip-1)
         allocate(new%axis(3))
 
@@ -746,7 +746,7 @@ contains
         else
             new%nlip = NLIP_DEFAULT
         end if
-        new%lip=LIPBasisInit(new%nlip)
+        new%lip=LIPBasisInit(new%nlip)        ! FIXME this is where the implied grid is called
         new%lower_lip=LIPBasisInit(new%nlip-1)
         allocate(new%axis(3))
         do i=1, 3
@@ -765,8 +765,8 @@ contains
         endif
         new%id=next_grid_id()
     end function
-    
-        
+
+
 
     function Grid3D_init_spheres(centers, radii, step, nlip, gbfmm) result(new)
         real(REAL64),      intent(in) :: centers(:,:)
@@ -776,7 +776,7 @@ contains
         integer,           intent(in) :: nlip
         logical, optional, intent(in) :: gbfmm
         type(Grid3D)                  :: new
-        
+
         ! grid limits as coordinates with input sphere centers and radii
         real(REAL64)                  :: grid_limits(3, 2), step_sizes(3)
         real(REAL64), allocatable     :: stepsize_x(:), stepsize_y(:), stepsize_z(:)
@@ -786,7 +786,7 @@ contains
 
         integer                       :: idim
 
-        
+
         ! determine the optimal step size (close to input 'step') that has
         ! box size between 1-300 grid points and is divisible with the
         ! corresponding level
@@ -797,12 +797,12 @@ contains
             end do
             grid_limits(:, 1) = minval(grid_limits(:, 1))
             grid_limits(:, 2) = maxval(grid_limits(:, 2))
-            
+
             ! calculate number of steps for each dimension
             step_count(:) = floor((grid_limits(:, 2) - grid_limits(:, 1)) / step)
             ! get the maxlevel, where all the box sizes are below 300
             maxlevel = 2
-            do 
+            do
                 if ( all( [ ( step_count(idim) / (2**maxlevel) < 300, idim = 1, 3) ] ) ) then
                     exit
                 else
@@ -815,7 +815,7 @@ contains
             do idim = X_, Z_
                 cell_count(idim) = ceiling((grid_limits(idim, 2) - grid_limits(idim, 1)) / &
                                       (((nlip-1) * step_sizes(idim))))
-                
+ 
                 ! check how many cells away we are from fulfilling the  condition mentioned above
                 cell_modulus = mod(cell_count(idim), 2**maxlevel)
                 ! adjust the stepsize so that the condition is exactly fulfilled
@@ -824,13 +824,13 @@ contains
                 else
                     cell_count(idim) = (cell_count(idim) + 2**maxlevel - cell_modulus)
                 end if
-                
+ 
                 step_sizes(idim) = (grid_limits(idim, 2) - grid_limits(idim, 1)) / (cell_count(idim) * (nlip-1))
                 ! calculate the new cell counts per box
                 cell_count(idim) = nint((grid_limits(idim, 2) - grid_limits(idim, 1)) &
-                                         / ((nlip-1)*step_sizes(idim))) 
+                                         / ((nlip-1)*step_sizes(idim)))
             end do
-            
+
              ! allocate the axis stepsizes and give them values
             allocate(stepsize_x(cell_count(X_)))
             allocate(stepsize_y(cell_count(Y_)))
@@ -838,49 +838,49 @@ contains
             stepsize_x = step_sizes(X_)
             stepsize_y = step_sizes(Y_)
             stepsize_z = step_sizes(Z_)
-           
+
 
             ! init grid via Grid3D_init_step constructor
             new = Grid3D(grid_limits(:, 1), cell_count, nlip, stepsize_x, stepsize_y, stepsize_z)
             new%gbfmm_maxlevel = maxlevel
-            
+
             ! deallocate memory
             deallocate(stepsize_x)
             deallocate(stepsize_y)
             deallocate(stepsize_z)
-            
-        else 
+
+        else
             new%nlip = nlip
-            new%lip=LIPBasisInit(new%nlip)
+            new%lip=LIPBasisInit(new%nlip)        ! FIXME this is where the implied grid is called
             new%lower_lip=LIPBasisInit(new%nlip-1)
             new%id=next_grid_id()
             new%pbc=PBC("")
-            
+
             allocate(new%axis(3))
             new%axis(X_) = Grid1D(centers(X_,:), radii, step, nlip)
             new%axis(Y_) = Grid1D(centers(Y_,:), radii, step, nlip)
             new%axis(Z_) = Grid1D(centers(Z_,:), radii, step, nlip)
         end if
     end function
-    
+
 #ifdef HAVE_CUDA
-    
+
     subroutine Grid3D_cuda_init(self)
         class(Grid3D), intent(inout)            :: self
         type(C_PTR)                             :: cuda_axis(3)
-        
+
         if (.not. self%is_cuda_inited()) then
             cuda_axis(X_) = self%axis(X_)%get_cuda_interface()
             cuda_axis(Y_) = self%axis(Y_)%get_cuda_interface()
             cuda_axis(Z_) = self%axis(Z_)%get_cuda_interface()
-         
+
             self%cuda_interface = Grid3D_init_cuda(cuda_axis, stream_container)
         end if
     end subroutine
-    
-    subroutine Grid3D_cuda_destroy(self) 
+
+    subroutine Grid3D_cuda_destroy(self)
         class(Grid3D), intent(inout) :: self
-        
+
         if (allocated(self%cuda_interface)) then
             call Grid3D_destroy_cuda(self%cuda_interface)
             deallocate(self%cuda_interface)
@@ -891,7 +891,7 @@ contains
         class(Grid1D), intent(inout) :: self
         type(REAL64_2D), allocatable :: coeffs(:), coeffs_lower(:)
         integer                      :: i
-        
+
         if (.not. allocated(self%cuda_interface)) then
             coeffs=self%lip%coeffs(1)
             coeffs_lower = self%lower_lip%coeffs(1)
@@ -900,7 +900,7 @@ contains
                                   self%get_cell_starts(), self%get_coord(), transpose(coeffs(1)%p), &
                                   transpose(coeffs(2)%p), transpose(coeffs_lower(2)%p), &
                                   self%lip%integrals(), stream_container)
-            ! the upload was added to the c++ init method                      
+            ! the upload was added to the c++ init method       
             !call self%cuda_upload()
             do i = 1, size(coeffs)
                 deallocate(coeffs(i)%p)
@@ -908,7 +908,7 @@ contains
             deallocate(coeffs)
         end if
     end subroutine
-    
+
     subroutine Grid1D_cuda_destroy(self)
         class(Grid1D), intent(inout) :: self
         if (allocated(self%cuda_interface)) then
@@ -916,7 +916,7 @@ contains
             deallocate(self%cuda_interface)
         end if
     end subroutine
-    
+
     subroutine Grid1D_cuda_upload(self, cuda_interface)
         class(Grid1D),               intent(in) :: self
         type(C_PTR),       optional, intent(in) :: cuda_interface
@@ -926,13 +926,13 @@ contains
             call Grid1D_upload_cuda(self%cuda_interface)
         end if
     end subroutine
-    
+
     subroutine Grid1D_cuda_download(self)
         class(Grid1D), intent(inout) :: self
-        
+
         ! do nothing, as there is no such method... (Is this useful anywhere, anytime, remains to be seen)
     end subroutine
-#endif    
+#endif
     ! Destructors
 
     pure subroutine Grid1D_destroy(self)
@@ -971,8 +971,8 @@ contains
     end subroutine
 
     ! Readers and writers
-    
-    
+
+
 
     !> Inits a new Grid3D object by reading a binary file at folder/filename
     function Grid3D_init_read(folder, filename) result(new)
@@ -985,15 +985,15 @@ contains
         integer                         :: ncell(3)
         real(REAL64)                    :: qmin(3)
         real(REAL64), allocatable       :: stepx(:), stepy(:), stepz(:)
-        
+
         file_exists_ = file_exists(folder, filename)
         if (file_exists_) then
             call pdebug("Loading grid from `"//trim(folder)//"/"//trim(filename), 1)
-            
+
             open(unit=READ_FD, file=trim(folder)//"/"//trim(filename), access='stream')
 
             read(READ_FD) nlip
-            
+
             read(READ_FD) ncell(1)
             read(READ_FD) nlip_3d(1)
             read(READ_FD) qmin(1)
@@ -1024,18 +1024,18 @@ contains
         end if
         return
     end function
-    
+
     !> Saves Grid3D in binary format to disk
     subroutine Grid3D_dump(self, folder, gridname)
         class(Grid3D),    intent(in)            :: self
-        !> Folder for the binary file          
+        !> Folder for the binary file
         character(len=*), intent(in)            :: folder
         !> Basename for the binary file
         character(len=*), intent(in)            :: gridname
         integer                                 :: i
-        
+
         open(unit=WRITE_FD, file=trim(folder)//'/'//trim(gridname)//'.g3d', access='stream')
-        
+
         write(WRITE_FD) self%nlip
         do i = 1, 3
             write(WRITE_FD) self%axis(i)%ncell
@@ -1100,7 +1100,7 @@ contains
 
         cellh => self%cellh
     end function
-    
+
     pure function Grid1D_get_cell_step(self, icell) result(cell_step)
         class(Grid1D), intent(in) :: self
         integer,       intent(in) :: icell
@@ -1149,25 +1149,25 @@ contains
             enddo
         endif
     end function
-    
+
     pure function Grid1D_get_icell_spherical(self, x) result(icell)
         class(Grid1D),intent(in) :: self
         real(REAL64), intent(in) :: x
         integer                  :: icell
         real(REAL64)             :: const, dx
-        
+
         const=8.d0*self%charge**(-1.5d0)
         dx=self%r_max/self%ncell
         ! end
         icell = int(x * (self%r_max + const) / ((const + x)*dx)) +1
     end function
-    
+
     pure function Grid1D_get_icell_equidistant(self, x) result(icell)
         class(Grid1D),intent(in) :: self
         real(REAL64), intent(in) :: x
         integer                  :: icell
-        icell = x * self%ncell / (self%qmax-self%qmin) 
-        
+        icell = x * self%ncell / (self%qmax-self%qmin)
+
     end function
 
     !> Return the indices of the cells to which `pos` belongs.
@@ -1180,16 +1180,16 @@ contains
         icell(Y_) = Grid1D_get_icell(self%axis(Y_),pos(Y_))
         icell(Z_) = Grid1D_get_icell(self%axis(Z_),pos(Z_))
         return
-    end function 
-    
+    end function
+
     !> Return the center of cell at 'ix', 'iy', 'iz'
-    pure function Grid3D_get_cell_center(self, ix, iy, iz) result(center)   
+    pure function Grid3D_get_cell_center(self, ix, iy, iz) result(center)
         class(Grid3D), intent(in)  :: self
         integer,       intent(in)  :: ix
         integer,       intent(in)  :: iy
         integer,       intent(in)  :: iz
         real(REAL64)               :: center(3)
-        
+
         center(X_) = self%axis(X_)%get_cell_center(ix)
         center(Y_) = self%axis(Y_)%get_cell_center(iy)
         center(Z_) = self%axis(Z_)%get_cell_center(iz)
@@ -1230,14 +1230,14 @@ contains
 
         delta=self%delta
     end function
-    
+
     pure function Grid1D_get_cell_center(self, icell) result(center)
         class(Grid1D), intent(in)  :: self
         integer,    intent(in) :: icell
         real(REAL64)           :: center
         real(REAL64)           :: cell_starts(self%ncell), cell_deltas(self%ncell)
-        
-        
+
+
         center = self%celld(icell) + self%cellen(icell) * 0.5
     end function
 
@@ -1261,25 +1261,25 @@ contains
         real(REAL64)    :: qmax(3)
         qmax = [( self%axis(i)%get_qmax(), i=1,3)]
     end function
-    
+
     function Grid3D_get_all_grid_points(self) result(grid_points)
         class(Grid3D), intent(in)  :: self
         real(REAL64)                         :: grid_points(3, self%axis(X_)%get_shape()* &
                                                                self%axis(Y_)%get_shape()* &
                                                                self%axis(Z_)%get_shape())
-        
+
         real(REAL64), dimension(:), pointer  :: xgrid, ygrid, zgrid
         integer                              :: iz, nz, iy, ny, nx
-        
+
         ! get points on x, y and z axis
         xgrid=>self%axis(X_)%get_coord()
         ygrid=>self%axis(Y_)%get_coord()
         zgrid=>self%axis(Z_)%get_coord()
-        
+
         nx = self%axis(X_)%get_shape()
         ny = self%axis(Y_)%get_shape()
         nz = self%axis(Z_)%get_shape()
-            
+
         do iz=1,nz
             grid_points(Z_, (iz - 1) * (nx * ny) + 1: iz * (nx * ny)) = zgrid(iz)
             forall (iy = 1: ny)
@@ -1288,7 +1288,7 @@ contains
                 grid_points(X_, (iz - 1) * (nx * ny) + (iy - 1) * nx + 1 : &
                         (iz - 1) * (nx * ny) +  iy * nx) = xgrid(:)
             end forall
-            
+
         end do
     end function
 
@@ -1301,7 +1301,7 @@ contains
         class(Grid1D), intent(in)    :: self
         integer, intent(in), optional:: limits(2)
         real(REAL64), allocatable    :: integrals(:)
-        
+
 
         integer                      :: icell, start_index, end_index, ncell
         real(REAL64)                 :: base_integrals(self%nlip)
@@ -1312,10 +1312,10 @@ contains
             end_index = limits(2) + 1
         else
             start_index = 0
-            end_index = self%ncell 
-        end if 
+            end_index = self%ncell
+        end if
         ncell = end_index-start_index
-        
+
         allocate(integrals(ncell*(self%nlip-1) + 1))
         integrals=0.d0
         forall (icell=1 : ncell)
@@ -1332,32 +1332,32 @@ contains
         real(REAL64),  pointer                  :: r(:)
         if (present(cell_limits)) then
             r => self%grid((cell_limits(1)-1)*(self%nlip-1) + 1 : (cell_limits(2))*(self%nlip-1) + 1)
-        else 
+        else
             r => self%grid
         end if
     end function
-    
+
     pure function Grid1D_get_coordinates(self, cell_limits) result(r)
         class(Grid1D), intent(in), target       :: self
         integer,       intent(in), optional     :: cell_limits(2)
         real(REAL64),  allocatable              :: r(:)
         if (present(cell_limits)) then
             r = self%grid((cell_limits(1)-1)*(self%nlip-1) + 1 : (cell_limits(2))*(self%nlip-1) + 1)
-        else 
+        else
             r = self%grid
         end if
     end function
-    
+
     function Grid3D_get_subgrid(self, cell_ranges) result(new)
         class(Grid3D), intent(in) :: self
         integer,       intent(in) :: cell_ranges(2, 3)
         integer                   :: axis_range(2)
         type(Grid3D)              :: new
         integer                   :: iaxis
-        
+
         ! the parameters that do not change upon slicing
         new%nlip = self%nlip
-        new%lip = LIPBasisInit(new%nlip)
+        new%lip=LIPBasisInit(new%nlip)        ! FIXME this is where the implied grid is called
         new%lower_lip=LIPBasisInit(new%nlip-1)
         new%pbc = self%pbc
         allocate(new%axis(3))
@@ -1367,16 +1367,16 @@ contains
         enddo
         new%id=next_grid_id()
     end function
-    
+
     function Grid1D_get_subgrid(self, cell_ranges) result(new)
         class(Grid1D), intent(in) :: self
         integer      , intent(in) :: cell_ranges(2)
         type(Grid1D)              :: new
         integer                   :: iaxis, grid_start, grid_end
-        
+
         ! the parameters that do not change upon slicing
         new%nlip = self%nlip
-        new%lip = LIPBasisInit(new%nlip)
+        new%lip=LIPBasisInit(new%nlip)        ! FIXME this is where the implied grid is called
         new%lower_lip=LIPBasisInit(new%nlip-1)
         ! parameters that have to be recalculated
         new%qmin  = self%celld(cell_ranges(1))
@@ -1384,16 +1384,16 @@ contains
         new%delta = new%qmax - new%qmin
         new%ncell = cell_ranges(2) - cell_ranges(1) + 1
         new%ndim  = new%ncell * (new%nlip - 1) + 1
-        
-        
+
+
         ! parameters that can be sliced
         new%celld = self%celld(cell_ranges(1):cell_ranges(2))
         new%cellh = self%cellh(cell_ranges(1):cell_ranges(2))
         new%cellen = self%cellen(cell_ranges(1):cell_ranges(2))
         grid_start = ((new%nlip -1) * (cell_ranges(1) - 1)) + 1
         grid_end   = grid_start + new%ndim - 1
-        new%grid = self%grid( grid_start : grid_end )                           
-        
+        new%grid = self%grid( grid_start : grid_end )            
+
     end function
 
     function Grid3D_get_pbc(self) result(pbc_ptr)
@@ -1466,13 +1466,13 @@ contains
         logical         :: ok
         ok = self%equidistant
     end function
-    
+
     ! Check if grid 'self' is a subgrid of 'grid'
     function Grid1D_is_subgrid_of(self, grid) result(is_subgrid)
         class(Grid1D),intent(in)    :: self
         type(Grid1D), intent(in)    :: grid
         logical                     :: is_subgrid
-        
+
         real(REAL64), parameter     :: TOLERANCE = 1e-7
         integer                     :: start_cell, end_cell
         start_cell = grid%get_icell(self%qmin)
@@ -1499,7 +1499,7 @@ contains
         okz = self%axis(Z_)%is_equidistant()
         ok = all([okx, oky, okz])
     end function
-    
+
     ! Grid state
     function Grid3D_is_subgrid_of(self, grid) result(is_subgrid)
         class(Grid3D),intent(in)    :: self
@@ -1511,8 +1511,8 @@ contains
 
 
     ! Module procedures
-    
-    
+
+
     !> Check if `self` and `grid2` have similar grid, i.e., at the same position.
     !! and with the same shape
     pure function Grid1D_is_similar(self, grid2) result(is_similar)
@@ -1520,76 +1520,76 @@ contains
         class(Grid1D), intent(in) :: grid2
         logical                   :: is_similar
         logical                   :: have_same_shape
-        logical                   :: have_same_range 
+        logical                   :: have_same_range
         real(REAL64), parameter   :: tolerance = 1E-10
         integer                   :: shape1, shape2
         real(REAl64)              :: range_difference(2)
-        
+
         range_difference(1) = self%get_qmin() - grid2%get_qmin()
         range_difference(2) = self%get_qmax() - grid2%get_qmax()
-        
+
         shape1 = self%get_shape()
         shape2 = grid2%get_shape()
-        
-        have_same_shape   =  shape1 == shape2         
+
+        have_same_shape   =  shape1 == shape2
         have_same_range   =  all([range_difference(1) < tolerance, range_difference(2) < tolerance])
         is_similar        =  all([have_same_shape, have_same_range])
-        
+
     end function
-    
+
 
     !> Check if `self` and `grid2` have the same id.
     pure function Grid3D_is_equal(self, grid2) result(is_equal)
-        class(Grid3D), intent(in) :: self 
+        class(Grid3D), intent(in) :: self
         class(Grid3D), intent(in) :: grid2
         logical                   :: is_equal
         is_equal = (self%id==grid2%id)
     end function
-    
+
     !> Check if `self` and `grid2` have similar grid, i.e., at the same position.
     !! and with the same shape
     pure function Grid3D_is_similar(self, grid2) result(is_similar)
         class(Grid3D), intent(in) :: self
         type(Grid3D), intent(in)  :: grid2
         logical                   :: is_similar
-        
+
         is_similar        =  all([self%axis(X_)%is_similar(grid2%axis(X_)), &
                                   self%axis(Y_)%is_similar(grid2%axis(Y_)), &
-                                  self%axis(Z_)%is_similar(grid2%axis(Z_))])   
-        
+                                  self%axis(Z_)%is_similar(grid2%axis(Z_))])
+
     end function
-    
-    !> Check if `point` is withing the range of `self` 
+
+    !> Check if `point` is withing the range of `self`
     pure function Grid1D_is_point_within_range(self, point) result(res)
         class(Grid1D), intent(in) :: self
         real(REAL64),  intent(in) :: point
         logical                   :: res
-        
+
         res = point >= self%get_qmin() .and. point <= self%get_qmax()
-        
+
     end function
-    
-    !> Check if `point` is withing the range of `self` 
+
+    !> Check if `point` is withing the range of `self`
     pure function Grid3D_is_point_within_range(self, point) result(res)
         class(Grid3D), intent(in) :: self
         real(REAL64),  intent(in) :: point(3)
         logical                   :: res
-        
+
         res =       self%axis(X_)%is_point_within_range(point(X_)) &
               .and. self%axis(Y_)%is_point_within_range(point(Y_)) &
-              .and. self%axis(Z_)%is_point_within_range(point(Z_)) 
-        
+              .and. self%axis(Z_)%is_point_within_range(point(Z_))
+
     end function
-    
+
     ! xwh
-    ! in a cubic cell, return the index 
-    ! of all the x, y, z axial grids of point (i,j,k) 
+    ! in a cubic cell, return the index
+    ! of all the x, y, z axial grids of point (i,j,k)
     ! thus i \in [1,nlip]
     ! all the cubic grids are arranged in 1-D
     function axis_index(nlip, i, j, k)
         integer(int32) :: nlip, i, j, k
         integer(int32), dimension(nlip*3) :: axis_index
-        
+
         integer(int32) :: l
         do l=1, nlip
             axis_index(l) = (k-1)*nlip**2+(j-1)*nlip+l
@@ -1597,7 +1597,7 @@ contains
             axis_index(2*nlip+l) = (l-1)*nlip**2+(j-1)*nlip+i
         end do
     end function axis_index
-    
+
 
     subroutine set_grid_slice(self,crd,nslices,rank)
         type(Grid3D) :: self
@@ -1618,7 +1618,7 @@ contains
         !> If the user passes the cell, it will be assumed that it is valid.
         integer                   :: icell
         real(REAL64)              :: res
-        
+
         icell=self%get_icell(x)
         ! If out of range, return 0.d0. This check is not performed if the
         ! user passed icell!
@@ -1628,7 +1628,7 @@ contains
         end if
         res=(x-self%celld(icell))/self%cellh(icell)+self%lip%get_first()
     end function
-    
+
     elemental pure function Grid1D_coordinate_to_grid_point_coordinate(self, coordinate) &
                                                      result(res)
         class(Grid1D), intent(in) :: self
@@ -1638,18 +1638,18 @@ contains
               + self%lip%get_first() &
               + self%x2cell(coordinate)
     end function
-    
+
     pure function Grid3D_coordinates_to_grid_point_coordinates(self, coordinates) &
                                                      result(res)
         class(Grid3D), intent(in) :: self
         real(REAL64),  intent(in) :: coordinates(3)
         real(REAL64)              :: res(3)
-        
+
         res(X_) = self%axis(X_)%coordinate_to_grid_point_coordinate(coordinates(X_))
         res(Y_) = self%axis(Y_)%coordinate_to_grid_point_coordinate(coordinates(Y_))
         res(Z_) = self%axis(Z_)%coordinate_to_grid_point_coordinate(coordinates(Z_))
     end function
-    
+
     elemental pure function Grid1D_x2cell_icell(self, x, icell) result(res)
         class(Grid1D), intent(in) :: self
         real(REAL64),  intent(in) :: x
@@ -1658,21 +1658,21 @@ contains
         real(REAL64)              :: res
 
         res=(x-self%celld(icell))/self%cellh(icell)+self%lip%get_first()
-    end function 
-    
+    end function
+
     !> Transform cartesian coordinates to cell coordinates
     function Grid3D_cartesian_coordinates_to_cell_coordinates(self, coordinates) result(res)
         class(Grid3D) :: self
         real(REAL64), intent(in) :: coordinates(3)
         real(REAL64) :: res(3)
- 
+
         integer :: ic
 
         res(X_) = self%axis(X_)%get_icell(coordinates(X_))
         res(Y_) = self%axis(Y_)%get_icell(coordinates(Y_))
         res(Z_) = self%axis(Z_)%get_icell(coordinates(Z_))
     end function
-    
+
     function Grid3D_cartesian_coordinates_to_cube_coordinates(self, coordinates) result(res)
         class(Grid3D) :: self
         real(REAL64), intent(in) :: coordinates(3)
@@ -1683,7 +1683,7 @@ contains
         res = self%cartesian_coordinates_to_cell_coordinates(coordinates)
         res = (res - [1, 1, 1]) * (self%get_nlip() - 1) + 1
     end function
-    
+
     ! r: (N*M), N: number of cells, M, number of nlips in a cell
     function grid1d_r2int(self)  result(r)
         class(grid1d), intent(in) :: self
@@ -1696,10 +1696,10 @@ contains
         real(real64), allocatable, dimension(:,:) :: coeff1
         real(real64), allocatable, dimension(:,:) :: coeff, coeff2, coeff3, coeff4
         ! (h*t+xm)^2, coeff with t
-        real(real64), dimension(3) :: r2 
+        real(real64), dimension(3) :: r2
         ! (nlip+2, nlip+1, ..., 1), for integration convenience
         real(real64), dimension(:), allocatable :: sequ
-        
+
         allocate(r(self%get_ncell(),self%get_nlip()))
         allocate(sequ(self%get_nlip()+2))
         do n = 1, self%get_nlip()+2
@@ -1713,12 +1713,12 @@ contains
 
         do n = 1, self%get_ncell()
             h = self%cellh(n)
-            xm = self%get_cell_center(n) 
+            xm = self%get_cell_center(n)
             allocate(coeff(self%get_nlip(), self%get_nlip()+2), source = 0.0d0)
             allocate(coeff2(self%get_nlip(), self%get_nlip()+2), source = 0.0d0)
             allocate(coeff3(self%get_nlip(), self%get_nlip()+2), source = 0.0d0)
             allocate(coeff4(self%get_nlip(), self%get_nlip()+2), source = 0.0d0)
-            
+
             r2 = [h**2, 2.0d0*h*xm, xm**2]
             ! expansion of L(r)*r2, new L(r) after multiply the 1st term of r2
             coeff2(:,1:self%get_nlip()) = coeff1(:,:)*r2(1)
@@ -1739,18 +1739,18 @@ contains
         end do
 
     end function grid1d_r2int
-    
+
     function Grid1D_dr_ds(self)  result(r)
         class(grid1d), intent(in) :: self
         real(real64), dimension(:), allocatable :: r
 
-        integer(int32) :: grid_shape 
+        integer(int32) :: grid_shape
         real(REAL64), pointer         :: coord(:)
         ! x(i+1)-x(i)
         real(real64), dimension(:), allocatable :: r_ahead
         ! x(i)-x(i-1)
         real(real64), dimension(:), allocatable :: r_back
-        integer(int32) :: p 
+        integer(int32) :: p
 
         coord => self%get_coord()
         grid_shape = self%get_shape()
@@ -1764,14 +1764,14 @@ contains
             r_back(p) = coord(p+1)-coord(p)
         end do
         r(2:grid_shape-1) = 0.5d0*(r_ahead+r_back)
-        
+
     end function Grid1D_dr_ds
-    
+
     function Grid1D_lip_dev(self,point)  result(r)
         class(grid1d), intent(in) :: self
-        real(real64), dimension(:), intent(in) :: point 
+        real(real64), dimension(:), intent(in) :: point
         real(real64), dimension(:,:), allocatable :: r
-        
+
         ! nth cell
         integer(int32) :: n
         integer(int32) :: i, j
@@ -1787,7 +1787,7 @@ contains
         ! auxillary to store the power of lip
         ! [nlip-2, ..., 0]
         real(real64), dimension(:), allocatable :: sequ
-        
+
         ! row: points
         allocate(r(size(point),self%get_nlip()))
         allocate(sequ(self%get_nlip()-1))
@@ -1801,20 +1801,20 @@ contains
             do n = 1, self%get_nlip()-1
                 sequ(n) = self%get_nlip()-1-n
             end do
-            ! L'(t) = L'(x) x'(t) 
+            ! L'(t) = L'(x) x'(t)
             ! x'(t) = h
             do i = 1, self%get_nlip()
                 r(j,i) = sum(coeff1(i,:)*t**sequ(:))/h
             end do
         end do
     end function
-    
-    
+
+
     ! xwh
     function Grid1D_lip_dev_m(self,icell)  result(r)
         class(grid1d), intent(in) :: self
         ! the index of cell
-        integer(int32), intent(in) :: icell 
+        integer(int32), intent(in) :: icell
         real(real64), dimension(:,:), allocatable :: r
 
         real(REAL64), pointer         :: coord(:)
@@ -1824,18 +1824,18 @@ contains
         allocate(cell_grids(self%get_nlip()))
         coord => self%get_coord()
         cell_grids = coord((icell-1)*(self%nlip-1)+1:icell*(self%nlip-1)+1)
-        ! row is grids index, after this call 
+        ! row is grids index, after this call
         ! column is the lip index
         r=self%lip_dev(cell_grids)
-        
+
     end function
-    
+
     ! xwh
     pure function Grid1D_ints(self, limits) result(integrals)
         class(Grid1D), intent(in)    :: self
         integer, intent(in), optional:: limits(2)
         real(REAL64), allocatable    :: integrals(:)
-        
+
 
         integer                      :: icell, start_index, end_index, ncell
         real(REAL64)                 :: base_integrals(self%nlip)
@@ -1846,10 +1846,10 @@ contains
             end_index = limits(2) + 1
         else
             start_index = 0
-            end_index = self%ncell 
-        end if 
+            end_index = self%ncell
+        end if
         ncell = end_index-start_index
-        
+
         allocate(integrals(ncell*self%nlip))
         integrals=0.d0
         do icell=1, ncell
@@ -1863,11 +1863,11 @@ contains
     function Grid3D_ints(self) result(ints)
         class(Grid3D), intent(in)  :: self
         real(REAL64), dimension(:,:), allocatable :: ints
-   
+
         if (.not. self%is_equidistant()) then
             print *, 'error. only equidistant grid implemented'
         end if
-        return 
+        return
 
         ! take the first cell from each dimension
         allocate(ints(3,self%get_nlip()))
@@ -1898,13 +1898,13 @@ contains
         allocate(f(Y_)%p( dims_in (Y_), dims_out(Y_), nt ))
         allocate(f(Z_)%p( dims_in (Z_), dims_out(Z_), nt ))
     end function
-    
+
     subroutine store_Grid1Ds(grids, folder, filename)
         type(Grid1D),     intent(in)    :: grids(:)
         character(len=*), intent(in)    :: folder
         character(len=*), intent(in)    :: filename
         integer                         :: igrid
-        
+
         open(unit=WRITE_FD, file=trim(folder)//"/"//trim(filename), access='stream')
         write(WRITE_FD) size(grids)
         do igrid = 1, size(grids)
@@ -1914,7 +1914,7 @@ contains
         end do
         close(unit=WRITE_FD)
     end subroutine
-    
+
     subroutine resume_Grid1Ds(grids, folder, filename)
         type(Grid1D),     allocatable, intent(inout) :: grids(:)
         character(len=*),              intent(in)    :: folder
@@ -1922,11 +1922,11 @@ contains
         integer                                      :: ngrid, igrid, ncell, nlip
         real(REAL64), allocatable                    :: cellh(:)
         logical                                      :: file_exists_
-            
+
         file_exists_ = file_exists(folder, filename)
         if (file_exists_) then
             call pdebug("Loading grid1D from `"//trim(folder)//"/"//trim(filename), 1)
-            
+
             open(unit=READ_FD, file=trim(folder)//"/"//trim(filename), access='stream')
             read(READ_FD) ngrid
             allocate(grids(ngrid))

@@ -648,7 +648,7 @@ contains
         do ipoint=1, npoints
             ! Compute local cell coordinate
             ! Find the cell of the ith point
-            icell(ipoint) = self%grid%get_icell(points(ipoint))
+            icell(ipoint) = self%grid%get_icell(points(ipoint)) ! FIXME why an array?  only the current value is ever used
 
             if (icell(ipoint) == 1 .and. self%ignore_first) then
                 ! Change of variable to cell coordinates

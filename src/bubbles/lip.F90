@@ -27,7 +27,7 @@
 !!
 !! This module defines the `LIPBasis` type (Lagrange Interpolated Polynomial
 !! type), which describes an Interpolated Polynomial in Lagrange
-!! form. 
+!! form.
 !!
 !! #### Maths
 !!
@@ -42,14 +42,14 @@
 !! @f[ L(x) \approx y(x) \quad a \le x \le b. @f]
 !!
 !! This is achieved by defining *n* basis functions of degree *n-1* that
-!! have the property of being one at one of the grid points and zero at
+!! have the property of being one at one of the grid points and zero at all
 !! others. Clearly, such a function for the grid point \f$(x_j, y_j)\f$
 !! is given by
 !!
 !! @f[l_j(x) = \prod\limits_{i\neq j}^n \frac{x-x_j}{x_i-x_j} @f]
 !!
-!! and *L(x)* is consequently 
-!! 
+!! and *L(x)* is consequently
+!!
 !! @f[ L(x) = \sum\limits_{j=1}^n y_j l_j(x). @f]
 !!
 !! #### Notes
@@ -71,7 +71,7 @@ module LIPBasis_class
     private
 
     !> Representation of Lagrange Interpolation Polynomial basis
-    type, public :: LIPBasis 
+    type, public :: LIPBasis
         private
         !> Number of points, or polynomial order +1
         integer(INT32) :: nlip
@@ -84,7 +84,7 @@ module LIPBasis_class
         procedure :: get_nlip  => LIPBasis_get_nlip
         procedure :: get_first => LIPBasis_get_first
         procedure :: get_last  => LIPBasis_get_last
-         
+
         ! Coefficient constructors
         !> Coefficients of the polynomials and their derivatives
         procedure :: coeffs            => LIPBasis_coeffs
@@ -103,7 +103,7 @@ module LIPBasis_class
     end type
 
 contains
-    
+
 ! %%%%%%%%%%% Constructor %%%%%%%%%%%%%%
     pure function LIPBasisInit(nlip) result(new)
         integer, intent(in) :: nlip
@@ -195,7 +195,8 @@ contains
         integer                 ::  i,m,n
         real(REAL64) :: res(size(pol2,1),size(pol1)+size(pol2,2)-1)
 
-        m=size(pol1);n=size(pol2,2)
+        m=size(pol1)
+        n=size(pol2,2)
         res=0.d0
         do i=1,m
             res(:,i:i+n-1)=res(:,i:i+n-1)+pol1(i)*pol2(:,:)
@@ -259,7 +260,7 @@ contains
             !call perror(ppbuf)
             !stop
         !end if
-            
+
         do k=0,der
             allocate(coeffs(k+1)%p(self%nlip,self%nlip-k))
             coeffs(k+1)%p=0.d0
@@ -270,7 +271,7 @@ contains
         ! Generate coefficients of the base polynomials
         coeffs(1)%p(:,n)=1.d0
         do i=1,self%nlip                 !Iterate over points
-            x_i=i-(self%nlip+1)/2
+            x_i=i-(self%nlip+1)/2               ! FIXME: this is where the grid is implied
             do j=1,self%nlip             !Iterate over polynomials
                 if(i==j) cycle         !Skip x_i=x_j
                 dx=j-i
@@ -287,7 +288,7 @@ contains
         return
     end function
 
-    !> Compute the coefficients of the indefinite integrals of the 
+    !> Compute the coefficients of the indefinite integrals of the
     !! polynomials.
     !! \f$\int P_i(x)\mathrm{d}x =\sum_{j=0}^{N}\f$ \c integral_coeffs(i,j) \f$x^{N+1-j}\f$
     pure function LIPBasis_integral_coeffs(self) result(int_coeffs)
@@ -313,7 +314,7 @@ contains
     !> Compute the integrals of the polynomials over all space.\n
     !> \c integrals(i) \f$ = \int_{-\infty}^{\infty}
     !! \chi_i(x)\mathrm{d}x \f$
-    ! xwh, actually, integrate with the domain, not the whole R, 
+    ! xwh, actually, integrate with the domain, not the whole R,
     ! or in another way, lips are all 0 outside the domain,
     ! if not, probably the integration does not converge!
     pure function LIPBasis_integrals(self) result(integrals)
@@ -372,6 +373,7 @@ contains
         end do
     end function
 
+
     !> Compute the outward integrals.
     !> \c outward_integrals(i,j) \f$ = \int_{-\infty}^{x_j}
     !! \chi_i(x)\mathrm{d}x \f$
@@ -407,6 +409,7 @@ contains
         end do
     end function
 
+
     !> Compute the overlap integrals.
     !> \c overlaps(i,j) \f$ = \int_{-\infty}^{\infty}
     !!  \chi_i(x)\chi_j(x)\mathrm{d}x \f$
@@ -428,8 +431,8 @@ contains
                 poly(:,k)=poly(:,k+1)/(2*( self%nlip-d )-k)
             end do
             poly(:,2*(self%nlip-d))=0.d0
-            if(i==1) then
-            end if
+            ! if(i==1) then
+            ! end if
             res(:,i)=eval_polys(poly, self%last) -&
                      eval_polys(poly, self%first)
         end do
@@ -465,6 +468,8 @@ contains
         deallocate(coeffs)
     end function LIPBasis_der_const
 
+
+
     !> Evaluate \c m polynomials (\f$\{p_i(x)\}\f$) of order \c n-1 whose
     !! coefficientes are given in array \c coeffs(m,n) at point \c x. Returns
     !! an array \c p with \c m elements given by \c p(i)= \f$p_i(\f$x\f$)\f$.
@@ -483,5 +488,5 @@ contains
             res=(res*x)+coeffs(:,k)
         end do
     end function
-end module 
+end module
 
