@@ -246,6 +246,7 @@ __global__ void calc_cf(Bubble *bub, int offset, int number_of_points, size_t de
             for (j=0; j < nlip ;j++){
                 cf_results[threadIdx.x * 8 + j] += f_i* (*(lip++));
             }
+#if 0  // I cannot see any good reason for this special case (lnw)
             // handle the special case of the first cell, where the first
             // data item most likely is not valid
             if (icell == 0) {
@@ -263,6 +264,11 @@ __global__ void calc_cf(Bubble *bub, int offset, int number_of_points, size_t de
                     df_results[threadIdx.x * 8 + j] += f_i* (*(dlip++));
                 }
             }
+#else
+            for (j=0; j < nlip-1 ;j++) {
+                df_results[threadIdx.x * 8 + j] += f_i* (*(dlip++));
+            }
+#endif
         }
         // copy the result to device memory
         for (i=0; i < 8; i++) {

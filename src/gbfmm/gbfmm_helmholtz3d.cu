@@ -36,7 +36,6 @@
 #define X_ 0
 #define Y_ 1
 #define Z_ 2
-#define PI_ 3.14159265358979323846
 #define BLOCK_SIZE 512
 
 __host__ inline void check_helmholtz3d_errors(const char *filename, const int line_number) {
@@ -150,7 +149,7 @@ __device__ inline void FirstModSphBessel_multiply_result_with_normalization_fact
                                                                                    double *result) {
     if (normalization != 1) {
         for (int l = min_stored_l; l <= max_stored_l; l++) {
-            result[l-min_stored_l] *= sqrt((2.0*(double)l+1.0)/(4.0*PI_));
+            result[l-min_stored_l] *= sqrt((2.0*(double)l+1.0)/(4.0*M_PI));
         }
     }
 }
@@ -723,7 +722,7 @@ void GBFMMHelmholtz3D::downloadMultipoleMoments(double *host_multipole_moments) 
         // multiply with factor, if the normalization != 1
         if (this->normalization != 1) {
             for (int l = 0; l <= this->lmax; l++) {
-                double normalization_factor = sqrt((2.0*(double)l+1.0)/(4.0*PI_));
+                double normalization_factor = sqrt((2.0*(double)l+1.0)/(4.0*M_PI));
                 for (int n = 0; n <= 2*l; n++) {
                     host_multipole_moments[l*l + n] *= normalization_factor;
                 }

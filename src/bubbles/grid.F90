@@ -36,7 +36,7 @@
 !! The concept of cells is fundamental to `libdage` because of the way
 !! functions are represented with Lagrange interpolation
 !! polynomials (LIPs). Since a set of finite-order polynomials can only
-!! interpolate a function in an finite interval and since increasing the
+!! interpolate a function in a finite interval and since increasing the
 !! order of the polynomials hampers accuracy due to Runge's phenomenon, it
 !! is necessary to resort to relatively low-order LIPs that only work in
 !! a subinterval of the total grid, thus forming a basis in a *cell*.

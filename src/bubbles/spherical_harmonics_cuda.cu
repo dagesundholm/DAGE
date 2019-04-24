@@ -52,7 +52,6 @@
 /** \brief Size of the CUDA blocks in the Z dimension */
 #define BLOCKDIMZ 4
 #define BLOCKSZ 64
-#define PI_ 3.14159265358979323846
 
 cudaError_t cudaErrorStat;
 
@@ -576,7 +575,7 @@ __global__ void RealSphericalCubeHarmonics_evaluate_grid( const int shape_x, con
             i = 0;
             normalization_factor = 1.0;
             for (l = lmin; l <= lmax; l++) {
-                normalization_factor = sqrt((2.0*(double)l+1.0)/(4.0*PI_));
+                normalization_factor = sqrt((2.0*(double)l+1.0)/(4.0*M_PI));
                 for (m = -l; m <= l; m++) {
                     cubes[id+i] *= normalization_factor;
                     i += pitch / sizeof(double) * shape_y * device_slice_count;
@@ -693,7 +692,7 @@ __global__ void RealSphericalHarmonics_evaluate_grid_kernel_fast(Grid3D *grid,
             i = 0;
             normalization_factor = 1.0;
             for (l = lmin; l <= lmax; l++) {
-                normalization_factor = sqrt((2.0*(double)l+1.0)/(4.0*PI_));
+                normalization_factor = sqrt((2.0*(double)l+1.0)/(4.0*M_PI));
                 for (m = -l; m <= l; m++) {
                     cubes[id+i] *= normalization_factor;
                     i += shape_x*shape_y*shape_z;
