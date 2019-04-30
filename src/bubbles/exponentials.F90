@@ -73,7 +73,7 @@ module expo_m
         real(REAL64), pointer               :: expmat_slice(:, :)
         
         logical                             :: initialize,duplicate,thiswaslast
-        real(REAL64), dimension(:), pointer :: cell_lengths
+        real(REAL64), dimension(:), pointer :: cellh
         type(REAL64_2D), allocatable        :: lip_coeffs(:)
 
         ! gr1d_in is the density, gr1d_out is  the potential
@@ -103,19 +103,19 @@ module expo_m
         ! for all points in the x2 direction
         ! THIS SHOULD BE THE LOCAL NDIM
 
-        cell_lengths => input_grid%axis(axis)%get_cell_steps()
+        cellh => input_grid%axis(axis)%get_cell_steps()
         lip_coeffs=lip%coeffs(0)
         ! Loop over all t-points
-        do itpoint = 1, size(tpoints) 
+        do itpoint=1, size(tpoints) 
             t = tpoints(itpoint)
             ! Loop over all point charges
             do icell=1, input_grid%axis(axis)%get_ncell()
                 
                 ! get the exponent (t*h) measured in cells (each one being h in length)
-                shft=t*cell_lengths(icell)
+                shft=t*cellh(icell)
 
                 ! get the box length in number of cells
-                displacement = box_length/cell_lengths(icell)
+                displacement = box_length/cellh(icell)
 
                 ! get the slice of the result matrix corrensponding to this t-point and cell
                 expmat_slice => expmat((icell-1)*(nlip-1)+1 : (icell-1)*(nlip-1)+nlip, :, itpoint)
@@ -162,7 +162,7 @@ module expo_m
                     end do
                     ! Multiply the integrals times the polynomial coefficients
                     temp_expmat = xmatmul(lip_coeffs(1)%p(:,:),temp_expmat)*&
-                                                         cell_lengths(icell)
+                                                         cellh(icell)
                     expmat_slice(:, ipoint) = expmat_slice(:, ipoint) + temp_expmat
                 end do
             end do
@@ -250,7 +250,7 @@ module expo_m
         ! THIS SHOULD BE THE LOCAL NDIM
 
         grid => gr1d_out%get_coord()
-        cellh=>gr1d_in%get_cell_steps()
+        cellh => gr1d_in%get_cell_steps()
         mul_time = 0
         lip_coeffs=lip%coeffs(0)
         do itpoint = 1, size(tpoints) 
@@ -422,7 +422,7 @@ module expo_m
         ! THIS SHOULD BE THE LOCAL NDIM
 
         grid => gr1d_out%get_coord()
-        cellh=>gr1d_in%get_cell_steps()
+        cellh => gr1d_in%get_cell_steps()
         mul_time = 0
         lip_coeffs=lip%coeffs(0)
         do itpoint = 1, size(tpoints) 
@@ -2509,7 +2509,7 @@ module expo_m
         real(REAL64),allocatable :: temp_mat(:),x0
         integer :: ix2,icell, nlip,j
         integer :: idisp
-        real(REAL64),pointer :: points_out(:),cellh_in(:)
+        real(REAL64),pointer :: points_out(:),cellh_in(:) ! in this file cellh and get_cell_step are used for scaling only (lnw)
         type(REAL64_2D),allocatable :: lip_coeffs(:)
         real(REAL64) :: qmin_in,total_size_in
 

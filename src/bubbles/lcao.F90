@@ -495,7 +495,7 @@ contains
 
     
 
-    !> Construct a dummy Function3D instace adequeate to represent orbitals
+    !> Construct a dummy Function3D instance adequate to represent orbitals
     !! etc. for this structure.
     function Structure_make_f3d_mould(self, step, lmax, bubble_grids, parallelization_info, &
                                       taylor_series_order, bubbles_center_offset) result(mould)
@@ -549,7 +549,7 @@ contains
         !adjust = 0.0d0
 
         centers = self%coordinates
-        cell_steps => global_grid%axis(X_)%get_cell_steps()
+        cell_steps => global_grid%axis(X_)%get_cell_steps() ! used for scaling only (lnw)
         centers(X_, :) = centers(X_, :) + adjust(X_) * cell_steps(1)
         cell_steps => global_grid%axis(Y_)%get_cell_steps()
         centers(Y_, :) = centers(Y_, :) + adjust(Y_) * cell_steps(1)

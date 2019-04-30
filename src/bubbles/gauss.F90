@@ -43,6 +43,8 @@ module GaussQuad_class
     private
 
     public :: GaussQuad
+    public :: gauss_lobatto_grid
+
     interface GaussQuad
         module procedure :: GaussQuadInit
     end interface
@@ -319,7 +321,6 @@ contains
         end if                              ! the quadrature normally in
         ! [a;b] intervall.
 
-        return
     end subroutine
 
 
@@ -399,6 +400,24 @@ contains
         end do
 
     end function 
+
+
+    pure function gauss_lobatto_grid(n, left, right) result(tp)
+        integer(INT32),  intent(in) :: n           ! # of Gauss-Lobatto Points
+        real(REAL64),    intent(in) :: left, right
+        integer(INT32)              :: i
+        real(REAL64)                :: tp(n), tw(n) ! The points tp, and their weights, tw 
+
+        ! [left;right] intervall
+        tp = 0.d0
+        call gauleg_int(n-2, tp, tw, left, right)
+
+        do i=n-2,1,-1
+            tp(i+1) = tp(i)
+        enddo
+        tp(1) = left
+        tp(n) = right
+    end function
 
 end module
 

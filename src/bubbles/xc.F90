@@ -2308,7 +2308,7 @@ module XC_class
         nlip = n_idx 
 
         !> derivative constant of lip basis
-        small_lip=lipbasisinit(nlip)
+        small_lip=LIPBasisInit(nlip, 0)
         der_const2 = small_lip%der_const()
         !print *, 'der_const2 ', der_const2(2,:)
 

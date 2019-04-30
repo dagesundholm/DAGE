@@ -132,27 +132,28 @@ module Grid_class
         real(REAL64)            :: qmin
         !> Maximum value of a grid.
         real(REAL64)            :: qmax
-        !> Number of grid points.
+        !> Number of grid points in the whole grid
         integer                 :: ndim
         !> Number of cells.
         integer                 :: ncell
-        !> Grid points.
+        !> Grid points (ndim)
         real(REAL64), allocatable :: grid(:)
-        !> Step sizes.
+        !> Step sizes, for each cell. Ie, the distance between two points in a
+        ! cell, as a function of the cell index (ncell)
         real(REAL64), allocatable :: cellh(:)
-        !> Lenght of the cells.
+        !> Length of the cells (ncell)
         real(REAL64), allocatable :: cellen(:)
-        !> Coordinates where each cell starts.
+        !> Coordinates where each cell starts (ncell)
         real(REAL64), allocatable :: celld(:)
-        !> Total length of the grid in its coordinates.
-        real(REAL64)            :: delta
+        !> Total length of the grid in its coordinates
+        real(REAL64)              :: delta
         !> Order of LIPs is `nlip-1`.
-        integer                 :: nlip
+        integer                   :: nlip
         !> A LIP of order `nlip-1`.
         type(LIPBasis), public    :: lip
         !> A LIP of order `nlip-2`.
         type(LIPBasis), public    :: lower_lip
-        !> If grid is equidistant
+        !> If grid is equidistant (ie, all cells have the same size)
         logical, public           :: equidistant
         !> The radius used in initiation of radial grid
         real(REAL64), public      :: cutoff_radius
@@ -182,11 +183,11 @@ module Grid_class
         procedure :: get_qmin  => Grid1D_get_qmin
         procedure :: get_qmax  => Grid1D_get_qmax
         procedure :: get_shape => Grid1D_get_dim
-        procedure :: get_coord => Grid1D_get_coord
-        procedure :: get_coordinates => Grid1D_get_coordinates
+        procedure :: get_coord => Grid1D_get_coord ! returns pointer
+        procedure :: get_coordinates => Grid1D_get_coordinates ! returns arrays
         procedure :: get_delta => Grid1D_get_delta
         procedure :: get_ints  => Grid1D_get_ints
-        procedure :: is_equidistant => Grid1D_is_equidistant
+        procedure :: is_equidistant => Grid1D_is_equidistant ! ie cells have equal lengths
         procedure :: is_subgrid_of => Grid1D_is_subgrid_of
 
         ! Cell specific
@@ -446,9 +447,10 @@ contains
 
         new%qmin = qmin
         new%cellh = step
+
         ! This should not be generalized
-        new%lip=LIPBasisInit(new%nlip)        ! FIXME this is where the implied grid is called
-        new%lower_lip=LIPBasisInit(new%nlip-1)
+        new%lip=LIPBasisInit(new%nlip, 0)
+        new%lower_lip=LIPBasisInit(new%nlip-1, 0)
 
         ! Grid points
         ipoint=1
@@ -457,14 +459,14 @@ contains
         ! go through all cells
         do icell=1, new%ncell
             new%celld(icell) = new%grid(ipoint)
-            ! each point corresponds to 1 lagrange interpolation polynomial
+            ! each point corresponds to one lagrange interpolation polynomial
             do k=1,new%nlip-1
                 ipoint=ipoint+1
                 ! grid point is the starting point of the cell plus the step size
                 ! times order number of the step in the cells
-                new%grid(ipoint)=new%celld(icell)+k*new%cellh(icell)
+                new%grid(ipoint)=new%celld(icell)+k*new%cellh(icell) ! implied eq grid (lnw)
             end do
-            new%cellen(icell) = (new%nlip-1)*new%cellh(icell)
+            new%cellen(icell) = (new%nlip-1)*new%cellh(icell)  ! implied eq grid (lnw)
         end do
 
         new%cutoff_radius = (new%grid(new%ndim))
@@ -481,10 +483,9 @@ contains
         !call pdebug(ppbuf, 1)
     end function
 
-    !> Constructs an 1D grid in a given range and with a fixed step.
-    !!
-    !!
-    !!
+    !> Constructs a 1D grid in a given range and with a fixed step.
+    !! Here, the term 'equidistant' refers to the sizes of the cells, not the grid
+    !! therein.
     function Grid1D_init_equidistant(ranges, nlip, stepmax, step) result(new)
         real(REAL64),           intent(in)          :: ranges(2)
         integer,                intent(in)          :: nlip
@@ -499,7 +500,7 @@ contains
 
         !call pdebug("grid_init_equidistant_1d()",1)
 
-        ncell = ceiling((ranges(2)-ranges(1)) / (stepmax*(nlip-1)))
+        ncell = ceiling((ranges(2)-ranges(1)) / (stepmax*(nlip-1))) ! implied eq grid (lnw)
         allocate(cellh(ncell))
         ! Adjust step size so that the range is exactly reproduced
         s = (ranges(2)-ranges(1)) / (ncell*(nlip-1))
@@ -509,8 +510,8 @@ contains
         ! call the init_step constructor
         new = Grid1D(ranges(1), ncell, nlip, cellh)
         new%equidistant = .TRUE.
-        deallocate(cellh)
 
+        deallocate(cellh)
     end function
 
     !> Generate radial grid according to some weird formula :-D
@@ -545,8 +546,8 @@ contains
         new%equidistant = .FALSE.
         new%charge = z
         new%r_max = r_max
-        deallocate(cellh)
 
+        deallocate(cellh)
     end function
 
     function Grid1D_init_spheres(centers, radii, step, nlip) result(new)
@@ -566,7 +567,7 @@ contains
         box(1)= minval(centers-radii)
         box(2)= maxval(centers+radii)
         ! Find the minimum number of cells required to fit the box
-        cell_len=step*(nlip-1)
+        cell_len=step*(nlip-1) ! implied eq grid (lnw)
         ncell = ceiling((box(2)-box(1))/cell_len)
         ! Expand the box symmetrically so the length it fits a whole number of
         ! cells exactly
@@ -607,8 +608,8 @@ contains
         type(Grid3D)                            :: new
 
         new%nlip = nlip
-        new%lip=LIPBasisInit(new%nlip)        ! FIXME this is where the implied grid is called
-        new%lower_lip=LIPBasisInit(new%nlip-1)
+        new%lip=LIPBasisInit(new%nlip, 0)
+        new%lower_lip=LIPBasisInit(new%nlip-1, 0)
         allocate(new%axis(3))
         new%axis(1) = Grid1D(qmin(1), ncell(1), nlip, stepx)
         new%axis(1)%equidistant = .TRUE.
@@ -654,11 +655,11 @@ contains
         real(REAL64), allocatable                   :: cellh(:)
 
         new%nlip = nlip
-        new%lip=LIPBasisInit(new%nlip)        ! FIXME this is where the implied grid is called
-        new%lower_lip=LIPBasisInit(new%nlip-1)
+        new%lip=LIPBasisInit(new%nlip, 0)
+        new%lower_lip=LIPBasisInit(new%nlip-1, 0)
         allocate(new%axis(3))
         do i=1, 3
-            ncell = ceiling((ranges(2,i)-ranges(1,i)) / (stepmax*(nlip-1)))
+            ncell = ceiling((ranges(2,i)-ranges(1,i)) / (stepmax*(nlip-1))) ! implied eq grid (lnw)
             allocate(cellh(ncell))
             ! Adjust step size so that the range is exactly reproduced
             s(i) = (ranges(2,i)-ranges(1,i)) / (ncell*(nlip-1))
@@ -694,14 +695,14 @@ contains
         real(REAL64), allocatable                   :: cellh(:)
 
         new%nlip = nlip
-        new%lip=LIPBasisInit(new%nlip)        ! FIXME this is where the implied grid is called
-        new%lower_lip=LIPBasisInit(new%nlip-1)
+        new%lip=LIPBasisInit(new%nlip, 0)
+        new%lower_lip=LIPBasisInit(new%nlip-1, 0)
         allocate(new%axis(3))
 
         do i=X_, Z_
             allocate(cellh(ncell(i)))
             ! Compute step size so that the range is exactly reproduced
-            s(i) = (ranges(2,i)-ranges(1,i)) / (ncell(i)*(nlip-1))
+            s(i) = (ranges(2,i)-ranges(1,i)) / (ncell(i)*(nlip-1)) ! implied eq grid (lnw)
             cellh = s(i)
             new%axis(i) = &
                  Grid1D(ranges(1,i), ncell(i), nlip, cellh)
@@ -746,16 +747,15 @@ contains
         else
             new%nlip = NLIP_DEFAULT
         end if
-        new%lip=LIPBasisInit(new%nlip)        ! FIXME this is where the implied grid is called
-        new%lower_lip=LIPBasisInit(new%nlip-1)
+        new%lip=LIPBasisInit(new%nlip, 0)
+        new%lower_lip=LIPBasisInit(new%nlip-1, 0)
         allocate(new%axis(3))
         do i=1, 3
-            ncell = (npoints(i) - 1) / (new%nlip - 1)
+            ncell = (npoints(i) - 1) / (new%nlip - 1) ! implied eq grid (lnw)
             allocate(cellh(ncell))
-            cellh = (ranges(2,i) - ranges(1,i)) / (npoints(i) - 1)
+            cellh = (ranges(2,i) - ranges(1,i)) / (npoints(i) - 1) ! implied eq grid (lnw)
             new%axis(i) = Grid1D(ranges(1,i), ncell, new%nlip, cellh)
             deallocate(cellh)
-
         enddo
 
         if (present(pbc_string)) then
@@ -791,6 +791,7 @@ contains
         ! box size between 1-300 grid points and is divisible with the
         ! corresponding level
         if (present(gbfmm) .and. gbfmm) then
+     ! implied eq grid (lnw) in the following block
             do idim = X_, Z_
                 grid_limits(idim, 1)= minval(centers(idim, :)-radii(:))
                 grid_limits(idim, 2)= maxval(centers(idim, :)+radii(:))
@@ -815,7 +816,7 @@ contains
             do idim = X_, Z_
                 cell_count(idim) = ceiling((grid_limits(idim, 2) - grid_limits(idim, 1)) / &
                                       (((nlip-1) * step_sizes(idim))))
- 
+
                 ! check how many cells away we are from fulfilling the  condition mentioned above
                 cell_modulus = mod(cell_count(idim), 2**maxlevel)
                 ! adjust the stepsize so that the condition is exactly fulfilled
@@ -824,7 +825,7 @@ contains
                 else
                     cell_count(idim) = (cell_count(idim) + 2**maxlevel - cell_modulus)
                 end if
- 
+
                 step_sizes(idim) = (grid_limits(idim, 2) - grid_limits(idim, 1)) / (cell_count(idim) * (nlip-1))
                 ! calculate the new cell counts per box
                 cell_count(idim) = nint((grid_limits(idim, 2) - grid_limits(idim, 1)) &
@@ -851,8 +852,8 @@ contains
 
         else
             new%nlip = nlip
-            new%lip=LIPBasisInit(new%nlip)        ! FIXME this is where the implied grid is called
-            new%lower_lip=LIPBasisInit(new%nlip-1)
+            new%lip=LIPBasisInit(new%nlip, 0)
+            new%lower_lip=LIPBasisInit(new%nlip-1, 0)
             new%id=next_grid_id()
             new%pbc=PBC("")
 
@@ -900,7 +901,7 @@ contains
                                   self%get_cell_starts(), self%get_coord(), transpose(coeffs(1)%p), &
                                   transpose(coeffs(2)%p), transpose(coeffs_lower(2)%p), &
                                   self%lip%integrals(), stream_container)
-            ! the upload was added to the c++ init method       
+            ! the upload was added to the c++ init method
             !call self%cuda_upload()
             do i = 1, size(coeffs)
                 deallocate(coeffs(i)%p)
@@ -1119,10 +1120,9 @@ contains
         integer(INT32) :: icell, maxi, mini
         logical :: found
 
-
-        if (x > self%qmax .or. x < self%qmin) then
+        if (x > self%qmax .or. x < self%qmin) then ! outside
             icell=0
-        else if (self%celld(self%ncell) <= x ) then
+        else if (self%celld(self%ncell) <= x ) then ! x in last cell
             icell=self%ncell
         else
             icell = self%ncell/2
@@ -1166,8 +1166,8 @@ contains
         class(Grid1D),intent(in) :: self
         real(REAL64), intent(in) :: x
         integer                  :: icell
-        icell = x * self%ncell / (self%qmax-self%qmin)
 
+        icell = x * self%ncell / (self%qmax-self%qmin)
     end function
 
     !> Return the indices of the cells to which `pos` belongs.
@@ -1179,7 +1179,6 @@ contains
         icell(X_) = Grid1D_get_icell(self%axis(X_),pos(X_))
         icell(Y_) = Grid1D_get_icell(self%axis(Y_),pos(Y_))
         icell(Z_) = Grid1D_get_icell(self%axis(Z_),pos(Z_))
-        return
     end function
 
     !> Return the center of cell at 'ix', 'iy', 'iz'
@@ -1193,7 +1192,6 @@ contains
         center(X_) = self%axis(X_)%get_cell_center(ix)
         center(Y_) = self%axis(Y_)%get_cell_center(iy)
         center(Z_) = self%axis(Z_)%get_cell_center(iz)
-        return
     end function
 
     pure function Grid3D_get_ncell(self, crd) result(r)
@@ -1236,7 +1234,6 @@ contains
         integer,    intent(in) :: icell
         real(REAL64)           :: center
         real(REAL64)           :: cell_starts(self%ncell), cell_deltas(self%ncell)
-
 
         center = self%celld(icell) + self%cellen(icell) * 0.5
     end function
@@ -1302,7 +1299,6 @@ contains
         integer, intent(in), optional:: limits(2)
         real(REAL64), allocatable    :: integrals(:)
 
-
         integer                      :: icell, start_index, end_index, ncell
         real(REAL64)                 :: base_integrals(self%nlip)
 
@@ -1321,10 +1317,9 @@ contains
         forall (icell=1 : ncell)
             integrals( (icell-1)*(self%nlip-1) + 1: icell*(self%nlip-1)+1 ) = &
             integrals( (icell-1)*(self%nlip-1) + 1: icell*(self%nlip-1)+1 ) + &
-                                            base_integrals * self%cellh(icell)
+                                            base_integrals * self%cellh(icell) ! implied eq grid (lnw)
         end forall
     end function
-
 
     function Grid1D_get_coord(self, cell_limits) result(r)
         class(Grid1D), target                   :: self
@@ -1357,8 +1352,8 @@ contains
 
         ! the parameters that do not change upon slicing
         new%nlip = self%nlip
-        new%lip=LIPBasisInit(new%nlip)        ! FIXME this is where the implied grid is called
-        new%lower_lip=LIPBasisInit(new%nlip-1)
+        new%lip=LIPBasisInit(new%nlip, 0)
+        new%lower_lip=LIPBasisInit(new%nlip-1, 0)
         new%pbc = self%pbc
         allocate(new%axis(3))
         do iaxis = 1, 3 !(x, y, z)
@@ -1376,8 +1371,9 @@ contains
 
         ! the parameters that do not change upon slicing
         new%nlip = self%nlip
-        new%lip=LIPBasisInit(new%nlip)        ! FIXME this is where the implied grid is called
-        new%lower_lip=LIPBasisInit(new%nlip-1)
+        new%lip=LIPBasisInit(new%nlip, 0)
+        new%lower_lip=LIPBasisInit(new%nlip-1, 0)
+
         ! parameters that have to be recalculated
         new%qmin  = self%celld(cell_ranges(1))
         new%qmax  = self%celld(cell_ranges(2)) + self%cellen(cell_ranges(2))
@@ -1385,15 +1381,13 @@ contains
         new%ncell = cell_ranges(2) - cell_ranges(1) + 1
         new%ndim  = new%ncell * (new%nlip - 1) + 1
 
-
         ! parameters that can be sliced
         new%celld = self%celld(cell_ranges(1):cell_ranges(2))
         new%cellh = self%cellh(cell_ranges(1):cell_ranges(2))
         new%cellen = self%cellen(cell_ranges(1):cell_ranges(2))
         grid_start = ((new%nlip -1) * (cell_ranges(1) - 1)) + 1
         grid_end   = grid_start + new%ndim - 1
-        new%grid = self%grid( grid_start : grid_end )            
-
+        new%grid = self%grid( grid_start : grid_end )
     end function
 
     function Grid3D_get_pbc(self) result(pbc_ptr)
@@ -1609,8 +1603,8 @@ contains
     end subroutine
 
     !> Transform x from global coordinates to cell coordinates.
-    !! In the cell coordinates the 0-point is the middle of the cell
-    ! xwh, t = (x-x_m)/h, x_m : middle point of the cell
+    ! t = (x-x_s)/h,
+    ! x_s : left boundary of the cell
     ! t \in [first, last]
     elemental pure function Grid1D_x2cell(self,x) result(res)
         class(Grid1D), intent(in) :: self
@@ -1626,7 +1620,7 @@ contains
             res=0.d0
             return
         end if
-        res=(x-self%celld(icell))/self%cellh(icell)+self%lip%get_first()
+        res=(x-self%celld(icell))/self%cellh(icell)+self%lip%get_first() ! fixme: implied grid (lnw)
     end function
 
     elemental pure function Grid1D_coordinate_to_grid_point_coordinate(self, coordinate) &
@@ -1657,7 +1651,7 @@ contains
         integer, intent(in)       :: icell
         real(REAL64)              :: res
 
-        res=(x-self%celld(icell))/self%cellh(icell)+self%lip%get_first()
+        res=(x-self%celld(icell))/self%cellh(icell)+self%lip%get_first() !  fixme: implied grid (lnw)
     end function
 
     !> Transform cartesian coordinates to cell coordinates
@@ -1712,7 +1706,7 @@ contains
         coeff1 = coeff0(1)%p
 
         do n = 1, self%get_ncell()
-            h = self%cellh(n)
+            h = self%cellh(n) ! implied eq grid (lnw)
             xm = self%get_cell_center(n)
             allocate(coeff(self%get_nlip(), self%get_nlip()+2), source = 0.0d0)
             allocate(coeff2(self%get_nlip(), self%get_nlip()+2), source = 0.0d0)
@@ -1738,6 +1732,7 @@ contains
             deallocate(coeff4)
         end do
 
+        deallocate(coeff1)
     end function grid1d_r2int
 
     function Grid1D_dr_ds(self)  result(r)
@@ -1765,6 +1760,8 @@ contains
         end do
         r(2:grid_shape-1) = 0.5d0*(r_ahead+r_back)
 
+        deallocate(r_ahead)
+        deallocate(r_back)
     end function Grid1D_dr_ds
 
     function Grid1D_lip_dev(self,point)  result(r)
@@ -1793,7 +1790,7 @@ contains
         allocate(sequ(self%get_nlip()-1))
         do j = 1, size(point)
             n = self%get_icell(point(j))
-            h = self%get_cell_step(n)
+            h = self%get_cell_step(n) ! implied eq grid (lnw)
             t = self%x2cell(point(j))
 
             coeff0 = self%lip%coeffs(1)
@@ -1806,7 +1803,10 @@ contains
             do i = 1, self%get_nlip()
                 r(j,i) = sum(coeff1(i,:)*t**sequ(:))/h
             end do
+            deallocate(coeff1)
         end do
+
+        deallocate(sequ)
     end function
 
 
@@ -1828,6 +1828,7 @@ contains
         ! column is the lip index
         r=self%lip_dev(cell_grids)
 
+        deallocate(cell_grids)
     end function
 
     ! xwh
@@ -1855,7 +1856,7 @@ contains
         do icell=1, ncell
             integrals( (icell-1)*self%nlip + 1: icell*self%nlip ) = &
             integrals( (icell-1)*self%nlip + 1: icell*self%nlip ) + &
-                                            base_integrals * self%cellh(icell)
+                                            base_integrals * self%cellh(icell) ! implied eq grid (lnw)
         end do
     end function
 
@@ -1943,3 +1944,4 @@ contains
     end subroutine
 
 end module
+

@@ -2606,7 +2606,7 @@ contains
 
     !> Increase \ref bubbles::k "Bubbles%k" by `k_delta` (divide radial
     !! functions by `k_delta`).
-    !! NOTE: This procedure is more complicated that \ref bubbles_decrease_k
+    !! NOTE: This procedure is more complicated than \ref bubbles_decrease_k
     !! "Bubbles%decrease_k" ! because it implies dividing by 0 at r=0!
 
     !> The radial functions are divided by `r**k_delta. The value at \f$r=0\f$
@@ -2615,6 +2615,7 @@ contains
     !! picking the last coefficient. This assumes that all discarded
     !! coefficients are 0.
     subroutine Bubbles_increase_k(self, k_delta)
+        implicit none
         class(Bubbles)              :: self
         integer, intent(in)         :: k_delta
 
@@ -2645,7 +2646,7 @@ contains
         coeffs=self%gr(1)%p%lip%coeffs(0)
 
         do ibub=1,self%nbub
-            cell_steps =>self%gr(ibub)%p%get_cell_steps()
+            cell_steps =>self%gr(ibub)%p%get_cell_steps() ! scaling only (lnw)
             ! calculate the middle point of the first cell
             middle_point = cell_steps(1) * ( (nlip-1)/2 )
 

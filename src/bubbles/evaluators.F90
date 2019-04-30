@@ -648,7 +648,7 @@ contains
         do ipoint=1, npoints
             ! Compute local cell coordinate
             ! Find the cell of the ith point
-            icell(ipoint) = self%grid%get_icell(points(ipoint)) ! FIXME why an array?  only the current value is ever used
+            icell(ipoint) = self%grid%get_icell(points(ipoint)) ! FIXME why an array?  only the current value is ever used (lnw)
 
             if (icell(ipoint) == 1 .and. self%ignore_first) then
                 ! Change of variable to cell coordinates
@@ -917,7 +917,7 @@ contains
         real(REAL64)                     :: crd_cell(self%ndim), polys(self%nlip)
 
         real(REAL64)                     :: h(self%ndim)
-        real(REAL64), pointer            :: cellh(:), celld(:)
+        ! real(REAL64), pointer            :: cellh(:), celld(:)
 
         type(REAL64_1D), allocatable, target :: tmp_array(:)
         type(REAL64_1D_Pointer), allocatable :: tmp(:)

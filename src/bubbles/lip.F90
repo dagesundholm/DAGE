@@ -60,9 +60,12 @@
 !!
 !! and the expansion coefficients \c c(i,j) can be stored in a matrix.
 !!
+
 module LIPBasis_class
     use Globals_m
     use Xmatrix_m
+    use GaussQuad_class
+    use pprinter
     implicit none
 
     public LIPBasisInit
@@ -75,13 +78,16 @@ module LIPBasis_class
         private
         !> Number of points, or polynomial order +1
         integer(INT32) :: nlip
-        !> Beginning of the cell
+        !> choice of grid: 0 -> equidistant, 1 -> gauss-lobatto
+        integer(INT32) :: grid_type
+        !> Beginning of the cell (in its own scale)
         real(REAL64) :: first
         !> End of the cell
         real(REAL64) :: last
     contains
         ! Accessors
         procedure :: get_nlip  => LIPBasis_get_nlip
+        procedure :: get_gridtype  => LIPBasis_get_gridtype
         procedure :: get_first => LIPBasis_get_first
         procedure :: get_last  => LIPBasis_get_last
 
@@ -105,11 +111,11 @@ module LIPBasis_class
 contains
 
 ! %%%%%%%%%%% Constructor %%%%%%%%%%%%%%
-    pure function LIPBasisInit(nlip) result(new)
-        integer, intent(in) :: nlip
+    pure function LIPBasisInit(nlip, gridtype) result(new)
+        integer, intent(in) :: nlip, gridtype
         type(LIPBasis) :: new
 
-        new=LIPBasis( nlip=nlip, first=-(nlip-1)/2, last=nlip/2 )
+        new=LIPBasis( nlip=nlip, grid_type=gridtype, first=-(nlip-1)/2, last=nlip/2 )
     end function
 
 ! %%%%%%%%%%% Accessors %%%%%%%%%%%%%%
@@ -118,6 +124,13 @@ contains
         integer :: nlip
 
         nlip=self%nlip
+    end function
+
+    pure function LIPBasis_get_gridtype(self) result(gridtype)
+        class(LIPBasis), intent(in) :: self
+        integer :: gridtype
+
+        gridtype=self%grid_type
     end function
 
     pure function LIPBasis_get_first(self) result(first)
@@ -136,7 +149,7 @@ contains
 
 ! %%%%%%%%%%% Workers %%%%%%%%%%%%%%
     !> @todo This should be moved to grid.F90 or similar
-    subroutine overlap(self,s,cellh)
+    subroutine overlap(self,s,cellh) ! cellh used as scaling lnw
         type(LIPBasis) :: self
         real(REAL64), dimension(:,:), intent(out) :: s
         real(REAL64), dimension(:), intent(in) :: cellh
@@ -173,6 +186,8 @@ contains
             write(6,'(a)') ' '
             write(6,'(a)') ' '
         end if
+
+        deallocate(ints)
     end subroutine overlap
 
     !> Multiplies one polynomial with another bundle of polynomials
@@ -246,9 +261,11 @@ contains
     !! \end{array} \right)
     !! \f$
     pure function LIPBasis_coeffs(self, der) result(coeffs)
+        implicit none
         class(LIPBasis), intent(in) :: self
         integer,         intent(in) :: der
         type(REAL64_2D)             :: coeffs(1:der+1)
+        real(REAL64)                :: glgrid(self%nlip)
 
         integer(INT32):: i,j,k,n
         real(REAL64) :: x_i,dx
@@ -269,16 +286,37 @@ contains
         n=self%nlip
 
         ! Generate coefficients of the base polynomials
-        coeffs(1)%p(:,n)=1.d0
-        do i=1,self%nlip                 !Iterate over points
-            x_i=i-(self%nlip+1)/2               ! FIXME: this is where the grid is implied
-            do j=1,self%nlip             !Iterate over polynomials
-                if(i==j) cycle         !Skip x_i=x_j
-                dx=j-i
-                coeffs(1)%p(j,1:n-1)=(coeffs(1)%p(j,2:n)-coeffs(1)%p(j,1:n-1)*x_i)/dx
-                coeffs(1)%p(j,n)=-coeffs(1)%p(j,n)*x_i/dx
-            end do
-        end do
+        select case (self%grid_type)
+
+            case (0) ! equidistant
+                coeffs(1)%p(:,n)=1.d0
+                do i=1,self%nlip               !Iterate over points
+                    x_i=i-(self%nlip+1)/2
+                    do j=1,self%nlip           !Iterate over polynomials
+                        if(i==j) cycle         !Skip x_i=x_j
+                        dx=j-i
+                        coeffs(1)%p(j,1:n-1)=(coeffs(1)%p(j,2:n)-coeffs(1)%p(j,1:n-1)*x_i)/dx
+                        coeffs(1)%p(j,n)=-coeffs(1)%p(j,n)*x_i/dx
+                    end do
+                end do
+
+            case (1) ! gauss lobatto
+                glgrid = gauss_lobatto_grid(self%nlip, self%first, self%last)
+                ! call pprint ( glgrid )
+                coeffs(1)%p(:,n)=1.d0
+                do i=1,self%nlip               !Iterate over points
+                    x_i=glgrid(i)
+                    do j=1,self%nlip           !Iterate over polynomials
+                        if(i==j) cycle         !Skip x_i=x_j
+                        dx=glgrid(j)-glgrid(i)
+                        coeffs(1)%p(j,1:n-1) = (coeffs(1)%p(j,2:n)-coeffs(1)%p(j,1:n-1)*x_i)/dx
+                        coeffs(1)%p(j,n)=-coeffs(1)%p(j,n)*x_i/dx
+                    end do
+                end do
+
+            case default
+        end select
+
         ! Generate derivative coefficients
         do k=1,der
             do j=0,n-k-1
@@ -308,7 +346,6 @@ contains
 
         deallocate(coeffs(1)%p)
         deallocate(coeffs)
-
     end function
 
     !> Compute the integrals of the polynomials over all space.\n
@@ -436,6 +473,8 @@ contains
             res(:,i)=eval_polys(poly, self%last) -&
                      eval_polys(poly, self%first)
         end do
+
+        deallocate(coeffs(1)%p)
         deallocate(coeffs)
     end function
 
@@ -465,6 +504,8 @@ contains
                res(i,k) = sum(coeffs(2)%p(i,:)*points(k)**order(:))
            end do
         end do
+
+        deallocate(coeffs(1)%p)
         deallocate(coeffs)
     end function LIPBasis_der_const
 

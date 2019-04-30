@@ -198,7 +198,7 @@ __global__ void calc_cf(Bubble *bub, int offset, int number_of_points, size_t de
     const int index = blockIdx.x * blockDim.x + threadIdx.x;
     // get the global index
     const int id= index + offset;
-    
+
     const int icell=id%bub->grid->ncell;
     const int ilm=id/bub->grid->ncell;
     const int nlip = bub->grid->nlip;
@@ -208,7 +208,7 @@ __global__ void calc_cf(Bubble *bub, int offset, int number_of_points, size_t de
     __shared__ double cf_results[8*64];
     __shared__ double df_results[8*64];
     double f_i;
-    
+
     // load the Lagrange interpolation polynomials coefficients to
     // the shared memory
     if (threadIdx.x < (nlip) * (nlip)) {
@@ -221,8 +221,8 @@ __global__ void calc_cf(Bubble *bub, int offset, int number_of_points, size_t de
         lower_derivative_lip[threadIdx.x] = bub->grid->lower_derivative_lip[threadIdx.x];
     }
     __syncthreads();
-    
-    
+
+
     if ( index < number_of_points && ilm < ((bub->lmax+1)*(bub->lmax+1)) ) {
         double *f  = bub->f + ilm * device_f_pitch / sizeof(double) + (icell * (bub->grid->nlip-1));
         double *cf = bub->cf + ( ilm * bub->grid->ncell + icell ) * 8;
@@ -246,7 +246,11 @@ __global__ void calc_cf(Bubble *bub, int offset, int number_of_points, size_t de
             for (j=0; j < nlip ;j++){
                 cf_results[threadIdx.x * 8 + j] += f_i* (*(lip++));
             }
-#if 0  // I cannot see any good reason for this special case (lnw)
+
+// I cannot see any good reason for this special case (lnw) that is, the
+// derivative at the centre of each bubble should be zero, but why does it have
+// to be enforced?
+#if 1
             // handle the special case of the first cell, where the first
             // data item most likely is not valid
             if (icell == 0) {
