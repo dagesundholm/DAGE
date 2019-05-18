@@ -1014,7 +1014,7 @@ contains
     end function
 
     !> Create a copy of another Bubbles instance but only take bubbles
-    !! withing ranges into account
+    !! within range into account
     function Bubbles_subtract_bubbles(self, bubbls, copy_content) result(new)
         class(Bubbles), intent(in)  :: self
         type(Bubbles), intent(in)   :: bubbls
@@ -1252,7 +1252,7 @@ contains
         class(Bubbles) :: self
         integer        :: ibub
         integer(INT32), intent(in) :: fd
-        real(REAL64), pointer :: cell_steps(:)
+        ! real(REAL64), pointer :: cell_scales(:)
         write(fd) self%nbub
         write(fd) self%nbub_global
         write(fd) self%lmax
@@ -2626,7 +2626,7 @@ contains
 
         integer  :: ibub
         integer  :: ilip, j, nlip, m
-        real(REAL64), pointer      :: cell_steps(:)
+        real(REAL64), pointer      :: cell_scales(:)
         real(REAL64)               :: middle_point
         real(REAL64), allocatable  :: rkdelta(:)
 
@@ -2646,9 +2646,9 @@ contains
         coeffs=self%gr(1)%p%lip%coeffs(0)
 
         do ibub=1,self%nbub
-            cell_steps =>self%gr(ibub)%p%get_cell_steps() ! scaling only (lnw)
+            cell_scales =>self%gr(ibub)%p%get_cell_scales()
             ! calculate the middle point of the first cell
-            middle_point = cell_steps(1) * ( (nlip-1)/2 )
+            middle_point = cell_scales(1) * ( (nlip-1)/2 )
 
             ! Computing the value of the function at r=0 (can't divide by 0...)
             ! Compute polynomial in local (cell) coordinates
@@ -2664,12 +2664,12 @@ contains
             p_shf(2:,:)=0.d0
             do ilip=2,nlip
                 do j=1, (self%lmax+1)**2
-                    p_shf(ilip,j) = ( p_shf(ilip,j) - middle_point * p_shf(ilip-1,j) ) / cell_steps(1)
+                    p_shf(ilip,j) = ( p_shf(ilip,j) - middle_point * p_shf(ilip-1,j) ) / cell_scales(1)
                     p_shf(ilip,j) = p_shf(ilip,j) + p_loc(ilip,j)
                 end do
             end do
 
-            nullify(cell_steps)
+            nullify(cell_scales)
             deallocate(p_loc)
 
             ! Column to use

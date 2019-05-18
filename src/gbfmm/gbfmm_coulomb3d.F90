@@ -1836,7 +1836,7 @@ contains
     end subroutine
     
     
-    function function3d_boxed_density(gen, maxlevel, ranges, stepmax, nlip) result(rho)
+    function function3d_boxed_density(gen, maxlevel, ranges, stepmax, nlip, grid_type) result(rho)
         class(Generator), intent(in)        :: gen
         !> Charge density generator
         integer, intent(in), optional       :: maxlevel
@@ -1846,10 +1846,11 @@ contains
         real(REAL64), intent(in)            :: stepmax
         !> Maximum stepsize
         integer, intent(in)                 :: nlip
+        integer(int32), intent(in)          :: grid_type
         !> Number of Lagrange interpolation polynomials per cell
 
         ! returned 3d function
-        class(Function3D), allocatable     :: rho
+        class(Function3D), allocatable      :: rho
         ! final grid
         type(Grid3D)                        :: grid
 
@@ -1885,7 +1886,7 @@ contains
         stepsize_z = stepsizes(Z_)
         
         ! init grid via Grid3D_init_step constructor
-        grid = Grid3D(ranges(1, :), ncell, nlip, stepsize_x, stepsize_y, stepsize_z)
+        grid = Grid3D(ranges(1, :), ncell, nlip, stepsize_x, stepsize_y, stepsize_z, grid_type)
 
         deallocate(stepsize_x, stepsize_y, stepsize_z)
         ! init density in the grid

@@ -115,6 +115,8 @@ module SlaterGenerator_class
         real(REAL64)                :: step=0.2d0
         !> nlip
         integer                     :: nlip=7
+        !> grid_type.  1: equidistant, 2: Gauss Lobatto
+        integer                     :: grid_type = 2
         !> Threshold
         real(REAL64)                :: thres=1.d-12
     contains
@@ -304,10 +306,11 @@ contains
 !        extent=[ (maxval(extent, mask=(self%ibub==i) ), i=1,size(self%z) )]
         extent=[ (EXT, i=1,size(self%z) )]
 
-       cubegrid=Grid3D(centers= self%centers,&
-                       radii  = extent,&
-                       step   = self%step,&
-                       nlip   = self%nlip )
+       cubegrid=Grid3D(centers   = self%centers,&
+                       radii     = extent,&
+                       step      = self%step,&
+                       nlip      = self%nlip, &
+                       grid_type = self%grid_type )
 ! xwh, test
        ! test point (0,0,1)
        ! step = 0.001d0

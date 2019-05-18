@@ -39,14 +39,14 @@
 extern __shared__ double shared_memory[];
 
 /*
- * NOTE: this method assumes that the grid is equidistant 
+ * NOTE: this method assumes that the grid is equidistant (in the sense that all cells are equal)
  */
 template <int nlip>
-__device__ inline 
+__device__ inline
 void calculate_icell_equidistant(const Grid1D *grid,
                                  const double coordinate,
                                  int &icell,
-                                 double &in_cell_coordinate, 
+                                 double &in_cell_coordinate,
                                  double &one_per_grid_step
                                 ) {
     double grid_step = grid->h[0];
@@ -57,7 +57,7 @@ void calculate_icell_equidistant(const Grid1D *grid,
     if (coordinate - start < 0.0) icell = -1;
     double cell_center =  start + ((double)icell + 0.5) * cell_length;
     in_cell_coordinate = (coordinate - cell_center) * one_per_grid_step;
-   
+
 }
 
 /*
@@ -74,18 +74,18 @@ void read_lip(double *device_lip, int thread_id, double *shared_memory_lip) {
 }
 
 /*
- * 
- * NOTE: polynomials must be a array of size 8
+ *
+ * NOTE: polynomials must be an array of size 8
  */
 template <int nlip, int result_length>
 __device__ inline
 void evaluate_polynomials(double *lip, double x, double *polynomials) {
-    
+
 
     for (int i = 0; i < result_length; i++) {
-        // init the polynomial as the first value of the lip 
+        // init the polynomial as the first value of the lip
         polynomials[i] = lip[i*nlip];
-        
+
         for (int k = 1; k < nlip; k++) {
             polynomials[i] = lip[i*nlip + k] + x*polynomials[i];
         }
@@ -102,23 +102,23 @@ void evaluate_polynomials(double *lip, double x, double *polynomials) {
 
 
 /*
- * Evaluates sum of 'coefficients[i]' times 'polynomials[i]' for 'coefficients' 
+ * Evaluates sum of 'coefficients[i]' times 'polynomials[i]' for 'coefficients'
  * that reside in device memory.
- * 
- * NOTE: polynomials must be a array of size 8
+ *
+ * NOTE: polynomials must be an array of size 8
  */
 template <int nlip>
  __device__ inline
 double evaluate_coefficients(double *polynomials, const double* __restrict__ c, int address, int thread_id) {
-    
+
     const int EVALUATE_BLOCK_SIZE = 8;
-    
+
     // get the thread rank within its little block of size 'EVALUATE_BLOCK_SIZE'
     int thread_rank =  thread_id%EVALUATE_BLOCK_SIZE;
-    
+
     // let us use the results array as temp array
     double temp_results[EVALUATE_BLOCK_SIZE];
-    
+
     // TODO: make this more generic
     int addresses[EVALUATE_BLOCK_SIZE];
     addresses[0] =__shfl(address, 0, EVALUATE_BLOCK_SIZE)  + thread_rank;
@@ -129,7 +129,7 @@ double evaluate_coefficients(double *polynomials, const double* __restrict__ c, 
     addresses[5] =__shfl(address, 5, EVALUATE_BLOCK_SIZE)  + thread_rank;
     addresses[6] =__shfl(address, 6, EVALUATE_BLOCK_SIZE)  + thread_rank;
     addresses[7] =__shfl(address, 7, EVALUATE_BLOCK_SIZE)  + thread_rank;
-    
+
     int reg = thread_rank;
     if (thread_rank < nlip) {
         temp_results[reg] = __ldg(&c[addresses[0]]);
@@ -158,7 +158,7 @@ double evaluate_coefficients(double *polynomials, const double* __restrict__ c, 
         temp_results[6] = 0.0;
         temp_results[7] = 0.0;
     }
-    
+
     reg = thread_rank;
     double result =  temp_results[0]                                      * polynomials[reg];
     reg = ((reg == EVALUATE_BLOCK_SIZE-1) ? 0 : reg + 1);
@@ -175,14 +175,14 @@ double evaluate_coefficients(double *polynomials, const double* __restrict__ c, 
     result += __shfl(temp_results[6], thread_rank+6, EVALUATE_BLOCK_SIZE) * polynomials[reg];
     reg = ((reg == EVALUATE_BLOCK_SIZE-1) ? 0 : reg + 1);
     result += __shfl(temp_results[7], thread_rank+7, EVALUATE_BLOCK_SIZE) * polynomials[reg];
-    
+
     return result;
 }
 
 /*
- * Evaluates sum of 'coefficients[i]' times 'polynomials[i]' for 'coefficients' 
+ * Evaluates sum of 'coefficients[i]' times 'polynomials[i]' for 'coefficients'
  * that reside in registers.
- * 
+ *
  * NOTE: 'polynomials' and 'c' must be arrays of size nlip
  */
 template <int nlip>
@@ -196,10 +196,10 @@ double evaluate_coefficients_register(double *polynomials, double *c) {
 }
 
 /*
- * Evaluates sum of 'coefficients[i]' times 'polynomials[i]' for 'coefficients' 
+ * Evaluates sum of 'coefficients[i]' times 'polynomials[i]' for 'coefficients'
  * that reside in registers that are spread within the neighbouring threads.
  * Also the 'polynomials should lie in registers'
- * 
+ *
  * NOTE: 'polynomials' and 'c' must be arrays of size nlip
  */
 template <int nlip>
@@ -209,8 +209,8 @@ double evaluate_coefficients_shuffle(double *polynomials, double coefficient, in
     if (nlip == 7) {
         // get the number of thread having the first coefficient
         int first_of_cell = thread_order_number - x_modulo;
-    
-        // do not take the 32:nd thread in to the games because each warp is handling 
+
+        // do not take the 32:nd thread in to the games because each warp is handling
         // 5 cells, i.e., 6*5 + 1 points
         if (thread_order_number < 31) {
             result =  __shfl(coefficient, first_of_cell  , 32) * polynomials[0];
@@ -225,14 +225,14 @@ double evaluate_coefficients_shuffle(double *polynomials, double coefficient, in
     return result;
 }
 
-/* 
+/*
  * Evaluate cube at 'points'
- * 
- * if calling to the version with evaluate_gradients=true, we are also evaluating the 
+ *
+ * if calling to the version with evaluate_gradients=true, we are also evaluating the
  * gradients and storing the results to 'device_gradients'
  */
 template <bool evaluate_value, bool evaluate_gradients_x, bool evaluate_gradients_y, bool evaluate_gradients_z>
-__global__ void 
+__global__ void
 #if (__CUDA_ARCH__ <= 350)
 __launch_bounds__(BLOCK_SIZE)
 #else
@@ -246,7 +246,7 @@ CubeEvaluator_evaluate_points(const double* __restrict__ device_cube,
                               double* __restrict__ device_gradients_x,
                               double* __restrict__ device_gradients_y,
                               double* __restrict__ device_gradients_z,
-                              // a 3d array, where the x coordinates are first, 
+                              // a 3d array, where the x coordinates are first,
                               // then y coordinates, and finally the z coordinates. This ordering
                               // is selected to get coalesced memory reads
                               const double* __restrict__ points,
@@ -257,25 +257,25 @@ CubeEvaluator_evaluate_points(const double* __restrict__ device_cube,
                               // device_point_offset
                               const int device_point_offset,
                               const double multiplier
-                       ) {    
-    
+                       ) {
+
     // Get the point order number within this kernel call
     int id = blockIdx.x * blockDim.x + threadIdx.x;
-    
+
     double value, gradient[3];
     double in_cell_coordinate_x = 0.0, in_cell_coordinate_y = 0.0, in_cell_coordinate_z = 0.0;
     double one_per_grid_step_x = 0.0, one_per_grid_step_y = 0.0, one_per_grid_step_z = 0.0;
     int icell_x = 0, icell_y = 0, icell_z = 0, ncell_x = 0, ncell_y= 0, ncell_z= 0;
     bool valid_point = true;
-    
-    
+
+
     // get the number of cells
     ncell_x = grid->axis[X_]->ncell;
     ncell_y = grid->axis[Y_]->ncell;
     ncell_z = grid->axis[Z_]->ncell;
-                
+
     if (id + device_point_offset < device_number_of_points && id < point_count ) {
-        // get the cell indices and coordinates within cell in grid steps 
+        // get the cell indices and coordinates within cell in grid steps
         calculate_icell_equidistant<NLIP>(
             grid->axis[X_], points[id + device_point_offset], icell_x, in_cell_coordinate_x, one_per_grid_step_x);
         calculate_icell_equidistant<NLIP>(
@@ -286,8 +286,8 @@ CubeEvaluator_evaluate_points(const double* __restrict__ device_cube,
     else {
         valid_point = false;
     }
-        
-    
+
+
     // if the result is not within the grid, set the icells to 0 and mark the point to be non-valid
     if (icell_x < 0 || icell_x >= ncell_x || icell_y < 0 || icell_y >= ncell_y || icell_z < 0 || icell_z >= ncell_z) {
         icell_x = 0;
@@ -295,27 +295,27 @@ CubeEvaluator_evaluate_points(const double* __restrict__ device_cube,
         icell_z = 0;
         valid_point = false;
     }
-    
+
     // read the LIPs in the shared memory
-    
+
     __shared__ double lip[NLIP * NLIP];
     read_lip<NLIP, NLIP>(grid->axis[X_]->lip, threadIdx.x, lip);
-    
+
     // evaluate the polynomials in x and y directions
     double x_polynomials[8];
     evaluate_polynomials<NLIP, NLIP>(lip, in_cell_coordinate_x, x_polynomials);
     double polynomials[8];
     evaluate_polynomials<NLIP, NLIP>(lip, in_cell_coordinate_y, polynomials);
-    
+
     double x_values[NLIP], y_values[NLIP];
-    
+
     // get the address to the first grid point of icell_x, icell_y and icell_z
-    int address =   icell_x * (NLIP-1) 
+    int address =   icell_x * (NLIP-1)
                   + icell_y * device_pitch / sizeof(double) * (NLIP-1)
                   + icell_z * device_pitch / sizeof(double) * device_shape_y * (NLIP-1);
-                  
+
     if (evaluate_value || evaluate_gradients_z) {
-  
+
         for (int j = 0; j < NLIP; j++) {
             // add the address by 'j' slices
             int z_address = address + j * device_pitch / sizeof(double) * device_shape_y;
@@ -327,55 +327,55 @@ CubeEvaluator_evaluate_points(const double* __restrict__ device_cube,
             y_values[j] = evaluate_coefficients_register<NLIP>(polynomials, x_values);
         }
     }
-        
+
     if (evaluate_value) {
-        
+
         // evaluate the polynomials in z-direction.
         // NOTE: reusing the y-direction polynomial registers
         evaluate_polynomials<NLIP, NLIP>(lip, in_cell_coordinate_z, polynomials);
-        
+
         // evaluate the coefficients
         value = evaluate_coefficients_register<NLIP>(polynomials, y_values);
-        
+
         // if the point handled is valid, let's add it to the results
         if (valid_point) {
             result_array[id+device_point_offset] += multiplier * value;
         }
     }
-    
+
     // if we are evaluating the gradients, it is done within the brackets below
     if (evaluate_gradients_x || evaluate_gradients_y || evaluate_gradients_z) {
         __shared__ double derivative_lip[(NLIP-1) * NLIP];
         read_lip<NLIP-1, NLIP>(grid->axis[X_]->derivative_lip, threadIdx.x, derivative_lip);
-        
+
         if (evaluate_gradients_z) {
             // evaluate the gradient polynomials in z-direction.
             evaluate_polynomials<NLIP-1, NLIP>(derivative_lip, in_cell_coordinate_z, polynomials);
-            
+
             // multiply the polynomials with 1 / grid_step
             for (int j = 0; j < NLIP; j++) {
                 polynomials[j] *= one_per_grid_step_z;
             }
-            
+
             // evaluate the derivative coefficients
             // we can reuse the previous y_values, which are the same for this case
             gradient[Z_] = evaluate_coefficients_register<NLIP>(polynomials, y_values);
         }
-        
+
         // NOTE: we now have the derivatives in x-direction, but for the rest y- and z- directions,
         //       we have to recalculate everything else, as we need to save some registers.
         //       If we would have 49*2 extra registers the next loop would be futile.
-        
+
         if (evaluate_gradients_y) {
-            // let's calculate the y-axis derivative polynomials. 
+            // let's calculate the y-axis derivative polynomials.
             // Note that we are still using the same x-direction polynomials
             evaluate_polynomials<NLIP-1, NLIP>(derivative_lip, in_cell_coordinate_y, polynomials);
-            
+
             // multiply the polynomials with 1 / grid_step
             for (int j = 0; j < NLIP; j++) {
                 polynomials[j] *= one_per_grid_step_y;
             }
-            
+
             // and let's do the looping again
             for (int j = 0; j < NLIP; j++) {
                 // add the address by 'j' slices
@@ -387,28 +387,28 @@ CubeEvaluator_evaluate_points(const double* __restrict__ device_cube,
                 }
                 y_values[j] = evaluate_coefficients_register<NLIP>(polynomials, x_values);
             }
-            
+
             // evaluate the polynomials in z-direction.
             // reusing the y-direction polynomial registers
             evaluate_polynomials<NLIP, NLIP>(lip, in_cell_coordinate_z, polynomials);
-            
+
             // finally, we can get the derivative in y-direction
             gradient[Y_] = evaluate_coefficients_register<NLIP>(polynomials, y_values);
-       
+
         }
-        
+
         if (evaluate_gradients_x) {
             // evaluate the normal polynomials in y-direction
             evaluate_polynomials<NLIP, NLIP>(lip, in_cell_coordinate_y, polynomials);
-            
+
             // and evaluate the derivative polynomials in x-direction
             evaluate_polynomials<NLIP-1, NLIP>(derivative_lip, in_cell_coordinate_x, x_polynomials);
-            
+
             // multiply the polynomials with 1 / grid_step
             for (int j = 0; j < NLIP; j++) {
                 x_polynomials[j] *= one_per_grid_step_x;
             }
-            
+
             // and let's do the looping again
             for (int j = 0; j < NLIP; j++) {
                 // add the address by 'j' slices
@@ -420,15 +420,15 @@ CubeEvaluator_evaluate_points(const double* __restrict__ device_cube,
                 }
                 y_values[j] = evaluate_coefficients_register<NLIP>(polynomials, x_values);
             }
-            
+
             // evaluate the polynomials in z-direction.
             // reusing the y-direction polynomial registers
             evaluate_polynomials<NLIP, NLIP>(lip, in_cell_coordinate_z, polynomials);
-            
+
             // finally, we are ready and can get the derivative in z-direction
             gradient[X_] = evaluate_coefficients_register<NLIP>(polynomials, y_values);
         }
-        
+
         // if the point handled is valid, let's store the gradient to the device_gradients
         if (valid_point) {
             if (evaluate_gradients_x) device_gradients_x[id+device_point_offset] += multiplier * gradient[X_];
@@ -436,16 +436,16 @@ CubeEvaluator_evaluate_points(const double* __restrict__ device_cube,
             if (evaluate_gradients_z) device_gradients_z[id+device_point_offset] += multiplier * gradient[Z_];
         }
     }
-        
+
     return;
 
 }
 
-/* 
+/*
  * Evaluate cube gradients at grid points.  The results are stored to 'device_gradients'.
  */
 template <int nlip, bool evaluate_gradients_x, bool evaluate_gradients_y, bool evaluate_gradients_z>
-__global__ void 
+__global__ void
 #if (__CUDA_ARCH__ <= 350)
 __launch_bounds__(BLOCK_SIZE)
 #else
@@ -466,83 +466,83 @@ CubeEvaluator_evaluate_grid_gradients(const double* __restrict__ device_cube,
                                       int slice_offset,
                                       // number of slices handled by this call
                                       int slice_count,
-                                      // number of slices handled by this 
+                                      // number of slices handled by this
                                       // number of warps in a x-axis row
                                       int warps_per_string,
                                       const double multiplier
-                                      ) {    
-    
+                                      ) {
+
     // Get the point order number within this kernel call
     int global_warp_id, thread_order_number, cells_per_warp;
     int WARP_SIZE = 32;
-    
+
     bool valid_point = true;
-    
+
     // if nlip is 7, each warp of 32 handles 5 cells
     if (nlip == 7) {
         // get the global warp order number
         global_warp_id =   blockIdx.x * blockDim.x / WARP_SIZE
                              + threadIdx. x / WARP_SIZE;
         cells_per_warp = 5;
-        
-        // get the order number of thread within the warp 
+
+        // get the order number of thread within the warp
         thread_order_number = threadIdx.x % WARP_SIZE;
-        
+
         if (thread_order_number == 31) valid_point = false;
     }
-    
-    
+
+
     // get the number of cells
     int ncell_x = grid->axis[X_]->ncell;
     int ncell_y = grid->axis[Y_]->ncell;
     int ncell_z = grid->axis[Z_]->ncell;
     int y_shape = ncell_y * (nlip-1) + 1;
-    
+
     // get the z and y coordinates
     int z = global_warp_id / (warps_per_string * y_shape);
     int y = (global_warp_id - z * warps_per_string * y_shape) / warps_per_string;
-    
+
     // get the warp id withing the x-axis string
-    int string_warp_id = (global_warp_id 
+    int string_warp_id = (global_warp_id
                          - z * warps_per_string * y_shape
                          - y * warps_per_string);
     int icell_x = string_warp_id * cells_per_warp + thread_order_number / (nlip-1);
     int x_modulo = thread_order_number % (nlip-1);
     int x = icell_x * (nlip-1) + x_modulo;
-    
-    
+
+
     // get the order numbers of cells within this device
     int icell_z =  (z + slice_offset) / (nlip-1);
     int icell_y =  y / (nlip-1);
-    
+
     // and get the remainders of the y and z coordinates
     int y_modulo = y % (nlip-1);
     int z_modulo = (z + slice_offset) % (nlip-1);
-    
+
     // if this thread handles the last cell of the x-axis
     // set the correct icell
     if (x_modulo == 0 && icell_x > 0) {
         icell_x -= 1;
         x_modulo = 6;
     }
-    
-    // if this thread handles data in the last index of the y-axis 
+
+    // if this thread handles data in the last index of the y-axis
     if (y_modulo == 0 && icell_y > 0) {
         icell_y -= 1;
         y_modulo = 6;
     }
-    
-    // if this thread handles data in the last index of the z-axis 
+
+    // if this thread handles data in the last index of the z-axis
     if (z_modulo == 0 && icell_z > 0) {
         icell_z -= 1;
         z_modulo = 6;
     }
-    
-    
-    
-    
+
+
+
+
     // if the result is not within the grid, mark the point to be non-valid
-    if (   icell_x  < 0 || x >= ncell_x * (nlip-1) + 1 
+    if (   icell_x  < 0 || x >= ncell_x * (nlip-1) + 1
         || icell_y  < 0 || y >= y_shape
         || icell_z  < 0 || z + slice_offset >= ncell_z * (nlip-1) + 1
         || z >= slice_count) {
@@ -555,112 +555,112 @@ CubeEvaluator_evaluate_grid_gradients(const double* __restrict__ device_cube,
         z = 0;
         thread_order_number = 32;
     }
-    
+
     if (thread_order_number == 0 && x_modulo != 0) valid_point = false;
-    
+
     // calculate the 1 / grid steps for all axis
     double one_per_grid_step_x = 1.0 / grid->axis[X_]->h[icell_x];
     double one_per_grid_step_y = 1.0 / grid->axis[Y_]->h[icell_y];
     double one_per_grid_step_z = 1.0 / grid->axis[Z_]->h[icell_z];
-    
+
     // get the in cell coordinate of x
     double in_cell_coordinate_x = (double)(x_modulo - 3);
     double in_cell_coordinate_y = (double)(y_modulo - 3);
     double in_cell_coordinate_z = (double)(z_modulo - 3);
-    
-    
+
+
     // read the LIPs in the shared memory
     __shared__ double lip[nlip * nlip];
     read_lip<nlip, nlip>(grid->axis[X_]->lip, threadIdx.x, lip);
     __shared__ double derivative_lip[(nlip-1) * nlip];
     read_lip<nlip-1, nlip>(grid->axis[X_]->derivative_lip, threadIdx.x, derivative_lip);
-    
+
     // init the polynomials in x direction
     double x_polynomials[8];
-    
+
     // init the polynomials in y/z direction
     double polynomials[8];
-    
+
     double x_values[nlip], y_values[nlip];
-    int address;  
+    int address;
     double gradient[3];
-    
+
     // evaluate gradient to x direction
     if (evaluate_gradients_z) {
-        address =   x 
+        address =   x
                 + y * device_pitch / sizeof(double)
                 + icell_z  * (nlip-1) * device_pitch / sizeof(double) * device_shape_y;
         for (int j = 0; j < nlip; j++) {
             // add the address by 'j' slices
             int z_address = address + j * device_pitch / sizeof(double) * device_shape_y;
-            
+
             // read the value
             y_values[j] = device_cube[z_address];
         }
-        
+
         // evaluate the polynomials in z-direction.
         evaluate_polynomials<nlip-1, nlip>(derivative_lip, in_cell_coordinate_z, polynomials);
-        
+
         // multiply the polynomials with 1 / grid_step
         for (int j = 0; j < nlip; j++) {
             polynomials[j] *= one_per_grid_step_z;
         }
-        
+
         // Now we have all to evaluate the gradients in z direction. Let's do it.
         gradient[Z_] = evaluate_coefficients_register<nlip>(polynomials, y_values);
     }
-    
+
     // evaluate gradient to y direction
     if (evaluate_gradients_y) {
         // evaluate the derivative polynomials in y direction
         evaluate_polynomials<nlip-1, nlip>(derivative_lip, in_cell_coordinate_y, polynomials);
-        
+
         // multiply the polynomials with 1 / grid_step
         for (int j = 0; j < nlip; j++) {
             polynomials[j] *= one_per_grid_step_y;
         }
-                
+
         // get the address to the first grid point of icell_y and icell_z and to the point x
-        address =   x 
+        address =   x
                 + icell_y * device_pitch / sizeof(double) * (nlip-1)
                 + icell_z * device_pitch / sizeof(double) * device_shape_y * (nlip-1);
         for (int j = 0; j < nlip; j++) {
             // add the address by 'j' slices
             int z_address = address + j * device_pitch / sizeof(double) * device_shape_y;
-            
+
             for (int k = 0; k < nlip; k++) {
                 // add the address by 'k' rows
                 int y_address = z_address + k * device_pitch / sizeof(double);
-                
+
                 // read in the x value
                 x_values[k] = device_cube[y_address];
-                
+
             }
             y_values[j] = evaluate_coefficients_register<nlip>(polynomials, x_values);
         }
-        
+
         // evaluate the polynomials in z-direction.
         // NOTE: reusing the y-direction polynomial registers
         evaluate_polynomials<nlip, nlip>(lip, in_cell_coordinate_z, polynomials);
-        
+
         // Now we have all to evaluate the gradients in y direction. Let's do it.
         gradient[Y_] = evaluate_coefficients_register<nlip>(polynomials, y_values);
     }
-    
+
     // evaluate gradient to z direction
     if (evaluate_gradients_x) {
         // evaluate the polynomials in y-direction.
         evaluate_polynomials<nlip, nlip>(lip, in_cell_coordinate_y, polynomials);
-        
+
         // evaluate the derivative polynomials in x direction
         evaluate_polynomials<nlip-1, nlip>(derivative_lip, in_cell_coordinate_x, x_polynomials);
-        
+
         // multiply the polynomials with 1 / grid_step
         for (int j = 0; j < nlip; j++) {
             x_polynomials[j] *= one_per_grid_step_x;
         }
-    
-        address =   x 
+
+        address =   x
                 + icell_y * device_pitch / sizeof(double) * (nlip-1)
                 + icell_z * device_pitch / sizeof(double) * device_shape_y * (nlip-1);
         for (int j = 0; j < nlip; j++) {
@@ -669,33 +669,33 @@ CubeEvaluator_evaluate_grid_gradients(const double* __restrict__ device_cube,
             for (int k = 0; k < nlip; k++) {
                 // add the address by 'k' rows
                 int y_address = z_address + k * device_pitch / sizeof(double);
-                
+
                 // read in the x value
                 double x_value = device_cube[y_address];
-                
+
                 // evaluate the derivative value
                 x_values[k] = evaluate_coefficients_shuffle<nlip>(x_polynomials, x_value, thread_order_number, x_modulo);
             }
             y_values[j] = evaluate_coefficients_register<nlip>(polynomials, x_values);
         }
-        
+
         // evaluate the polynomials in z-direction.
         // NOTE: reusing the y-direction polynomial registers
         evaluate_polynomials<nlip, nlip>(lip, in_cell_coordinate_z, polynomials);
-        
+
         // evaluate the coefficients
         gradient[X_] = evaluate_coefficients_register<nlip>(polynomials, y_values);
     }
-    
+
     address =   x
               + y * device_pitch / sizeof(double)
               + (z + device_slice_offset) * device_pitch / sizeof(double) * device_shape_y;
-              
-     
+
+
     // if the point handled is valid, let's add it to the results
     if (valid_point) {
         /*if (x >= ncell_x * (nlip-1) +1 || y >= ncell_y * (nlip-1) + 1 || z + slice_offset >= ncell_z * (nlip-1) + 1 ||  z >= slice_count) {
-            printf("over bounds x: %d/%d, y: %d/%d, z: %d / %d\n", x, ncell_x * (nlip-1) +1, y, ncell_y * (nlip-1) + 1, z, slice_count);   
+            printf("over bounds x: %d/%d, y: %d/%d, z: %d / %d\n", x, ncell_x * (nlip-1) +1, y, ncell_y * (nlip-1) + 1, z, slice_count);
         }*/
         //int max_address = (device_slice_offset + slice_count) * device_shape_y *  device_pitch / sizeof(double);
         //if (address >= max_address || address < 0 ) printf("address over bounds: %d / %d", address, max_address);
@@ -703,218 +703,381 @@ CubeEvaluator_evaluate_grid_gradients(const double* __restrict__ device_cube,
         if (evaluate_gradients_y) device_gradients_y[address] += multiplier * gradient[Y_];
         if (evaluate_gradients_z) device_gradients_z[address] += multiplier * gradient[Z_];
     }
-    
-        
+
+
     return;
 
 }
 
-__device__ __forceinline__ double evaluate_derivative(const int current_id, const int previous_id, const int previous_id2, const int previous_id3, const int previous_id4, const int next_id, const int next_id2, const int next_id3, const int next_id4, const double* __restrict__ device_cube, const double h) {
+// fixme: why is there evaluate_derivative and evaluate_derivative_x?  What is the difference? lnw
+__device__ __forceinline__ double evaluate_derivative(const int current_id,
+                                                      const int previous_id1, const int previous_id2, const int previous_id3, const int previous_id4,const int previous_id5, const int previous_id6,
+                                                      const int next_id1, const int next_id2, const int next_id3, const int next_id4, const int next_id5, const int next_id6,
+                                                      const double* __restrict__ device_cube, const int grid_type, const double h) {
     if (current_id == -1) {
         return 0.0;
     }
-    if (previous_id > -1 && next_id > -1 && previous_id2 > -1 && next_id2 > -1 &&
-        previous_id3 > -1 && next_id3 > -1 && previous_id4 > -1 && next_id4 > -1) {
-        return (3.0 *__ldg(&device_cube[previous_id4]) - 32.0 *__ldg(&device_cube[previous_id3])
-        +168.0 *__ldg(&device_cube[previous_id2])  - 672.0 * __ldg(&device_cube[previous_id])
-        + 672.0 * __ldg(&device_cube[next_id]) - 168.0 * __ldg(&device_cube[next_id2])
-        + 32.0 * __ldg(&device_cube[next_id3]) - 3.0 * __ldg(&device_cube[next_id4])
-        ) / (840.0*h);
-        
+    double current_value,
+           previous_value1, previous_value2, previous_value3, previous_value4, previous_value5, previous_value6,
+           next_value1, next_value2, next_value3, next_value4, next_value5, next_value6;
+ 
+    if (previous_id6 > -1) previous_value6 = __ldg(&device_cube[previous_id6]);
+    if (previous_id5 > -1) previous_value5 = __ldg(&device_cube[previous_id5]);
+    if (previous_id4 > -1) previous_value4 = __ldg(&device_cube[previous_id4]);
+    if (previous_id3 > -1) previous_value3 = __ldg(&device_cube[previous_id3]);
+    if (previous_id2 > -1) previous_value2 = __ldg(&device_cube[previous_id2]);
+    if (previous_id1 > -1) previous_value1 = __ldg(&device_cube[previous_id1]);
+    if (current_id > -1)   current_value   = __ldg(&device_cube[current_id]);
+    if (next_id1 > -1)     next_value1     = __ldg(&device_cube[next_id1]);
+    if (next_id2 > -1)     next_value2     = __ldg(&device_cube[next_id2]);
+    if (next_id3 > -1)     next_value3     = __ldg(&device_cube[next_id3]);
+    if (next_id4 > -1)     next_value4     = __ldg(&device_cube[next_id4]);
+    if (next_id5 > -1)     next_value5     = __ldg(&device_cube[next_id5]);
+    if (next_id6 > -1)     next_value6     = __ldg(&device_cube[next_id6]);
+
+    // assuming nlip = 7
+    if(grid_type == 1){ // equidistant
+
+#if 0
+
+    if (previous_id1 > -1 && next_id1 > -1 && previous_id2 > -1 && next_id2 > -1 && previous_id3 > -1 && next_id3 > -1) {
+        return (-1.0 * previous_value3 + 9.0 * previous_value2 - 45.0 * previous_value1  + 45.0 * next_value1 - 9.0 * next_value2 + 1.0 * next_value3) / (60.0*h);
     }
-    else if (previous_id > -1 && next_id > -1 && previous_id2 > -1 && next_id2 > -1 && previous_id3 > -1 && next_id3 > -1) {
-        return (-1.0 *__ldg(&device_cube[previous_id3]) + 9.0 *__ldg(&device_cube[previous_id2])
-        -45.0 *__ldg(&device_cube[previous_id])  + 45.0 * __ldg(&device_cube[next_id])
-        - 9.0 * __ldg(&device_cube[next_id2]) + 1.0 * __ldg(&device_cube[next_id3])) / (60.0*h);
-        
+    else if ( previous_id1 > -1 && next_id1 > -1 && previous_id2 > -1 && next_id2 > -1) {
+        return (-1.0 * next_value2 + 8.0 * next_value1 - 8.0 * previous_value1 + previous_value2) / (12.0*h);
     }
-    else if ( previous_id > -1 && next_id > -1 && previous_id2 > -1 && next_id2 > -1) {
-        return (-1.0 *__ldg(&device_cube[next_id2]) + 8.0 *__ldg(&device_cube[next_id])
-        -8.0 *__ldg(&device_cube[previous_id])  +__ldg(&device_cube[previous_id2])) / (12.0*h);
+    else if (previous_id1 == -1 && previous_id2 == -1 && next_id1 > -1 & next_id2 > -1) {
+        return (-1.0 * next_value2 + 4.0 * next_value1 - 3.0 * current_value) / (2.0 * h);
     }
-    else if (previous_id == -1 && previous_id2 == -1 && next_id > -1 & next_id2 > -1) {
-        return  -1.0 *
-        (__ldg(&device_cube[next_id2]) - 4.0 *__ldg(&device_cube[next_id]) + 3.0 *__ldg(&device_cube[current_id]))
-        / (2.0 * h); 
+    else if (previous_id1 > -1 && previous_id2 > -1 && next_id1 == -1 && next_id2 == -1) {
+        return (previous_value2 - 4.0 *previous_value1 + 3.0 * current_value) / (2.0 * h);
     }
-    else if (previous_id > -1 && previous_id2 > -1 && next_id == -1 && next_id2 == -1) {
-        return 1.0 * (__ldg(&device_cube[previous_id2]) - 4.0 *__ldg(&device_cube[previous_id]) + 3.0 * device_cube[current_id]) / (2.0 * h); 
+    else if ( previous_id1 > -1 && next_id1 > -1 && (previous_id2 == -1 || next_id2 == -1)) {
+        return (next_value1 - previous_value1) / (2.0 * h);
     }
-    else if ( previous_id > -1 && next_id > -1 && (previous_id2 == -1 || next_id2 == -1)) {
-        return (__ldg(&device_cube[next_id]) -__ldg(&device_cube[previous_id])) / (2.0 * h );
+    else if ( previous_id1 == -1 && next_id1 > -1 && previous_id2 == -1 && next_id2 == -1) {
+        return (next_value1 - current_value) / h;
     }
-    else if ( previous_id == -1 && next_id > -1 && previous_id2 == -1 && next_id2 == -1) {
-        return (__ldg(&device_cube[next_id]) -__ldg(&device_cube[current_id])) / h;
+    else if ( previous_id1 > -1 && next_id1 == -1 && previous_id2 == -1 && next_id2 == -1) {
+        return (current_value - previous_value1) / h;
     }
-    else if ( previous_id > -1 && next_id == -1 && previous_id2 == -1 && next_id2 == -1) {
-        return (__ldg(&device_cube[current_id]) -__ldg(&device_cube[previous_id])) / h;
+
+#else // doesn't work
+// equidistant:
+// accuracy order 6: {-2.45           ,6              ,-7.5           ,6.66666666667 ,-3.75         ,1.2           ,-0.166666666667}      {-147., 360 , -450., 400. , -225., 72. , -10.} / 60
+// accuracy order 6: {-0.166666666667 ,-1.28333333333 ,2.5            ,-1.66666666667,0.833333333333,-0.25         ,0.0333333333333}      {-10. , -77., 150. , -100., 50.  , -15., 2.} / 60
+// accuracy order 6: {0.0333333333333 ,-0.4           ,-0.583333333333,1.33333333333 ,-0.5          ,0.133333333333,-0.0166666666667}     {2.   , -24., -35. , 80.  , -30. , 8.  , -1.} / 60
+// accuracy order 6: {-0.0166666666667,0.15           ,-0.75          ,0             ,0.75          ,-0.15         ,0.0166666666667}   =  (-1   , 9   , -45  , 0    , 45   , -9  , 1) / 60
+// accuracy order 6: {0.0166666666667 ,-0.133333333333,0.5            ,-1.33333333333,0.583333333333,0.4           ,-0.0333333333333}     {1.   , -8. , 30.  , -80. , 35.  , 24. , -2.} / 60
+// accuracy order 6: {-0.0333333333333,0.25           ,-0.833333333333,1.66666666667 ,-2.5          ,1.28333333333 ,0.166666666667}       {-2.  , 15. , -50. , 100. , -150., 77. , 10.} / 60
+// accuracy order 6: {0.166666666667  ,-1.2           ,3.75           ,-6.66666666667,7.5           ,-6            ,2.45}                 {10.  , -72., 225. , -400., 450. , -360, 147.} / 60
+
+    // if ( next_id1 > -1     && next_id2 > -1     && next_id3 > -1     && next_id4 > -1     && next_id5 > -1     && next_id6 > -1 )                    return ( -147.0*current_value   + 360. *next_value1     + -450. *next_value2     + 400.  * next_value3     + -225. * next_value4     + 72.  * next_value5     + -10. * next_value6 ) / (60.0*h);
+    // if      ( previous_id1 > -1 && next_id1 > -1     && next_id2 > -1     && next_id3 > -1     && next_id4 > -1     && next_id5 > -1 )  return ( -10.0 *previous_value1 + -77. *current_value   + 150. *next_value1     + -100. * next_value2     + 50.   * next_value3     + -15. * next_value4     + 2.   * next_value5 ) / (60.0*h);
+    // else if ( previous_id2 > -1 && previous_id1 > -1 && next_id1 > -1     && next_id2 > -1     && next_id3 > -1     && next_id4 > -1 )  return ( 2.0   *previous_value2 + -24. *previous_value1 + -35. *current_value   + 80.   * next_value1     + -30.  * next_value2     + 8.   * next_value3     + -1.  * next_value4 ) / (60.0*h);
+    if ( previous_id3 > -1 && previous_id2 > -1 && previous_id1 > -1 && next_id1 > -1     && next_id2 > -1     && next_id3 > -1 )  return ( -1.0  *previous_value3 + 9.0  *previous_value2 + -45. *previous_value1                           + 45.   * next_value1     + -9.  * next_value2     + 1.   * next_value3 ) / (60.0*h);
+    // else if ( previous_id4 > -1 && previous_id3 > -1 && previous_id2 > -1 && previous_id1 > -1 && next_id1 > -1     && next_id2 > -1 )  return ( 1.0   *previous_value4 + -8.  *previous_value3 + 30.  *previous_value2 + -80.  * previous_value1 + 35.   * current_value   + 24.  * next_value1     + -2.  * next_value2 ) / (60.0*h);
+    // else if ( previous_id5 > -1 && previous_id4 > -1 && previous_id3 > -1 && previous_id2 > -1 && previous_id1 > -1 && next_id1 > -1 )  return ( -2.0  *previous_value5 + 15.  *previous_value4 + -50. *previous_value3 + 100.  * previous_value2 + -150. * previous_value1 + 77.  * current_value   + 10.  * next_value1 ) / (60.0*h);
+    // else if ( previous_id6 > -1 && previous_id5 > -1 && previous_id4 > -1 && previous_id3 > -1 && previous_id2 > -1 && previous_id1 > -1 )           return ( 10.0  *previous_value6 + -72. *previous_value5 + 225.  *previous_value4 + -400. * previous_value3 + 450.  * previous_value2 + -360 * previous_value1 + 147. * current_value ) / (60.0*h);
+    else if ( previous_id1 > -1 && next_id1 > -1 && previous_id2 > -1 && next_id2 > -1) {  // central 5-point: o o x o o 
+        return (-1.0 *next_value2 + 8.0 *next_value1 - 8.0 *previous_value1  + 1.0 * previous_value2) / (12.0*h);
     }
+    else if (previous_id1 == -1 && previous_id2 == -1 && next_id1 > -1 & next_id2 > -1) { // _ _ x o o
+        return (-1.0 * next_value2 + 4.0 *next_value1 - 3.0 *current_value) / (2.0 * h);
+    }
+    else if (previous_id1 > -1 && previous_id2 > -1 && next_id1 == -1 && next_id2 == -1) { // o o x _ _
+        return (previous_value2 - 4.0 *previous_value1 + 3.0 *current_value) / (2.0 * h);
+    }
+    else if ( previous_id1 > -1 && next_id1 > -1 && (previous_id2 == -1 || next_id2 == -1)) { // o x o _  || _ o x o
+        return (next_value1 -previous_value1) / (2.0 * h);
+    }
+    else if ( previous_id1 == -1 && next_id1 > -1 && previous_id2 == -1 && next_id2 == -1) { // _ _ x o _
+        return (next_value1 -current_value) / h;
+    }
+    else if ( previous_id1 > -1 && next_id1 == -1 && previous_id2 == -1 && next_id2 == -1) { // _ o x _ _ 
+        return (current_value -previous_value1) / h;
+    }
+
+#endif
+    }
+    else if(grid_type == 2){ // lobatto
+// lobatto :
+// accuracy order 6: {-3.5            ,4.73385886764     ,-1.88966174185     ,1.06666666667    ,-0.683321604359   ,0.439124478567    ,-0.166666666667}
+// accuracy order 6: {-0.814308671415 ,-2.5881814686e-15 ,1.1519427381       ,-0.532868896033  ,0.320446599096    ,-0.200749059879   ,0.0755372901318}
+// accuracy order 6: {0.208418888505  ,-0.738601427723   ,-4.78702268099e-15 ,0.755566029029   ,-0.355480634669   ,0.205463611839    ,-0.0753664669809}
+// accuracy order 6: {-0.104166666667 ,0.302514823756    ,-0.668989746863    ,0                ,0.668989746863    ,-0.302514823756   ,0.104166666667}
+// accuracy order 6: {0.0753664669809 ,-0.205463611839   ,0.355480634669     ,-0.755566029029  ,4.78702268099e-15 ,0.738601427723    ,-0.208418888505}
+// accuracy order 6: {-0.0755372901318,0.200749059879    ,-0.320446599096    ,0.532868896033   ,-1.1519427381     ,2.5881814686e-15  ,0.814308671415}
+// accuracy order 6: {0.166666666667  ,-0.439124478567   ,0.683321604359     ,-1.06666666667   ,1.88966174185     ,-4.73385886764    ,3.5}
+
+        if ( next_id1 > -1     && next_id2 > -1     && next_id3 > -1     && next_id4 > -1     && next_id5 > -1     && next_id6 > -1 )     
+            return ( -3.5             *current_value   + 4.73385886764   *next_value1     + -1.88966174185  *next_value2      + 1.06666666667   * next_value3     + -0.683321604359 * next_value4     + 0.439124478567  * next_value5     + -0.166666666667  * next_value6 ) / h;
+        if ( previous_id1 > -1 && next_id1 > -1     && next_id2 > -1     && next_id3 > -1     && next_id4 > -1     && next_id5 > -1 ) 
+            return ( -0.814308671415  *previous_value1 + 0.0                              + 1.1519427381    *next_value1      + -0.532868896033 * next_value2     + 0.320446599096  * next_value3     + -0.200749059879 * next_value4     + 0.0755372901318  * next_value5 ) / h;
+        if ( previous_id2 > -1 && previous_id1 > -1 && next_id1 > -1     && next_id2 > -1     && next_id3 > -1     && next_id4 > -1 )
+            return ( 0.208418888505   *previous_value2 + -0.738601427723 *previous_value1 + 0.0                               + 0.755566029029  * next_value1     + -0.355480634669 * next_value2     + 0.205463611839  * next_value3     + -0.0753664669809 * next_value4 ) / h;
+        if ( previous_id3 > -1 && previous_id2 > -1 && previous_id1 > -1 && next_id1 > -1     && next_id2 > -1     && next_id3 > -1 )
+            return ( -0.104166666667  *previous_value3 + 0.302514823756  *previous_value2 + -0.668989746863 *previous_value1  + 0                                 + 0.668989746863  * next_value1     + -0.302514823756 * next_value2     + 0.104166666667   * next_value3 ) / h;
+        if ( previous_id4 > -1 && previous_id3 > -1 && previous_id2 > -1 && previous_id1 > -1 && next_id1 > -1     && next_id2 > -1 )
+            return ( 0.0753664669809  *previous_value4 + -0.205463611839 *previous_value3 + 0.355480634669  *previous_value2  + -0.755566029029 * previous_value1 + 0.0                               + 0.738601427723  * next_value1     + -0.208418888505  * next_value2 ) / h;
+        if ( previous_id5 > -1 && previous_id4 > -1 && previous_id3 > -1 && previous_id2 > -1 && previous_id1 > -1 && next_id1 > -1 )
+            return ( -0.0755372901318 *previous_value5 + 0.200749059879  *previous_value4 + -0.320446599096 *previous_value3  + 0.532868896033  * previous_value2 + -1.1519427381   * previous_value1 + 0.0                               + 0.814308671415   * next_value1 ) / h;
+        if ( previous_id6 > -1 && previous_id5 > -1 && previous_id4 > -1 && previous_id3 > -1 && previous_id2 > -1 && previous_id1 > -1 )
+            return ( 0.166666666667   *previous_value6 + -0.439124478567 *previous_value5 + 0.683321604359  *previous_value4  + -1.06666666667  * previous_value3 + 1.88966174185   * previous_value2 + -4.73385886764  * previous_value1 + 3.5              * current_value ) / h;
+
+    }
+
     return 0.0;
 }
 
-__device__ __forceinline__ double evaluate_derivative_x(const int current_id, const int previous_id, const int previous_id2, const int previous_id3, int previous_id4, int next_id, int next_id2, int next_id3, int next_id4, const double* __restrict__ device_cube, const int nlip, const double h) {
-    double previous_value1 = 0.0;
-    double previous_value2 = 0.0;
-    double next_value1 = 0.0;
-    double next_value2 = 0.0;
+
+
+
+
+// fixme lnw
+    // nlip tests outcommented, because nlip=7 is hardcoded all over the place anyway (lnw)
+__device__ __forceinline__ double evaluate_derivative_x(const int current_id,
+                                                        const int previous_id1, const int previous_id2, const int previous_id3, const int previous_id4, const int previous_id5, const int previous_id6,
+                                                        const int next_id1, const int next_id2, const int next_id3, const int next_id4, const int next_id5, const int next_id6,
+                                                        const double* __restrict__ device_cube, const int nlip, const int grid_type, const double h) {
     double current_value = 0.0;
+    double previous_value1 = 0.0;
+    double next_value1 = 0.0;
+    double previous_value2 = 0.0;
+    double next_value2 = 0.0;
     double previous_value3 = 0.0;
     double next_value3 = 0.0;
     double previous_value4 = 0.0;
     double next_value4 = 0.0;
-    if (nlip == 9) {
+    double previous_value5 = 0.0;
+    double next_value5 = 0.0;
+    double previous_value6 = 0.0;
+    double next_value6 = 0.0;
+//    if (nlip == 9) {
+//        if (previous_id4 > -1) {
+//            previous_value4 =__ldg(&device_cube[previous_id4]);
+//        }
+//        if (next_id4 > -1) {
+//            next_value4 =__ldg(&device_cube[next_id4]);
+//        }
+//        if (previous_id3 > -1) {
+//            previous_value3 =__ldg(&device_cube[previous_id3]);
+//        }
+//        if (next_id3 > -1) {
+//            next_value3 =__ldg(&device_cube[next_id3]);
+//        }
+//        if (previous_id2 > -1) {
+//            previous_value2 =__ldg(&device_cube[previous_id2]);
+//        }
+//        if (next_id2 > -1) {
+//            next_value2 =__ldg(&device_cube[next_id2]);
+//        }
+//        if (previous_id1 > -1) {
+//            previous_value1 = __ldg(&device_cube[previous_id1]);
+//        }
+//        if (next_id1 > -1) {
+//            next_value1   = __ldg(&device_cube[next_id1]);
+//        }
+//        if (current_id > -1) {
+//            current_value   = __ldg(&device_cube[current_id]);
+//        }
+//    }
+    if (nlip == 7) {
+        if (previous_id6 > -1) {
+            previous_value6 =__ldg(&device_cube[previous_id6]);
+        }
+        if (previous_id5 > -1) {
+            previous_value5 =__ldg(&device_cube[previous_id5]);
+        }
         if (previous_id4 > -1) {
             previous_value4 =__ldg(&device_cube[previous_id4]);
+        }
+        if (previous_id3 > -1) {
+            previous_value3 =__ldg(&device_cube[previous_id3]);
+        }
+        if (previous_id2 > -1) {
+            previous_value2 =__ldg(&device_cube[previous_id2]);
+        }
+        if (previous_id1 > -1) {
+            previous_value1 = __ldg(&device_cube[previous_id1]);
+        }
+        if (current_id > -1) {
+            current_value   = __ldg(&device_cube[current_id]);
+        }
+        if (next_id1 > -1) {
+            next_value1   = __ldg(&device_cube[next_id1]);
+        }
+        if (next_id2 > -1) {
+            next_value2 =__ldg(&device_cube[next_id2]);
+        }
+        if (next_id3 > -1) {
+            next_value3 =__ldg(&device_cube[next_id3]);
         }
         if (next_id4 > -1) {
             next_value4 =__ldg(&device_cube[next_id4]);
         }
-        if (previous_id3 > -1) {
-            previous_value3 =__ldg(&device_cube[previous_id3]);
+        if (next_id5 > -1) {
+            next_value5 =__ldg(&device_cube[next_id5]);
         }
-        if (next_id3 > -1) {
-            next_value3 =__ldg(&device_cube[next_id3]);
+        if (next_id6 > -1) {
+            next_value6 =__ldg(&device_cube[next_id6]);
         }
-        if (previous_id2 > -1) {
-            previous_value2 =__ldg(&device_cube[previous_id2]);
+
+
+        if(grid_type == 1){ // equidistant
+// equidistant:
+// accuracy order 6: {-2.45           ,6              ,-7.5           ,6.66666666667 ,-3.75         ,1.2           ,-0.166666666667}
+// accuracy order 6: {-0.166666666667 ,-1.28333333333 ,2.5            ,-1.66666666667,0.833333333333,-0.25         ,0.0333333333333}
+// accuracy order 6: {0.0333333333333 ,-0.4           ,-0.583333333333,1.33333333333 ,-0.5          ,0.133333333333,-0.0166666666667}
+// accuracy order 6: {-0.0166666666667,0.15           ,-0.75          ,0             ,0.75          ,-0.15         ,0.0166666666667}
+// accuracy order 6: {0.0166666666667 ,-0.133333333333,0.5            ,-1.33333333333,0.583333333333,0.4           ,-0.0333333333333}
+// accuracy order 6: {-0.0333333333333,0.25           ,-0.833333333333,1.66666666667 ,-2.5          ,1.28333333333 ,0.166666666667}
+// accuracy order 6: {0.166666666667  ,-1.2           ,3.75           ,-6.66666666667,7.5           ,-6            ,2.45}
+#if 1  // works
+          if (previous_id1 == -1)
+              return (-2.45            * current_value   + 6.0             * next_value1     + -7.5            * next_value2     + 6.66666666667  * next_value3     + -3.75          * next_value4     + 1.2            * next_value5      + -0.166666666667  * next_value6)/h;
+          else if (previous_id2 == -1)
+              return (-0.166666666667  * previous_value1 + -1.28333333333  * current_value   + 2.5             * next_value1     + -1.66666666667 * next_value2     + 0.833333333333 * next_value3     + -0.25          * next_value4      + 0.0333333333333  * next_value5)/h;
+          else if (previous_id3 == -1)
+              return (0.0333333333333  * previous_value2 + -0.4            * previous_value1 + -0.583333333333 * current_value   + 1.33333333333  * next_value1     + -0.5           * next_value2     + 0.133333333333 * next_value3      + -0.0166666666667 * next_value4)/h;
+          else if (previous_id3 > -1 && next_id3 > -1)
+              return (-1.0/60.0        * previous_value3 + 0.15            * previous_value2 + -0.75           * previous_value1 + 0.0                              + 0.75           * next_value1     + -0.15          * next_value2      + 1.0/60.0         * next_value3)/h;
+          else if (next_id3 == -1)
+              return (0.0166666666667  * previous_value4 + -0.133333333333 * previous_value3 + 0.5             * previous_value2 + -1.33333333333 * previous_value1 + 0.583333333333 * current_value   + 0.4            * next_value1      + -0.0333333333333 * next_value2)/h;
+          else if (next_id2 == -1)
+              return (-0.0333333333333 * previous_value5 + 0.25            * previous_value4 + -0.833333333333 * previous_value3 + 1.66666666667  * previous_value2 + -2.5           * previous_value1 + 1.28333333333  * current_value    + 0.5/3.0          * next_value1)/h;
+          else if (next_id1 == -1)
+              return (0.166666666667   * previous_value6 + -1.2            * previous_value5 + 3.75            * previous_value4 + -6.66666666667 * previous_value3 + 7.5            * previous_value2 + -6.0           * previous_value1  + 2.45             * current_value)/h;
+
+#else
+          if ( previous_id1 > -1 && next_id1 > -1 && previous_id2 > -1 && next_id2 > -1 && previous_id3 > -1 && next_id3 > -1) {
+              return (-1.0 * previous_value3 + 9.0 * previous_value2 - 45.0 * previous_value1  + 45.0 * next_value1 - 9.0 * next_value2 + 1.0 * next_value3) / (60.0*h);
+          }
+          else if ( previous_id1 > -1 && next_id1 > -1 && previous_id2 > -1 && next_id2 > -1) {
+              return (-1.0 * next_value2 + 8.0 * next_value1 - 8.0 * previous_value1  + previous_value2) / (12.0*h);
+          }
+          else if (previous_id1 == -1 && previous_id2 == -1 && next_id1 > -1 && next_id2 > -1) {
+              return  (-1.0 * next_value2 + 4.0 * next_value1 - 3.0 * current_value) / (2.0 * h);
+          }
+          else if (previous_id1 > -1 && previous_id2 > -1 && next_id1 == -1 && next_id2 == -1) {
+              return (1.0 * previous_value2 - 4.0 * previous_value2 + 3.0 * current_value) / (2.0 * h);
+          }
+          else if ( previous_id1 > -1 && next_id1 > -1 && (previous_id2 == -1 || next_id2 == -1)) {
+              return (next_value1 - previous_value1) / (2.0 * h);
+          }
+          else if ( previous_id1 == -1 && next_id1 > -1 && previous_id2 == -1 && next_id2 == -1) {
+              return (next_value1 - current_value) / h;
+          }
+          else if ( previous_id1 > -1 && next_id1 == -1 && previous_id2 == -1 && next_id2 == -1) {
+              return (current_value - previous_value1) / h;
+          }
+#endif
         }
-        if (next_id2 > -1) {
-            next_value2 =__ldg(&device_cube[next_id2]);
+        else if(grid_type == 2){ // lobatto
+// lobatto
+// accuracy order 6: {-3.5            ,4.73385886764     ,-1.88966174185     ,1.06666666667    ,-0.683321604359   ,0.439124478567    ,-0.166666666667}
+// accuracy order 6: {-0.814308671415 ,-2.5881814686e-15 ,1.1519427381       ,-0.532868896033  ,0.320446599096    ,-0.200749059879   ,0.0755372901318}
+// accuracy order 6: {0.208418888505  ,-0.738601427723   ,-4.78702268099e-15 ,0.755566029029   ,-0.355480634669   ,0.205463611839    ,-0.0753664669809}
+// accuracy order 6: {-0.104166666667 ,0.302514823756    ,-0.668989746863    ,0                ,0.668989746863    ,-0.302514823756   ,0.104166666667}
+// accuracy order 6: {0.0753664669809 ,-0.205463611839   ,0.355480634669     ,-0.755566029029  ,4.78702268099e-15 ,0.738601427723    ,-0.208418888505}
+// accuracy order 6: {-0.0755372901318,0.200749059879    ,-0.320446599096    ,0.532868896033   ,-1.1519427381     ,2.5881814686e-15  ,0.814308671415}
+// accuracy order 6: {0.166666666667  ,-0.439124478567   ,0.683321604359     ,-1.06666666667   ,1.88966174185     ,-4.73385886764    ,3.5}
+
+          if (previous_id1 == -1)
+              return ( -3.5             * current_value   + 4.73385886764   * next_value1     + -1.88966174185  * next_value2     + 1.06666666667   * next_value3     + -0.683321604359 * next_value4     + 0.439124478567  * next_value5     + -0.166666666667  * next_value6)/h;
+          else if (previous_id2 == -1)
+              return ( -0.814308671415  * previous_value1 + 0.0             * current_value   + 1.1519427381    * next_value1     + -0.532868896033 * next_value2     + 0.320446599096  * next_value3     + -0.200749059879 * next_value4     + 0.0755372901318  * next_value5)/h;
+          else if (previous_id3 == -1)
+              return ( 0.208418888505   * previous_value2 + -0.738601427723 * previous_value1 + 0.0             * current_value   + 0.755566029029  * next_value1     + -0.355480634669 * next_value2     + 0.205463611839  * next_value3     + -0.0753664669809 * next_value4)/h;
+          else if (previous_id3 > -1 && next_id3 > -1)
+              return ( -0.104166666667  * previous_value3 + 0.302514823756  * previous_value2 + -0.668989746863 * previous_value1 + 0.0             * current_value   + 0.668989746863  * next_value1     + -0.302514823756 * next_value2     + 0.104166666667   * next_value3)/h;
+          else if (next_id3 == -1)
+              return ( 0.0753664669809  * previous_value4 + -0.205463611839 * previous_value3 + 0.355480634669  * previous_value2 + -0.755566029029 * previous_value1 + 0.0             * current_value   + 0.738601427723  * next_value1     + -0.208418888505  * next_value2)/h;
+          else if (next_id2 == -1)
+              return ( -0.0755372901318 * previous_value5 + 0.200749059879  * previous_value4 + -0.320446599096 * previous_value3 + 0.532868896033  * previous_value2 + -1.1519427381   * previous_value1 + 0.0             * current_value   + 0.814308671415   * next_value1)/h;
+          else if (next_id1 == -1)
+              return ( 0.166666666667   * previous_value6 + -0.439124478567 * previous_value5 + 0.683321604359  * previous_value4 + -1.06666666667  * previous_value3 + 1.88966174185   * previous_value2 + -4.73385886764  * previous_value1 + 3.5              * current_value)/h;
+
         }
-        if (previous_id > -1) {
-            previous_value1 = __ldg(&device_cube[previous_id]);
-        }
-        if (next_id > -1) {
-            next_value1   = __ldg(&device_cube[next_id]);
-        }
-        if (current_id > -1) {
-            current_value   = __ldg(&device_cube[current_id]);
-        }
+
     }
-    if (nlip == 7) {
-        if (previous_id3 > -1) {
-            previous_value3 =__ldg(&device_cube[previous_id3]);
-        }
-        if (next_id3 > -1) {
-            next_value3 =__ldg(&device_cube[next_id3]);
-        }
-        if (previous_id2 > -1) {
-            previous_value2 =__ldg(&device_cube[previous_id2]);
-        }
-        if (next_id2 > -1) {
-            next_value2 =__ldg(&device_cube[next_id2]);
-        }
-        if (previous_id > -1) {
-            previous_value1 = __ldg(&device_cube[previous_id]);
-        }
-        if (next_id > -1) {
-            next_value1   = __ldg(&device_cube[next_id]);
-        }
-        if (current_id > -1) {
-            current_value   = __ldg(&device_cube[current_id]);
-        }
-    }
-    if (nlip == 5) {
-        if (previous_id2 > -1) {
-            previous_value2 =__ldg(&device_cube[previous_id2]);
-        }
-        if (next_id2 > -1) {
-            next_value2 =__ldg(&device_cube[next_id2]);
-        }
-        if (previous_id > -1) {
-            previous_value1 = __ldg(&device_cube[previous_id]);
-        }
-        if (next_id > -1) {
-            next_value1   = __ldg(&device_cube[next_id]);
-        }
-        if (current_id > -1) {
-            current_value   = __ldg(&device_cube[current_id]);
-        }
-    }
-    else if (nlip == 3) {
-        if (previous_id > -1) {
-            previous_value1 = __ldg(&device_cube[previous_id]);
-        }
-        if (next_id > -1) {
-            next_value1   = __ldg(&device_cube[next_id]);
-        }
-        if (current_id > -1) {
-            current_value   = __ldg(&device_cube[current_id]);
-        }
-    }
-    
-    if ( previous_id > -1 && next_id > -1 && previous_id2 > -1 && next_id2 > -1 && previous_id3 > -1 && next_id3 > -1 && previous_id4 > -1 && next_id4 > -1) {
-        return (3.0   * previous_value4 - 32.0 * previous_value3 +168.0 * previous_value2  - 672.0 * previous_value1
-                +672.0 * next_value1 - 168.0 * next_value2 + 32.0 * next_value3 - 3.0 * next_value4) / (840.0*h);
-    }
-    
-    else if ( previous_id > -1 && next_id > -1 && previous_id2 > -1 && next_id2 > -1 && previous_id3 > -1 && next_id3 > -1) {
-        return (-1.0 * previous_value3 + 9.0 * previous_value2 -45.0 * previous_value1  + 45.0 * next_value1 -9.0 * next_value2 + 1.0 * next_value3) / (60.0*h);
-    }
-    else if ( previous_id > -1 && next_id > -1 && previous_id2 > -1 && next_id2 > -1) {
-        return (-1.0 * next_value2 + 8.0 * next_value1 -8.0 * previous_value1  + previous_value2) / (12.0*h);
-    }
-    else if (previous_id == -1 && previous_id2 == -1 && next_id > -1 && next_id2 > -1) {
-        return  -1.0 *
-        (next_value2 - 4.0 * next_value1 + 3.0 * current_value)
-        / (2.0 * h); 
-    }
-    else if (previous_id > -1 && previous_id2 > -1 && next_id == -1 && next_id2 == -1) {
-        return 1.0 * (previous_value2 - 4.0 * previous_value2 + 3.0 * current_value) / (2.0 * h); 
-    }
-    else if ( previous_id > -1 && next_id > -1 && (previous_id2 == -1 || next_id2 == -1)) {
-        return (next_value1 - previous_value1) / (2.0 * h );
-    }
-    else if ( previous_id == -1 && next_id > -1 && previous_id2 == -1 && next_id2 == -1) {
-        return (next_value1 - current_value) / h;
-    }
-    else if ( previous_id > -1 && next_id == -1 && previous_id2 == -1 && next_id2 == -1) {
-        return (current_value - previous_value1) / h;
-    }
+
+//    else if (nlip == 5) {
+//        if (previous_id2 > -1) {
+//            previous_value2 =__ldg(&device_cube[previous_id2]);
+//        }
+//        if (next_id2 > -1) {
+//            next_value2 =__ldg(&device_cube[next_id2]);
+//        }
+//        if (previous_id1 > -1) {
+//            previous_value1 = __ldg(&device_cube[previous_id1]);
+//        }
+//        if (next_id1 > -1) {
+//            next_value1   = __ldg(&device_cube[next_id1]);
+//        }
+//        if (current_id > -1) {
+//            current_value   = __ldg(&device_cube[current_id]);
+//        }
+//    }
+//    else if (nlip == 3) {
+//        if (previous_id1 > -1) {
+//            previous_value1 = __ldg(&device_cube[previous_id1]);
+//        }
+//        if (next_id1 > -1) {
+//            next_value1   = __ldg(&device_cube[next_id1]);
+//        }
+//        if (current_id > -1) {
+//            current_value   = __ldg(&device_cube[current_id]);
+//        }
+//    }
+
     return 0.0;
 }
 
-/* 
+/*
  * Evaluate cube gradients at grid points for simple equidistant grid.  The results are stored to 'device_gradients'.
  */
 
 template <int nlip, bool evaluate_gradients_x, bool evaluate_gradients_y, bool evaluate_gradients_z>
-__global__ void 
+__global__ void
 
 CubeEvaluator_evaluate_simple_grid_gradients(
-                                        const double* __restrict__ device_cube,
-                                      const size_t device_pitch,
-                                      const size_t device_shape_y,
-                                      const Grid3D* __restrict__ grid,
-                                      double* __restrict__ device_gradients_x,
-                                      double* __restrict__ device_gradients_y,
-                                      double* __restrict__ device_gradients_z,
-                                      // number of slices handled by this device
-                                      // in previous calls
-                                      int device_slice_offset,
-                                      // number of slices handled by all devices
-                                      // in previous calls
-                                      int slice_offset,
-                                      // number of slices handled by this call
-                                      int slice_count,
-                                      const double multiplier
-                                      ) {    
-    
-    
-    // The result array will be in fortran with indices x, y, z. 
+                                             const double* __restrict__ device_cube,
+                                             const size_t device_pitch,
+                                             const size_t device_shape_y,
+                                             const Grid3D* __restrict__ grid,
+                                             double* __restrict__ device_gradients_x,
+                                             double* __restrict__ device_gradients_y,
+                                             double* __restrict__ device_gradients_z,
+                                             // number of slices handled by this device
+                                             // in previous calls
+                                             int device_slice_offset,
+                                             // number of slices handled by all devices
+                                             // in previous calls
+                                             int slice_offset,
+                                             // number of slices handled by this call
+                                             int slice_count,
+                                             const double multiplier
+                                             ) {
+
+
+    // The result array will be in fortran with indices x, y, z.
     // This means that the x index will be the fastest to change.
     int x, y, z;
     getXYZ(&x, &y, &z);
-    
-    
+
+    const int gridtype_x = grid->axis[X_]->grid_type,
+              gridtype_y = grid->axis[Y_]->grid_type,
+              gridtype_z = grid->axis[Z_]->grid_type;
+
     const double h_x = grid->axis[X_]->h[0];
     const double h_y = grid->axis[Y_]->h[0];
     const double h_z = grid->axis[Z_]->h[0];
-    
+
     // get the offset from the input cube pointer
     int id = getCubeOffset3D(x, y, z+slice_offset, device_pitch, device_shape_y);
     int local_id = getCubeOffset3D(x, y, z+device_slice_offset, device_pitch, device_shape_y);
-    
+
     bool valid_point =     x >= 0
                         && y >= 0
                         && z+slice_offset >= 0
@@ -923,134 +1086,187 @@ CubeEvaluator_evaluate_simple_grid_gradients(
                         && y < grid->shape[Y_]
                         && z+slice_offset < grid->shape[Z_];
     if (!valid_point) id = -1;
-    
+
     // evaluate gradient to z direction
+    // nlip tests outcommented, because nlip=7 is hardcoded all over the place anyway (lnw)
     if (evaluate_gradients_z) {
-        int previous_id = -1, next_id = -1, previous_id2 = -1, next_id2 = -1, previous_id3 = -1, next_id3 = -1, previous_id4 = -1, next_id4 = -1;
-        if (nlip >= 3 && z + slice_offset -1 >= 0) {
-            previous_id = getCubeOffset3D(x, y, z+slice_offset-1, device_pitch, device_shape_y);
+        int previous_id1 = -1, previous_id2 = -1, previous_id3 = -1, previous_id4 = -1, previous_id5 = -1, previous_id6 = -1,
+            next_id1 = -1, next_id2 = -1, next_id3 = -1, next_id4 = -1, next_id5 = -1, next_id6 = -1;
+        if (/*nlip >= 3 &&*/ z + slice_offset -1 >= 0) {
+            previous_id1 = getCubeOffset3D(x, y, z+slice_offset-1, device_pitch, device_shape_y);
         }
-        if (nlip >= 3 && z + slice_offset +1 < grid->shape[Z_]) {
-            next_id = getCubeOffset3D(x, y, z+slice_offset+1, device_pitch, device_shape_y);
+
+        if (/*nlip >= 3 &&*/ z + slice_offset +1 < grid->shape[Z_]) {
+            next_id1 = getCubeOffset3D(x, y, z+slice_offset+1, device_pitch, device_shape_y);
         }
-        
-        if (nlip >= 5 && z + slice_offset +2 < grid->shape[Z_]) {
-            next_id2 = getCubeOffset3D(x, y, z+slice_offset+2, device_pitch, device_shape_y);
-        }
-        
-        if (nlip >= 5 && z + slice_offset -2 >= 0) {
+
+        if (/*nlip >= 5 &&*/ z + slice_offset -2 >= 0) {
             previous_id2 = getCubeOffset3D(x, y, z+slice_offset-2, device_pitch, device_shape_y);
         }
-        
-        if (nlip >= 7 && z + slice_offset +3 < grid->shape[Z_]) {
-            next_id3 = getCubeOffset3D(x, y, z+slice_offset+3, device_pitch, device_shape_y);
+
+        if (/*nlip >= 5 &&*/ z + slice_offset +2 < grid->shape[Z_]) {
+            next_id2 = getCubeOffset3D(x, y, z+slice_offset+2, device_pitch, device_shape_y);
         }
-        
-        if (nlip >= 7 && z + slice_offset -3 >= 0) {
+
+        if (/*nlip >= 7 &&*/ z + slice_offset -3 >= 0) {
             previous_id3 = getCubeOffset3D(x, y, z+slice_offset-3, device_pitch, device_shape_y);
         }
-        
-        if (nlip >= 9 && z + slice_offset +4 < grid->shape[Z_]) {
-            next_id4 = getCubeOffset3D(x, y, z+slice_offset+4, device_pitch, device_shape_y);
+
+        if (/*nlip >= 7 &&*/ z + slice_offset +3 < grid->shape[Z_]) {
+            next_id3 = getCubeOffset3D(x, y, z+slice_offset+3, device_pitch, device_shape_y);
         }
-        
-        if (nlip >= 9 && z + slice_offset -4 >= 0) {
+
+        if (/*nlip >= 7 &&*/ z + slice_offset -4 >= 0) {
             previous_id4 = getCubeOffset3D(x, y, z+slice_offset-4, device_pitch, device_shape_y);
         }
-        double value = evaluate_derivative(id, previous_id, previous_id2, previous_id3, previous_id4,
-                                           next_id, next_id2, next_id3, next_id4, device_cube, h_z);
-        if (valid_point) device_gradients_z[local_id] = multiplier * value; 
+
+        if (/*nlip >= 7 &&*/ z + slice_offset +4 < grid->shape[Z_]) {
+            next_id4 = getCubeOffset3D(x, y, z+slice_offset+4, device_pitch, device_shape_y);
+        }
+
+        if (/*nlip >= 7 &&*/ z + slice_offset -5 >= 0) {
+            previous_id5 = getCubeOffset3D(x, y, z+slice_offset-5, device_pitch, device_shape_y);
+        }
+
+        if (/*nlip >= 7 &&*/ z + slice_offset +5 < grid->shape[Z_]) {
+            next_id5 = getCubeOffset3D(x, y, z+slice_offset+5, device_pitch, device_shape_y);
+        }
+
+        if (/*nlip >= 7 &&*/ z + slice_offset -6 >= 0) {
+            previous_id6 = getCubeOffset3D(x, y, z+slice_offset-6, device_pitch, device_shape_y);
+        }
+
+        if (/*nlip >= 7 &&*/ z + slice_offset +6 < grid->shape[Z_]) {
+            next_id6 = getCubeOffset3D(x, y, z+slice_offset+6, device_pitch, device_shape_y);
+        }
+        double value = evaluate_derivative(id, previous_id1, previous_id2, previous_id3, previous_id4, previous_id5, previous_id6,
+                                           next_id1, next_id2, next_id3, next_id4, next_id5, next_id6, device_cube, gridtype_z, h_z);
+        if (valid_point) device_gradients_z[local_id] = multiplier * value;
     }
-    
+
     // evaluate gradient to y direction
+    // nlip tests outcommented, because nlip=7 is hardcoded all over the place anyway (lnw)
     if (evaluate_gradients_y) {
-        int previous_id = -1, next_id = -1, previous_id2 = -1, next_id2 = -1, previous_id3 = -1, next_id3 = -1, previous_id4 = -1, next_id4 = -1;
-        if (nlip >= 3 && y -1 >= 0) {
-            previous_id = getCubeOffset3D(x, y-1, z+slice_offset, device_pitch, device_shape_y);
+        int previous_id1 = -1, previous_id2 = -1, previous_id3 = -1, previous_id4 = -1, previous_id5 = -1, previous_id6 = -1,
+            next_id1 = -1, next_id2 = -1, next_id3 = -1, next_id4 = -1, next_id5 = -1, next_id6 = -1;
+        if (/*nlip >= 3 &&*/ y -1 >= 0) {
+            previous_id1 = getCubeOffset3D(x, y-1, z+slice_offset, device_pitch, device_shape_y);
         }
-        if (nlip >= 3 && y + 1 < grid->shape[Y_]) {
-            next_id = getCubeOffset3D(x, y+1, z+slice_offset, device_pitch, device_shape_y);
+
+        if (/*nlip >= 3 &&*/ y + 1 < grid->shape[Y_]) {
+            next_id1 = getCubeOffset3D(x, y+1, z+slice_offset, device_pitch, device_shape_y);
         }
-        
-        if (nlip >= 5 && y + 2 < grid->shape[Y_]) {
-            next_id2 = getCubeOffset3D(x, y+2, z+slice_offset, device_pitch, device_shape_y);
-        }
-        
-        if (nlip >= 5 && y - 2 >= 0) {
+
+        if (/*nlip >= 5 &&*/ y - 2 >= 0) {
             previous_id2 = getCubeOffset3D(x, y-2, z+slice_offset, device_pitch, device_shape_y);
         }
-        
-        if (nlip >= 7 && y + 3 < grid->shape[Y_]) {
-            next_id3 = getCubeOffset3D(x, y+3, z+slice_offset, device_pitch, device_shape_y);
+
+        if (/*nlip >= 5 &&*/ y + 2 < grid->shape[Y_]) {
+            next_id2 = getCubeOffset3D(x, y+2, z+slice_offset, device_pitch, device_shape_y);
         }
-        
-        if (nlip >= 7 && y - 3 >= 0) {
+
+        if (/*nlip >= 7 &&*/ y - 3 >= 0) {
             previous_id3 = getCubeOffset3D(x, y-3, z+slice_offset, device_pitch, device_shape_y);
         }
-        
-        if (nlip >= 9 && y + 4 < grid->shape[Y_]) {
-            next_id4 = getCubeOffset3D(x, y+4, z+slice_offset, device_pitch, device_shape_y);
+
+        if (/*nlip >= 7 &&*/ y + 3 < grid->shape[Y_]) {
+            next_id3 = getCubeOffset3D(x, y+3, z+slice_offset, device_pitch, device_shape_y);
         }
-        
-        if (nlip >= 9 && y - 4 >= 0) {
+
+        if (/*nlip >= 9 &&*/ y - 4 >= 0) {
             previous_id4 = getCubeOffset3D(x, y-4, z+slice_offset, device_pitch, device_shape_y);
         }
-        double value = evaluate_derivative(id, previous_id, previous_id2, previous_id3, previous_id4,
-                                           next_id, next_id2, next_id3, next_id4, device_cube, h_y);
-        if (valid_point) device_gradients_y[local_id] = multiplier * value; 
+
+        if (/*nlip >= 9 &&*/ y + 4 < grid->shape[Y_]) {
+            next_id4 = getCubeOffset3D(x, y+4, z+slice_offset, device_pitch, device_shape_y);
+        }
+
+        if (/*nlip >= 9 &&*/ y - 5 >= 0) {
+            previous_id5 = getCubeOffset3D(x, y-5, z+slice_offset, device_pitch, device_shape_y);
+        }
+
+        if (/*nlip >= 9 &&*/ y + 5 < grid->shape[Y_]) {
+            next_id5 = getCubeOffset3D(x, y+5, z+slice_offset, device_pitch, device_shape_y);
+        }
+
+        if (/*nlip >= 9 &&*/ y - 6 >= 0) {
+            previous_id6 = getCubeOffset3D(x, y-6, z+slice_offset, device_pitch, device_shape_y);
+        }
+
+        if (/*nlip >= 9 &&*/ y + 6 < grid->shape[Y_]) {
+            next_id6 = getCubeOffset3D(x, y+6, z+slice_offset, device_pitch, device_shape_y);
+        }
+        double value = evaluate_derivative(id, previous_id1, previous_id2, previous_id3, previous_id4, previous_id5, previous_id6,
+                                           next_id1, next_id2, next_id3, next_id4, next_id5, next_id6, device_cube, gridtype_y, h_y);
+        if (valid_point) device_gradients_y[local_id] = multiplier * value;
     }
-    
-    // evaluate gradient to z direction
+
+    // evaluate gradient to x direction
+    // nlip tests outcommented, because nlip=7 is hardcoded all over the place anyway (lnw)
     if (evaluate_gradients_x) {
-        int previous_id = -1, next_id = -1, previous_id2 = -1, next_id2 = -1, previous_id3 = -1, next_id3 = -1, previous_id4 = -1, next_id4 = -1;
-        if (nlip >= 3 && x -1 >= 0) {
-            previous_id = getCubeOffset3D(x-1, y, z+slice_offset, device_pitch, device_shape_y);
+        int previous_id1 = -1, previous_id2 = -1, previous_id3 = -1, previous_id4 = -1, previous_id5 = -1, previous_id6 = -1,
+            next_id1 = -1, next_id2 = -1, next_id3 = -1, next_id4 = -1, next_id5 = -1, next_id6 = -1;
+        if (/*nlip >= 3 &&*/ x -1 >= 0) {
+            previous_id1 = getCubeOffset3D(x-1, y, z+slice_offset, device_pitch, device_shape_y);
         }
-        if (nlip >= 3 && x + 1 < grid->shape[X_]) {
-            next_id = getCubeOffset3D(x+1, y, z+slice_offset, device_pitch, device_shape_y);
+
+        if (/*nlip >= 3 &&*/ x + 1 < grid->shape[X_]) {
+            next_id1 = getCubeOffset3D(x+1, y, z+slice_offset, device_pitch, device_shape_y);
         }
-        
-        if (nlip >= 5 && x + 2 < grid->shape[X_]) {
-            next_id2 = getCubeOffset3D(x+2, y, z+slice_offset, device_pitch, device_shape_y);
-        }
-        
-        if (nlip >= 5 && x - 2 >= 0) {
+
+        if (/*nlip >= 5 &&*/ x - 2 >= 0) {
             previous_id2 = getCubeOffset3D(x-2, y, z+slice_offset, device_pitch, device_shape_y);
         }
-        
-        if (nlip >= 7 && x + 3 < grid->shape[X_]) {
-            next_id3 = getCubeOffset3D(x+3, y, z+slice_offset, device_pitch, device_shape_y);
+
+        if (/*nlip >= 5 &&*/ x + 2 < grid->shape[X_]) {
+            next_id2 = getCubeOffset3D(x+2, y, z+slice_offset, device_pitch, device_shape_y);
         }
-        
-        if (nlip >= 7 && x - 3 >= 0) {
+
+        if (/*nlip >= 7 &&*/ x - 3 >= 0) {
             previous_id3 = getCubeOffset3D(x-3, y, z+slice_offset, device_pitch, device_shape_y);
         }
-        
-        if (nlip >= 9 && x + 4 < grid->shape[X_]) {
-            next_id4= getCubeOffset3D(x+4, y, z+slice_offset, device_pitch, device_shape_y);
+
+        if (/*nlip >= 7 &&*/ x + 3 < grid->shape[X_]) {
+            next_id3 = getCubeOffset3D(x+3, y, z+slice_offset, device_pitch, device_shape_y);
         }
-        
-        if (nlip >= 9 && x - 4 >= 0) {
+
+        if (/*nlip >= 9 &&*/ x - 4 >= 0) {
             previous_id4 = getCubeOffset3D(x-4, y, z+slice_offset, device_pitch, device_shape_y);
         }
-        double value = evaluate_derivative_x(id, previous_id, previous_id2, previous_id3, previous_id4, 
-                                             next_id, next_id2, next_id3, next_id4, device_cube, nlip, h_x);
-        if (valid_point) device_gradients_x[local_id] = multiplier * value; 
-    }
-    
-    
-    
-        
-    return;
 
-} 
+        if (/*nlip >= 9 &&*/ x + 4 < grid->shape[X_]) {
+            next_id4= getCubeOffset3D(x+4, y, z+slice_offset, device_pitch, device_shape_y);
+        }
+
+        if (/*nlip >= 9 &&*/ x - 5 >= 0) {
+            previous_id5 = getCubeOffset3D(x-5, y, z+slice_offset, device_pitch, device_shape_y);
+        }
+
+        if (/*nlip >= 9 &&*/ x + 5 < grid->shape[X_]) {
+            next_id5= getCubeOffset3D(x+5, y, z+slice_offset, device_pitch, device_shape_y);
+        }
+
+        if (/*nlip >= 9 &&*/ x - 6 >= 0) {
+            previous_id6 = getCubeOffset3D(x-6, y, z+slice_offset, device_pitch, device_shape_y);
+        }
+
+        if (/*nlip >= 9 &&*/ x + 6 < grid->shape[X_]) {
+            next_id6= getCubeOffset3D(x+6, y, z+slice_offset, device_pitch, device_shape_y);
+        }
+        double value = evaluate_derivative_x(id, previous_id1, previous_id2, previous_id3, previous_id4, previous_id5, previous_id6,
+                                             next_id1, next_id2, next_id3, next_id4, next_id5, next_id6, device_cube, nlip, gridtype_x, h_x);
+        if (valid_point) device_gradients_x[local_id] = multiplier * value;
+    }
+
+    return;
+}
 
 /*
  * Evaluate values of the redial gradients at bubbles, i.e.,
- * the radial gradients of input bubbles are evaluated to the 
- * result bubbles values. 
- * 
- * @param nlip - number of lagrange integration polyniomials per 
+ * the radial gradients of input bubbles are evaluated to the
+ * result bubbles values.
+ *
+ * @param nlip - number of lagrange integration polyniomials per
  *               cell, i.e., the number of grid points per cell
  */
 template <int nlip>
@@ -1060,10 +1276,10 @@ __device__ inline void BubblesEvaluator_evaluate_radial_gradients(
                                          const int lmax,
                                          // k value for the bubble
                                          const int &k,
-                                         // constant pointer to a double array representing the 
+                                         // constant pointer to a double array representing the
                                          // input bubbles f_Alm coefficients
                                          const double* __restrict__ f,
-                                         // pointer to a variable double array representing the 
+                                         // pointer to a variable double array representing the
                                          // output bubbles g_Alm coefficients
                                          double* result,
                                          // global offset in warps
@@ -1072,54 +1288,54 @@ __device__ inline void BubblesEvaluator_evaluate_radial_gradients(
     int global_warp_id, thread_order_number, cells_per_warp;
     bool valid_point = true;
     const int WARP_SIZE = 32;
-    
+
     // order number of handled point
     const int id = threadIdx.x + blockIdx.x * blockDim.x;
-    
+
     // if nlip is 7, each warp of 32 handles 5 cells
     if (nlip == 7) {
         // get the global warp order number
         global_warp_id =   id / WARP_SIZE + warp_offset;
         cells_per_warp = 5;
-        
-        // get the order number of thread within the warp 
+
+        // get the order number of thread within the warp
         thread_order_number = threadIdx.x % WARP_SIZE;
-        
+
         if (thread_order_number == 31) valid_point = false;
     }
-    
-    
+
+
     // number of cells
     const int ncell = grid->ncell;
-    
+
     // get the order number of cell
     int icell = global_warp_id * cells_per_warp + thread_order_number / (nlip-1);
     // order number of point in cell
     int in_cell_point = thread_order_number % (nlip-1);
-    
+
     // let's set it up so that the nlip:th point in cell belongs to the previous cell
     if (in_cell_point == 0 && icell > 0) {
         icell -= 1;
         in_cell_point = nlip;
     }
     if (thread_order_number == 0 && in_cell_point != 0) valid_point = false;
-    
-    // if the cell number is not within the evaluated range, we do not evaluate the 
+
+    // if the cell number is not within the evaluated range, we do not evaluate the
     // values
     bool participant = true;
     if (icell >= ncell ) {
         participant = false;
     }
-    
+
     double in_cell_coordinate = (double)(in_cell_point-3);
-    
+
     // read the LIPs in the shared memory
     __shared__ double lip[nlip * nlip];
     read_lip<nlip, nlip>(grid->lip, threadIdx.x, lip);
     __shared__ double derivative_lip[(nlip-1) * nlip];
     read_lip<nlip-1, nlip>(grid->derivative_lip, threadIdx.x, derivative_lip);
-    
-    
+
+
     if (participant) {
         // evaluate the derivative polynomials
         double derivative_polynomials[nlip];
@@ -1129,10 +1345,10 @@ __device__ inline void BubblesEvaluator_evaluate_radial_gradients(
         for (int j = 0; j < nlip; j++) {
             derivative_polynomials[j] *= one_per_grid_step;
         }
-        
+
         // get the initial address:
         int address = icell * (nlip-1) + in_cell_point;
-        
+
         for (int n = 0; n < (lmax+1) * (lmax+1); n++) {
             // get the input function values
             double value = f[address];
@@ -1140,7 +1356,7 @@ __device__ inline void BubblesEvaluator_evaluate_radial_gradients(
             double temp = evaluate_coefficients_shuffle<nlip>(derivative_polynomials, value, thread_order_number, in_cell_point);
             // if the point is valid, stored the result
             if (valid_point) result[address] = temp;
-            
+
             // add the address by one n index:
             address += ncell * nlip;
         }
@@ -1184,12 +1400,12 @@ void BubblesEvaluator::setBubbles(Bubbles *bubbles) {
 
 /*
  * Evaluate the bubbles at grid points.
- * 
+ *
  * @param bubbles - The bubbles that are evaluated in to the grid
  * @param grid - The grid associated with all the output cubes
  */
 void BubblesEvaluator::evaluateGrid(Grid3D *grid, CudaCube *result_cube, CudaCube *gradient_cube_x, CudaCube *gradient_cube_y, CudaCube *gradient_cube_z, int gradient_direction) {
-       
+
     if (gradient_direction == X_) {
         this->bubbles->inject(grid, result_cube, 0, gradient_cube_x,
                             gradient_cube_y, gradient_cube_z, false, true, false, false);
@@ -1209,7 +1425,7 @@ void BubblesEvaluator::evaluateGrid(Grid3D *grid, CudaCube *result_cube, CudaCub
     else {
         this->bubbles->inject(grid, result_cube);
     }
-    
+
 }
 
 /*
@@ -1242,7 +1458,7 @@ void CubeEvaluator::destroy() {
 
 /*
  * Set the input cube from which the evaluation is performed.
- * 
+ *
  * @param input_cube - CudaCube object from which the evaluation is performed. The shape
  *                     of the data should be according to the given grid
  */
@@ -1252,8 +1468,8 @@ void CubeEvaluator::setInputCube(CudaCube *input_cube) {
 
 /*
  * Set the input grid from which the evaluation is performed.
- * 
- * @param input_grid - Grid3D object defining the shape of the cube for which the evaluation is performed. 
+ *
+ * @param input_grid - Grid3D object defining the shape of the cube for which the evaluation is performed.
  */
 void CubeEvaluator::setInputGrid(Grid3D *input_grid) {
     this->grid = input_grid;
@@ -1281,23 +1497,23 @@ void CubeEvaluator::evaluatePoints(Points *result_points,
     check_eval_errors(__FILE__, __LINE__);
     for (int device = 0; device < this->streamContainer->getNumberOfDevices(); device ++) {
         this->streamContainer->setDevice(device);
-        
+
         // allocate space for device results and device points
         int device_warp_count = total_warp_count / this->streamContainer->getNumberOfDevices()
-                                  + ((total_warp_count % this->streamContainer->getNumberOfDevices()) > device); 
+                                  + ((total_warp_count % this->streamContainer->getNumberOfDevices()) > device);
         int device_point_count = device_warp_count * warp_size;
         int device_point_offset = 0;
         // get the order number of 'device' in cube's streamcontainer
         int cube_device = this->input_cube->getStreamContainer()->getDeviceOrderNumber(this->streamContainer->getDeviceNumber(device));
         check_eval_errors(__FILE__, __LINE__);
-        
+
         // get the pointers to the device points & results
         double *device_points_ptr =  result_points->point_coordinates->device_coordinates[device];
         double *device_results_ptr = result_points->device_values[device];
         double *device_gradients_x_ptr;
         double *device_gradients_y_ptr;
         double *device_gradients_z_ptr;
-        
+
         if (gradient_direction == 3) {
             device_gradients_x_ptr = gradient_points_x->device_values[device];
             device_gradients_y_ptr = gradient_points_y->device_values[device];
@@ -1308,33 +1524,33 @@ void CubeEvaluator::evaluatePoints(Points *result_points,
             device_gradients_y_ptr = result_points->device_values[device];
             device_gradients_z_ptr = result_points->device_values[device];
         }
-        
+
         for (int stream = 0; stream < this->streamContainer->getStreamsPerDevice(); stream ++) {
             // get the number of points that are in the responsibility of this stream
             int stream_warp_count =  device_warp_count / this->streamContainer->getStreamsPerDevice()
-                                  + ((device_warp_count % streamContainer->getStreamsPerDevice()) > stream); 
+                                  + ((device_warp_count % streamContainer->getStreamsPerDevice()) > stream);
             int stream_point_count = stream_warp_count * warp_size;
-            
+
             // make sure that the last stream does not go over board
             if (stream_point_count + point_offset > result_points->point_coordinates->number_of_points) {
                 stream_point_count = result_points->point_coordinates->number_of_points - point_offset;
             }
-            
+
             if (stream_point_count > 0) {
                 // set the result to zero
                 check_eval_errors(__FILE__, __LINE__);
-                
+
                 int grid_size = (stream_point_count + BLOCK_SIZE - 1) / BLOCK_SIZE;
                 if (gradient_direction == X_) {
                     CubeEvaluator_evaluate_points <false, true, false, false>
-                        <<< grid_size, BLOCK_SIZE, 0, 
+                        <<< grid_size, BLOCK_SIZE, 0,
                             *this->streamContainer->getStream(device, stream) >>>
                                 (this->input_cube->getDevicePointer(cube_device),
                                     this->input_cube->getDevicePitch(cube_device),
                                     cube_memory_shape[Y_],
-                                    // TODO: replace the cube_device with grid_device in below line, probably does not 
+                                    // TODO: replace the cube_device with grid_device in below line, probably does not
                                     //       matter but we have to be careful.
-                                    grid->device_copies[cube_device], 
+                                    grid->device_copies[cube_device],
                                     device_results_ptr,
                                     device_gradients_x_ptr,
                                     device_gradients_y_ptr,
@@ -1344,18 +1560,18 @@ void CubeEvaluator::evaluatePoints(Points *result_points,
                                     stream_point_count,
                                     device_point_offset,
                                     1.0
-                                );               
+                                );
                 }
                 else if (gradient_direction == Y_) {
                     CubeEvaluator_evaluate_points <false, false, true, false>
-                        <<< grid_size, BLOCK_SIZE, 0, 
+                        <<< grid_size, BLOCK_SIZE, 0,
                             *this->streamContainer->getStream(device, stream) >>>
                                 (this->input_cube->getDevicePointer(cube_device),
                                     this->input_cube->getDevicePitch(cube_device),
                                     cube_memory_shape[Y_],
-                                    // TODO: replace the cube_device with grid_device in below line, probably does not 
+                                    // TODO: replace the cube_device with grid_device in below line, probably does not
                                     //       matter but we have to be careful.
-                                    this->grid->device_copies[cube_device], 
+                                    this->grid->device_copies[cube_device],
                                     device_results_ptr,
                                     device_gradients_x_ptr,
                                     device_gradients_y_ptr,
@@ -1365,18 +1581,18 @@ void CubeEvaluator::evaluatePoints(Points *result_points,
                                     stream_point_count,
                                     device_point_offset,
                                     1.0
-                                );               
+                                );
                 }
                 else if (gradient_direction == Z_) {
                     CubeEvaluator_evaluate_points <false, false, false, true>
-                        <<< grid_size, BLOCK_SIZE, 0, 
+                        <<< grid_size, BLOCK_SIZE, 0,
                             *this->streamContainer->getStream(device, stream) >>>
                                 (this->input_cube->getDevicePointer(cube_device),
                                     this->input_cube->getDevicePitch(cube_device),
                                     cube_memory_shape[Y_],
-                                    // TODO: replace the cube_device with grid_device in below line, probably does not 
+                                    // TODO: replace the cube_device with grid_device in below line, probably does not
                                     //       matter but we have to be careful.
-                                    this->grid->device_copies[cube_device], 
+                                    this->grid->device_copies[cube_device],
                                     device_results_ptr,
                                     device_gradients_x_ptr,
                                     device_gradients_y_ptr,
@@ -1386,18 +1602,18 @@ void CubeEvaluator::evaluatePoints(Points *result_points,
                                     stream_point_count,
                                     device_point_offset,
                                     1.0
-                                );               
+                                );
                 }
                 else if (gradient_direction == 3) {
                     CubeEvaluator_evaluate_points <true, true, true, true>
-                        <<< grid_size, BLOCK_SIZE, 0, 
+                        <<< grid_size, BLOCK_SIZE, 0,
                             *this->streamContainer->getStream(device, stream) >>>
                                 (this->input_cube->getDevicePointer(cube_device),
                                     this->input_cube->getDevicePitch(cube_device),
                                     cube_memory_shape[Y_],
-                                    // TODO: replace the cube_device with grid_device in below line, probably does not 
+                                    // TODO: replace the cube_device with grid_device in below line, probably does not
                                     //       matter but we have to be careful.
-                                    this->grid->device_copies[cube_device], 
+                                    this->grid->device_copies[cube_device],
                                     device_results_ptr,
                                     device_gradients_x_ptr,
                                     device_gradients_y_ptr,
@@ -1411,14 +1627,14 @@ void CubeEvaluator::evaluatePoints(Points *result_points,
                 }
                 else {
                     CubeEvaluator_evaluate_points <true, false, false, false>
-                        <<< grid_size, BLOCK_SIZE, 0, 
+                        <<< grid_size, BLOCK_SIZE, 0,
                             *this->streamContainer->getStream(device, stream) >>>
                                 (this->input_cube->getDevicePointer(cube_device),
                                     this->input_cube->getDevicePitch(cube_device),
                                     cube_memory_shape[Y_],
-                                    // TODO: replace the cube_device with grid_device in below line, probably does not 
+                                    // TODO: replace the cube_device with grid_device in below line, probably does not
                                     //       matter but we have to be careful.
-                                    this->grid->device_copies[cube_device], 
+                                    this->grid->device_copies[cube_device],
                                     device_results_ptr,
                                     device_gradients_x_ptr,
                                     device_gradients_y_ptr,
@@ -1432,7 +1648,7 @@ void CubeEvaluator::evaluatePoints(Points *result_points,
                 }
             }
             check_eval_errors(__FILE__, __LINE__);
-                        
+
             // add the pointers
             point_offset += stream_point_count;
             device_point_offset += stream_point_count;
@@ -1443,10 +1659,10 @@ void CubeEvaluator::evaluatePoints(Points *result_points,
 
 
 /*
- * Evaluate the cube at the points of grid. The results are stored in the device memory 
+ * Evaluate the cube at the points of grid. The results are stored in the device memory
  * in the result_cube and gradient_cubes. The latter only occurs if gradient_direction == 3.
  * true.
- * 
+ *
  * @param grid               - The grid associated with all the input and output cubes
  * @param results_cube       - CudaCube where the results are stored, if gradient direction is 0-2, the gradients will be stored here
  * @param gradients_cube_x   - CudaCube where the x-gradients are stored if the gradient_direction=3
@@ -1454,10 +1670,10 @@ void CubeEvaluator::evaluatePoints(Points *result_points,
  * @param gradients_cube_z   - CudaCube where the z-gradients are stored if the gradient_direction=3
  * @param gradient_direction - possible values X_ = 0, Y_ = 1, Z_ = 2, (X_, Y_, Z_) = 3 && this->evaluateGradients
  *                             anything else: no gradients
- * 
+ *
  */
 void CubeEvaluator::evaluateGrid(Grid3D *grid,
-                                 CudaCube *result_cube, 
+                                 CudaCube *result_cube,
                                  CudaCube *gradient_cube_x,
                                  CudaCube *gradient_cube_y,
                                  CudaCube *gradient_cube_z,
@@ -1466,18 +1682,18 @@ void CubeEvaluator::evaluateGrid(Grid3D *grid,
     int total_slice_count = result_cube->getShape(Z_);
     // the minimum l is 0 always in the multiplication
     int device_slice_count;
-    
+
     // get the input cube pointer
     // TODO: we are assuming here, that the input and output cubes have the same
     // memory shapes, this is probably not the case in all occasions in the future
     double **device_input_cubes = this->input_cube->getDeviceCubes();
-    
+
     // get the pointer arrays from the cubes
     double **device_cubes = result_cube->getDeviceCubes();
     double **device_gradients_x;
     double **device_gradients_y;
     double **device_gradients_z;
-    
+
     // get the device gradient result pointers
     if (gradient_direction < 3) {
         device_gradients_x = result_cube->getDeviceCubes();
@@ -1489,10 +1705,10 @@ void CubeEvaluator::evaluateGrid(Grid3D *grid,
         device_gradients_y = gradient_cube_y->getDeviceCubes();
         device_gradients_z = gradient_cube_z->getDeviceCubes();
     }
-    
+
     size_t *device_pitches = result_cube->getDevicePitches();
     int *device_memory_shape = result_cube->getDeviceMemoryShape();
-    
+
     // init some stuff to help calculate the launch parameters
     // NOTE: these are for nlip: 7
     //int cells_per_block =  BLOCK_SIZE / 32 * 5;
@@ -1500,53 +1716,53 @@ void CubeEvaluator::evaluateGrid(Grid3D *grid,
     int warps_per_slice = grid->axis[Y_]->ncell * warps_per_string;
     int warps_per_block = BLOCK_SIZE / 32;
     int slice_offset = 0;
-    
+
     // copy the cubes to the device & execute the kernels
     for (int device = 0; device < this->streamContainer->getNumberOfDevices(); device ++) {
         // set the used device (gpu)
         this->streamContainer->setDevice(device);
-        
+
         //double *dev_cube  = device_cubes[device];
         double *dev_input_cube = device_input_cubes[device];
         double *dev_gradient_x = device_gradients_x[device];;
         double *dev_gradient_y = device_gradients_y[device];
         double *dev_gradient_z = device_gradients_z[device];
         int device_slice_offset = 0;
-        
+
         // calculate the number of vectors this device handles
         device_slice_count =  total_slice_count / this->streamContainer->getNumberOfDevices()
-                                  + ((total_slice_count % this->streamContainer->getNumberOfDevices()) > device);                
+                                  + ((total_slice_count % this->streamContainer->getNumberOfDevices()) > device);
         for (int stream = 0; stream < this->streamContainer->getStreamsPerDevice(); stream++) {
-            
+
             // determine the count of vectors handled by this stream
-            int slice_count = device_slice_count / this->streamContainer->getStreamsPerDevice() 
+            int slice_count = device_slice_count / this->streamContainer->getStreamsPerDevice()
                                 + ((device_slice_count % this->streamContainer->getStreamsPerDevice()) > stream);
 
             //printf("stream: %d, device: %d, slice_count: %d, device_slice_offset: %d, x-shape: %d, y-shape: %d, dev x-shape: %d dev y-shape: %d, pitch: %ld\n", stream, device, slice_count, device_slice_offset, this->input_cube->getShape(X_), this->input_cube->getShape(Y_), device_memory_shape[X_], device_memory_shape[Y_], device_pitches[device]);
-            
+
             check_eval_errors(__FILE__, __LINE__);
-            
-            
+
+
             if (slice_count > 0) {
                 // calculate the launch configuration for the f1-inject
                 //int grid_size = warps_per_slice * slice_count * warps_per_block + 1;
                 dim3 block, launch_grid;
                 result_cube->getLaunchConfiguration(&launch_grid, &block, slice_count, BLOCK_SIZE);
-                
+
                 // call the kernel
                 if (gradient_direction == X_) {
-                    CubeEvaluator_evaluate_simple_grid_gradients <9, true, false, false>
-                        <<< launch_grid, block, 0, 
+                    CubeEvaluator_evaluate_simple_grid_gradients <9, true, false, false> // fixme, change back to 9?
+                        <<< launch_grid, block, 0,
                             *this->streamContainer->getStream(device, stream) >>>
                     //CubeEvaluator_evaluate_grid_gradients <NLIP, true, false, false>
-                    //    <<< grid_size, BLOCK_SIZE, 0, 
+                    //    <<< grid_size, BLOCK_SIZE, 0,
                     //        *this->streamContainer->getStream(device, stream) >>>
                                         (dev_input_cube,
                                         device_pitches[device],
                                         device_memory_shape[Y_],
                                         grid->device_copies[device],
                                         dev_gradient_x,
-                                        dev_gradient_y, 
+                                        dev_gradient_y,
                                         dev_gradient_z,
                                         // number of slices handled by this device
                                         // in previous calls
@@ -1558,21 +1774,21 @@ void CubeEvaluator::evaluateGrid(Grid3D *grid,
                                         slice_count,
                                         //warps_per_string,
                                         1.0);
-                    
+
                 }
                 else if (gradient_direction == Y_) {
                     CubeEvaluator_evaluate_simple_grid_gradients <9, false, true, false>
-                        <<< launch_grid, block, 0, 
+                        <<< launch_grid, block, 0,
                             *this->streamContainer->getStream(device, stream) >>>
                     //CubeEvaluator_evaluate_grid_gradients <NLIP, false, true, false>
-                    //    <<< grid_size, BLOCK_SIZE, 0, 
+                    //    <<< grid_size, BLOCK_SIZE, 0,
                     //        *this->streamContainer->getStream(device, stream) >>>
                                         (dev_input_cube,
                                         device_pitches[device],
                                         device_memory_shape[Y_],
                                         grid->device_copies[device],
                                         dev_gradient_x,
-                                        dev_gradient_y, 
+                                        dev_gradient_y,
                                         dev_gradient_z,
                                         // number of slices handled by this device
                                         // in previous calls
@@ -1584,21 +1800,21 @@ void CubeEvaluator::evaluateGrid(Grid3D *grid,
                                         slice_count,
                                         //warps_per_string,
                                         1.0);
-                    
+
                 }
                 else if (gradient_direction == Z_) {
                     CubeEvaluator_evaluate_simple_grid_gradients <9, false, false, true>
                         <<< launch_grid, block, 0,
                             *this->streamContainer->getStream(device, stream) >>>
                     //CubeEvaluator_evaluate_grid_gradients <NLIP, false, false, true>
-                    //    <<< grid_size, BLOCK_SIZE, 0, 
+                    //    <<< grid_size, BLOCK_SIZE, 0,
                     //        *this->streamContainer->getStream(device, stream) >>>
                                         (dev_input_cube,
                                         device_pitches[device],
                                         device_memory_shape[Y_],
                                         grid->device_copies[device],
                                         dev_gradient_x,
-                                        dev_gradient_y, 
+                                        dev_gradient_y,
                                         dev_gradient_z,
                                         // number of slices handled by this device
                                         // in previous calls
@@ -1610,21 +1826,21 @@ void CubeEvaluator::evaluateGrid(Grid3D *grid,
                                         slice_count,
                                         //warps_per_string,
                                         1.0);
-                    
+
                 }
                 else if (gradient_direction == 3) {
                     CubeEvaluator_evaluate_simple_grid_gradients <9, true, true, true>
                         <<< launch_grid, block, 0,
                             *this->streamContainer->getStream(device, stream) >>>
                     //CubeEvaluator_evaluate_grid_gradients <NLIP, true, true, true>
-                    //    <<< grid_size, BLOCK_SIZE, 0, 
+                    //    <<< grid_size, BLOCK_SIZE, 0,
                     //        *this->streamContainer->getStream(device, stream) >>>
                                         (dev_input_cube,
                                         device_pitches[device],
                                         device_memory_shape[Y_],
                                         grid->device_copies[device],
                                         dev_gradient_x,
-                                        dev_gradient_y, 
+                                        dev_gradient_y,
                                         dev_gradient_z,
                                         // number of slices handled by this device
                                         // in previous calls
@@ -1645,7 +1861,7 @@ void CubeEvaluator::evaluateGrid(Grid3D *grid,
         }
     }
 }
-    
+
 /********************************************
  *  Fortran interfaces for Evaluator        *
  ********************************************/
@@ -1693,7 +1909,7 @@ extern "C" void evaluator_evaluate_points_z_gradients_cuda(Evaluator *evaluator,
 extern "C" void evaluator_destroy_cuda(Evaluator *evaluator) {
     evaluator->destroy();
 }
-    
+
 /********************************************
  *  Fortran interfaces for BubblesEvaluator *
  ********************************************/

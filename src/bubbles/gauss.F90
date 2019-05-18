@@ -44,6 +44,7 @@ module GaussQuad_class
 
     public :: GaussQuad
     public :: gauss_lobatto_grid
+    public :: chebychev_grid
 
     interface GaussQuad
         module procedure :: GaussQuadInit
@@ -309,7 +310,7 @@ contains
         real(REAL64),      intent(inout) :: tp(n),tw(n) ! The tp, tp, and their weights, tw 
         real(REAL64),      intent(in)    :: a,b        
         logical, optional, intent(in)    :: log_p       ! Is the logarithmic calculations also 
-        ! going to be included?
+                                                        ! going to be included?
         call gauleg(n,tp,tw)          
 
         if(present(log_p) .and. log_p) then ! If the logarithmic part is
@@ -418,6 +419,24 @@ contains
         tp(1) = left
         tp(n) = right
     end function
+
+    pure function chebychev_grid(n,left,right) result(tp)
+        implicit none
+        integer(INT32),    intent(in)    :: n       ! # of Ch Points
+        real(REAL64),      intent(in)    :: left, right
+        real(REAL64)                     :: tp(n) ! grid points
+        integer(int32)                   :: k
+
+        tp(1) = -1
+        tp(n) = 1
+        do k=1, n-2
+          tp(k+1) = cos( (2*k + 1)/(2*(n-2))*PI )
+        enddo
+
+        ! scale to intervall
+        tp=0.5d0*( (right+left) + (right-left)*tp)
+    end function
+
 
 end module
 

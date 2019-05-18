@@ -73,7 +73,7 @@ module expo_m
         real(REAL64), pointer               :: expmat_slice(:, :)
         
         logical                             :: initialize,duplicate,thiswaslast
-        real(REAL64), dimension(:), pointer :: cellh
+        real(REAL64), dimension(:), pointer :: cell_scales
         type(REAL64_2D), allocatable        :: lip_coeffs(:)
 
         ! gr1d_in is the density, gr1d_out is  the potential
@@ -103,7 +103,7 @@ module expo_m
         ! for all points in the x2 direction
         ! THIS SHOULD BE THE LOCAL NDIM
 
-        cellh => input_grid%axis(axis)%get_cell_steps()
+        cell_scales => input_grid%axis(axis)%get_cell_scales()
         lip_coeffs=lip%coeffs(0)
         ! Loop over all t-points
         do itpoint=1, size(tpoints) 
@@ -112,10 +112,10 @@ module expo_m
             do icell=1, input_grid%axis(axis)%get_ncell()
                 
                 ! get the exponent (t*h) measured in cells (each one being h in length)
-                shft=t*cellh(icell)
+                shft=t*cell_scales(icell)
 
-                ! get the box length in number of cells
-                displacement = box_length/cellh(icell)
+                ! get the scaled box length (ie, as it is stored in grid%lip)
+                displacement = box_length/cell_scales(icell)
 
                 ! get the slice of the result matrix corrensponding to this t-point and cell
                 expmat_slice => expmat((icell-1)*(nlip-1)+1 : (icell-1)*(nlip-1)+nlip, :, itpoint)
@@ -161,8 +161,7 @@ module expo_m
                         j=j+1
                     end do
                     ! Multiply the integrals times the polynomial coefficients
-                    temp_expmat = xmatmul(lip_coeffs(1)%p(:,:),temp_expmat)*&
-                                                         cellh(icell)
+                    temp_expmat = xmatmul(lip_coeffs(1)%p(:,:),temp_expmat)*cell_scales(icell)
                     expmat_slice(:, ipoint) = expmat_slice(:, ipoint) + temp_expmat
                 end do
             end do
@@ -207,7 +206,7 @@ module expo_m
         real(REAL64), pointer :: expmat_slice(:, :)
         
         logical :: initialize,duplicate,thiswaslast
-        real(REAL64),dimension(:),pointer :: grid, cellh
+        real(REAL64),dimension(:),pointer :: grid, cell_scales
         type(REAL64_2D),allocatable :: lip_coeffs(:)
 
         ! gr1d_in is the density, gr1d_out is  the potential
@@ -250,13 +249,13 @@ module expo_m
         ! THIS SHOULD BE THE LOCAL NDIM
 
         grid => gr1d_out%get_coord()
-        cellh => gr1d_in%get_cell_steps()
+        cell_scales => gr1d_in%get_cell_scales()
         mul_time = 0
         lip_coeffs=lip%coeffs(0)
         do itpoint = 1, size(tpoints) 
             t = tpoints(itpoint)
             do ncell=1,gr1d_in%get_ncell()
-                cell_length = cellh(ncell)
+                cell_length = cell_scales(ncell)
                 shft=t*cell_length
                 disp=den_boxlen/cell_length
                 first_gridpoint = (ncell-1)*(nlip-1)+1
@@ -379,7 +378,7 @@ module expo_m
         real(REAL64), pointer :: expmat_slice(:, :)
         
         logical :: initialize,duplicate,thiswaslast
-        real(REAL64),dimension(:),pointer :: grid, cellh
+        real(REAL64),dimension(:),pointer :: grid, cell_scales
         type(REAL64_2D),allocatable :: lip_coeffs(:)
 
         ! gr1d_in is the density, gr1d_out is  the potential
@@ -422,14 +421,14 @@ module expo_m
         ! THIS SHOULD BE THE LOCAL NDIM
 
         grid => gr1d_out%get_coord()
-        cellh => gr1d_in%get_cell_steps()
+        cell_scales => gr1d_in%get_cell_scales()
         mul_time = 0
         lip_coeffs=lip%coeffs(0)
         do itpoint = 1, size(tpoints) 
             t = tpoints(itpoint)
             do icell=1,2
                 ncell = evaluated_cells(icell)
-                cell_length = cellh(ncell)
+                cell_length = cell_scales(ncell)
                 shft=t*cell_length
                 disp=den_boxlen/cell_length
                 first_gridpoint = (ncell-1)*(nlip-1)+1
@@ -512,7 +511,7 @@ module expo_m
             end do
              
             do ncell=2, gr1d_in%get_ncell() -1 
-                cell_length = cellh(ncell)
+                cell_length = cell_scales(ncell)
                 shft=t*cell_length
                 disp=den_boxlen/cell_length
                 first_gridpoint = (ncell-1)*(nlip-1)+1
@@ -2509,9 +2508,9 @@ module expo_m
         real(REAL64),allocatable :: temp_mat(:),x0
         integer :: ix2,icell, nlip,j
         integer :: idisp
-        real(REAL64),pointer :: points_out(:),cellh_in(:) ! in this file cellh and get_cell_step are used for scaling only (lnw)
+        real(REAL64),pointer :: points_out(:), cellh_in(:)
         type(REAL64_2D),allocatable :: lip_coeffs(:)
-        real(REAL64) :: qmin_in,total_size_in
+        real(REAL64) :: qmin_in, total_size_in
 
         real(REAL64),pointer :: celld_in(:)
 
@@ -2551,7 +2550,7 @@ module expo_m
         points_out => grid_out%axis(crd)%get_coord()
         qmin_in       =  grid_in%axis(crd)%get_qmin()
         total_size_in =  grid_in%axis(crd)%get_delta()
-        cellh_in      => grid_in%axis(crd)%get_cell_steps()
+        cellh_in      => grid_in%axis(crd)%get_cell_scales()
 
         celld_in      => grid_in%axis(crd)%get_cell_starts()
 

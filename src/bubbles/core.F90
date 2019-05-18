@@ -493,9 +493,10 @@ contains
         if (action_%resume .and. file_exists(action_%output_folder, "cubegrid.g3d")) then
             cubegrid = Grid3D(action_%output_folder, "cubegrid.g3d")
         else
-            cubegrid = struct%make_cubegrid(step    = settings%function3d_settings%cube_grid_spacing, &
-                                            radius  = settings%function3d_settings%cube_cutoff_radius, &
-                                            nlip    = settings%function3d_settings%cube_nlip)
+            cubegrid = struct%make_cubegrid(step      = settings%function3d_settings%cube_grid_spacing, &
+                                            radius    = settings%function3d_settings%cube_cutoff_radius, &
+                                            nlip      = settings%function3d_settings%cube_nlip, &
+                                            grid_type = settings%function3d_settings%cube_grid_type)
             ! store the 3d grid if the orbital store mode is not 'No':0 or 'Only Bubbles: 2'
             if (      action_%store_result_functions /= DO_NOT_STORE_RESULT_FUNCTIONS &
                 .and. action_%store_result_functions /= STORE_ONLY_BUBBLES) &
@@ -547,9 +548,10 @@ contains
             call resume_Grid1Ds(bubble_grids, action_%output_folder, "bubblegrids.g1d")
         else
             call struct%make_bubblegrids(bubble_grids, &
-                                         n0=settings%function3d_settings%bubble_cell_count, &
-                                         cutoff=settings%function3d_settings%bubble_cutoff_radius, &
-                                         nlip  = settings%function3d_settings%bubbles_nlip)
+                                         n0        = settings%function3d_settings%bubble_cell_count, &
+                                         cutoff    = settings%function3d_settings%bubble_cutoff_radius, &
+                                         nlip      = settings%function3d_settings%bubbles_nlip, &
+                                         grid_type = settings%function3d_settings%bubbles_grid_type )
             ! store the 1d grids if the orbital store mode is not 'No':0 or 'Only Cube: 3'
             if (      action_%store_result_functions /= DO_NOT_STORE_RESULT_FUNCTIONS &
                 .and. action_%store_result_functions /= STORE_ONLY_CUBES) &
@@ -864,7 +866,7 @@ contains
         end if
     end subroutine
 
-        !> Init the correct SCFOptimizer with correct parameters using the
+    !> Init the correct SCFOptimizer with correct parameters using the
     !! settings, action, scf_cycle, and scf_energetics as input. The result object is 
     !! stored to 'scf_optimizer'.
     subroutine SCFOptimizer_init(settings, action_, scf_cycle, &

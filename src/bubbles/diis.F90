@@ -260,6 +260,7 @@ contains
                 return
             end if  
             write(*, '("-----------------------------------------------------------------------")')
+            write(*, '("in diis")')
             write(*, '("Iteration ",i4," completed")'), iteration_number
             write(*, '("Total energy:      ", f24.16,"")'), self%scf_cycle%energy + self%nuc_rep_energy
             write(*, '("Electronic energy: ", f24.16,"")'), self%scf_cycle%energy

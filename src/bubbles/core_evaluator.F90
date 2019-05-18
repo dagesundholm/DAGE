@@ -168,18 +168,20 @@ contains
 
 
     subroutine CoreEvaluator_init_core_grids(self, prototype_function)
+        implicit none
         class(CoreEvaluator),        intent(inout) :: self
         type(Function3D),            intent(in)    :: prototype_function
         integer                                    :: i, x, y, z, nlip, ix, iy, iz, ngridpoints, offset, &
                                                       number_of_cells, start_x, start_y, start_z, &
-                                                      end_x, end_y, end_z
+                                                      end_x, end_y, end_z, grid_type
         real(REAL64)                               :: qmin(3), center(3), c2(3)
+        ! steps / h / scales of all cells (and all axes).  By design this routine only does equisized cells
         real(REAL64), allocatable                  :: stepx(:), stepy(:), stepz(:)
         real(REAL64), pointer                      :: coordinates_x(:), coordinates_y(:), coordinates_z(:)
 
         
-        
         nlip = prototype_function%grid%get_nlip()
+        grid_type = prototype_function%grid%get_grid_type()
         ngridpoints = nint(self%core_magnification * self%core_grid_point_count)
         coordinates_x => prototype_function%grid%axis(X_)%get_coord()
         coordinates_y => prototype_function%grid%axis(Y_)%get_coord()
@@ -218,17 +220,14 @@ contains
             qmin(Y_) = coordinates_y(start_y)
             qmin(Z_) = coordinates_z(start_z)
         
-            stepx(:) =   (coordinates_x(end_x) - coordinates_x(start_x))&
-                       / (ngridpoints-1)
-            stepy(:) = (coordinates_y(end_y) - coordinates_y(start_y)) &
-                       / (ngridpoints-1)
-            stepz(:) = (coordinates_z(end_z) - coordinates_z(start_z)) &
-                       / (ngridpoints-1)
+            stepx(:) = (coordinates_x(end_x) - coordinates_x(start_x)) / (ngridpoints-1)
+            stepy(:) = (coordinates_y(end_y) - coordinates_y(start_y)) / (ngridpoints-1)
+            stepz(:) = (coordinates_z(end_z) - coordinates_z(start_z)) / (ngridpoints-1)
             self%core_grids(i) = Grid3D(qmin, &
-                           [(ngridpoints-1) / (nlip-1), &
-                            (ngridpoints-1) / (nlip-1), &
-                            (ngridpoints-1) / (nlip-1)], &
-                           nlip, stepx, stepy, stepz)
+                                        [(ngridpoints-1) / (nlip-1), &
+                                         (ngridpoints-1) / (nlip-1), &
+                                         (ngridpoints-1) / (nlip-1)], &
+                                        nlip, stepx, stepy, stepz, grid_type)
 #ifdef HAVE_CUDA
             call self%core_grids(i)%cuda_init()
 #endif
@@ -238,17 +237,14 @@ contains
 #ifdef HAVE_CUDA
             call self%core_laplacians(i)%cuda_init()
 #endif
-            stepx(:) =   (coordinates_x(end_x) - coordinates_x(start_x))&
-                       / (end_x - start_x)
-            stepy(:) = (coordinates_y(end_y) - coordinates_y(start_y)) &
-                       / (end_y - start_y)
-            stepz(:) = (coordinates_z(end_z) - coordinates_z(start_z)) &
-                       / (end_z - start_y)
+            stepx(:) = (coordinates_x(end_x) - coordinates_x(start_x)) / (end_x - start_x)
+            stepy(:) = (coordinates_y(end_y) - coordinates_y(start_y)) / (end_y - start_y)
+            stepz(:) = (coordinates_z(end_z) - coordinates_z(start_z)) / (end_z - start_y)
             self%core_sparse_grids(i) = Grid3D(qmin, &
-                           [(end_x - start_x) / (nlip-1), &
-                            (end_y - start_y) / (nlip-1), &
-                            (end_z - start_z) / (nlip-1)], &
-                           nlip, stepx, stepy, stepz)
+                                               [(end_x - start_x) / (nlip-1), &
+                                                (end_y - start_y) / (nlip-1), &
+                                                (end_z - start_z) / (nlip-1)], &
+                                               nlip, stepx, stepy, stepz, grid_type)
         end do
         deallocate(stepx, stepy, stepz)
         nullify(coordinates_x, coordinates_y, coordinates_z)

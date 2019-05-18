@@ -39,6 +39,7 @@ class Grid1D {
         double *derivative_lip;
         double *lower_derivative_lip;
         double *base_integrals;
+        int grid_type;
         double *gridpoints;
         double *integrals;
         double ** device_h;
@@ -51,7 +52,7 @@ class Grid1D {
         Grid1D ** device_copies;
         
         // constructor
-        Grid1D(int ncell, int nlip, double r_max, double *h, double *d, double *gridpoints, double *lip, double *derivative_lip, double *lower_derivative_lip, double *base_integrals, StreamContainer *streamContainer, bool init_device_memory = true);
+        Grid1D(int ncell, int nlip, double r_max, double *h, double *d, int grid_type, double *gridpoints, double *lip, double *derivative_lip, double *lower_derivative_lip, double *base_integrals, StreamContainer *streamContainer, bool init_device_memory = true);
         Grid1D();
         int getShape();
         Grid1D *getSubGrid(int start_index, int end_index, StreamContainer *streamContainer);
@@ -63,7 +64,7 @@ class Grid1D {
         // destroy all cuda related objects
         void destroy();
 };
-// TODO: Note, this is the new version, as soon as you are ready, replace the Grid3D_t stuff with this
+
 class Grid3D {
     private:
         StreamContainer *streamContainer;

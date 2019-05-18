@@ -52,7 +52,7 @@ module globals_m
 
     ! math constants
     real(REAL64), parameter :: PI=3.141592653589793D0
-    real(REAL64), parameter :: FOURPI=1.2566370614359173D1
+    real(REAL64), parameter :: FOURPI=4.d0 * PI
     !real(REAL64), parameter :: PI=atan(1.d0)*4.d0
     real(REAL64), parameter :: PI_FAC=6.349363593424098D-002 ! (0.5/PI)**0.75
     real(REAL64), parameter :: TWOOVERSQRTPI=1.1283791670955125739D0

@@ -774,13 +774,17 @@ contains
 
         ! Project to an equidistant grid
         if (present(step)) then
-            eq_grid = Grid3D(self%grid%get_range(),&
-                             self%grid%get_nlip(),&
-                             step)
+            eq_grid = Grid3D(self%grid%get_range(), &
+                             self%grid%get_nlip(), &
+                             step, &
+                             self%grid%get_grid_type())
+          print *, 'using ', self%grid%get_grid_type()
         else
-            eq_grid = Grid3D(self%grid%get_range(),&
-                             self%grid%get_nlip(),&
-                             DEFAULT_STEP)
+            eq_grid = Grid3D(self%grid%get_range(), &
+                             self%grid%get_nlip(), &
+                             DEFAULT_STEP, &
+                             self%grid%get_grid_type())
+          print *, 'using ', self%grid%get_grid_type()
         endif
 
         equidistant_self=self%project_onto(eq_grid)
@@ -1749,7 +1753,7 @@ contains
         end do
         allocate(new%taylor_series_bubbles, &
                      source = new%get_taylor_series_bubbles())
-        
+
     end function
 
 

@@ -453,7 +453,7 @@ contains
     end subroutine
 
 
-    function Structure_make_cubegrid(self, step, radius, nlip) result(cubegrid)
+    function Structure_make_cubegrid(self, step, radius, nlip, grid_type) result(cubegrid)
         class(Structure),     intent(in)                :: self
         !> Step of the cube grid in \f$\mathrm{a}_0\f$.
         !! Recommended value: 0.1 a0.
@@ -463,17 +463,20 @@ contains
         real(REAL64),      intent(in)                   :: radius
         !> Number of Lagrange interpolation polynomials used
         integer,           intent(in)                   :: nlip
+        integer,           intent(in)                   :: grid_type
         type(Grid3D)                                    :: cubegrid
         integer                                         :: iatom
 
-        cubegrid=Grid3D(centers = self%coordinates,&
-                        radii   = [( radius, iatom=1,self%get_natoms() )],&
-                        step    = step,&
-                        nlip    = nlip, &
-                        gbfmm   = .TRUE. )
+        ! Grid3D_init_spheres
+        cubegrid=Grid3D(centers   = self%coordinates,&
+                        radii     = [( radius, iatom=1,self%get_natoms() )],&
+                        step      = step,&
+                        nlip      = nlip, &
+                        grid_type = grid_type, &
+                        gbfmm     = .TRUE. )
     end function
 
-    subroutine Structure_make_bubblegrids(self, grids, n0, cutoff, nlip)
+    subroutine Structure_make_bubblegrids(self, grids, n0, cutoff, nlip, grid_type)
         class(Structure),          intent(in)    :: self
         !> The array of grids that is allocated and initialized in this subroutine
         type(Grid1D), allocatable, intent(inout) :: grids(:)
@@ -485,11 +488,12 @@ contains
         real(REAL64),              intent(in)    :: cutoff
         !> Number of Lagrange interpolation polynomials used
         integer,                   intent(in)    :: nlip
+        integer,                   intent(in)    :: grid_type
         integer                                  :: iatom
 
         allocate(grids(self%get_natoms()))
         do iatom = 1, self%get_natoms()
-            grids(iatom) = Grid1D(self%charge(iatom), n0, nlip, cutoff)
+            grids(iatom) = Grid1D(self%charge(iatom), n0, nlip, cutoff, grid_type)
         end do
     end subroutine
 
@@ -522,7 +526,7 @@ contains
         type(Grid1DPointer)            :: bubble_grid_pointers(self%get_natoms())
         real(REAL64)                  :: center_modulos(3, self%get_natoms()), adjust(3)
         type(Grid3D), pointer         :: global_grid
-        real(REAL64), pointer         :: cell_steps(:)
+        real(REAL64), pointer         :: cell_scales(:)
 
         integer                       :: iatom, i
        
@@ -549,12 +553,12 @@ contains
         !adjust = 0.0d0
 
         centers = self%coordinates
-        cell_steps => global_grid%axis(X_)%get_cell_steps() ! used for scaling only (lnw)
-        centers(X_, :) = centers(X_, :) + adjust(X_) * cell_steps(1)
-        cell_steps => global_grid%axis(Y_)%get_cell_steps()
-        centers(Y_, :) = centers(Y_, :) + adjust(Y_) * cell_steps(1)
-        cell_steps => global_grid%axis(Z_)%get_cell_steps()
-        centers(Z_, :) = centers(Z_, :) + adjust(Z_) * cell_steps(1)
+        cell_scales => global_grid%axis(X_)%get_cell_scales()
+        centers(X_, :) = centers(X_, :) + adjust(X_) * cell_scales(1)
+        cell_scales => global_grid%axis(Y_)%get_cell_scales()
+        centers(Y_, :) = centers(Y_, :) + adjust(Y_) * cell_scales(1)
+        cell_scales => global_grid%axis(Z_)%get_cell_scales()
+        centers(Z_, :) = centers(Z_, :) + adjust(Z_) * cell_scales(1)
      
         
         bubs=Bubbles(&

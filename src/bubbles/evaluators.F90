@@ -655,7 +655,7 @@ contains
                 crd_cell(ipoint) = self%grid%x2cell(points(ipoint), icell(ipoint))
 
                 ! get the cell step of the cell we are handling
-                h(ipoint)        = self%grid%get_cell_step(icell(ipoint))
+                h(ipoint)        = self%grid%get_cell_scale(icell(ipoint))
 
                 ! get the starting grid point index for the selected cell 
                 start(ipoint) = (icell(ipoint) - 1) * (self%nlip - 1) + 2
@@ -674,7 +674,7 @@ contains
                 crd_cell(ipoint) = self%grid%x2cell(points(ipoint), icell(ipoint))
 
                 ! get the cell step of the cell we are handling
-                h(ipoint)        = self%grid%get_cell_step(icell(ipoint))
+                h(ipoint)        = self%grid%get_cell_scale(icell(ipoint))
 
                 ! get the starting grid point index for the selected cell 
                 start(ipoint) = (icell(ipoint) - 1) * (self%nlip - 1) + 1
@@ -735,7 +735,7 @@ contains
             coordinates(:, ipoint) = self%grid%get_coordinates([icell(ipoint), icell(ipoint)])
 
             ! get the cell step of the cell we are handling
-            h(ipoint)        = self%grid%get_cell_step(icell(ipoint))
+            h(ipoint)        = self%grid%get_cell_scale(icell(ipoint))
 
             ! evaluate the derivatives for point ipoint
             forall (derivative_order = 0 : self%maximum_derivative_order, &
@@ -790,7 +790,7 @@ contains
                 crd_cell(ipoint) = self%grid%x2cell(points(ipoint), icell(ipoint))
 
                 ! get the cell step of the cell we are handling
-                h(ipoint)        = self%grid%get_cell_step(icell(ipoint))
+                h(ipoint)        = self%grid%get_cell_scale(icell(ipoint))
 
                 ! get the starting grid point index for the selected cell 
                 start(ipoint) = (icell(ipoint) - 1) * (self%nlip - 1) + 2
@@ -810,7 +810,7 @@ contains
                 crd_cell(ipoint) = self%grid%x2cell(points(ipoint), icell(ipoint))
 
                 ! get the cell step of the cell we are handling
-                h(ipoint)        = self%grid%get_cell_step(icell(ipoint))
+                h(ipoint)        = self%grid%get_cell_scale(icell(ipoint))
 
                 ! get the starting grid point index for the selected cell 
                 start(ipoint) = (icell(ipoint) - 1) * (self%nlip - 1) + 1
@@ -969,7 +969,7 @@ contains
                     ! Change of variable to cell coordinates
                     crd_cell(idim)=self%gr(idim)%p%x2cell(points(idim, ipoint),&
                                                         icell(idim))
-                    h(idim)=self%gr(idim)%p%get_cell_step(icell(idim))
+                    h(idim)=self%gr(idim)%p%get_cell_scale(icell(idim))
                 end if
             end do
 
@@ -1038,7 +1038,7 @@ contains
         do idim=self%ndim,1,-1
             self%ncell(idim)=grids(idim)%get_ncell()
             self%blocksz(idim-1)=self%blocksz(idim)*grids(idim)%get_shape()
-            self%h(idim)%p=grids(idim)%get_cell_steps()
+            self%h(idim)%p=grids(idim)%get_cell_scales()
         end do
     end function
 
@@ -1112,7 +1112,7 @@ contains
         self%base_ints=grid%lip%integrals()
        
         self%ncell = grid%get_ncell()
-        self%h = grid%get_cell_steps()
+        self%h = grid%get_cell_scales()
     end function
 
     !> Destructor
@@ -1265,7 +1265,7 @@ contains
         new%n        = gr%get_nlip() - 1
         new%ncell    = gr%get_ncell()
         new%sz       = gr%get_shape()
-        new%h        =>gr%get_cell_steps()
+        new%h        =>gr%get_cell_scales()
         new%ints_in  = gr%lip%inward_integrals()
         new%ints_out = gr%lip%outward_integrals()
     end function
@@ -1580,7 +1580,7 @@ contains
    
 
 
-        !> Extrapolate and replace the frist values of 'values'
+    !> Extrapolate and replace the first values of 'values'
     !! using Lagrange interpolation polynomial of order 'order'.
     pure subroutine extrapolate_first_nlip7(order, values)
         integer,      intent(in)    :: order
@@ -1598,7 +1598,7 @@ contains
                 
         else if (order == 6) then
             values(1) = &
-                  6.0d0 * values(2) &
+                   6.0d0 * values(2) &
                 - 15.0d0 * values(3) &
                 + 20.0d0 * values(4) &
                 - 15.0d0 * values(5) &

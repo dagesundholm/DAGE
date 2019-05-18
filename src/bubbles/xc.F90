@@ -2201,13 +2201,14 @@ module XC_class
         ! d\rho_r /dr
         real(real64), dimension(:), allocatable :: d_fr
         integer(int32) :: nlip
+        integer(int32) :: grid_type = 2
     
         real(real64), dimension(:), pointer :: e
         real(real64), dimension(:), pointer :: v
         real(real64), dimension(:), allocatable :: vrho
         real(real64), dimension(:), allocatable :: vsigma
         real(real64), dimension(:,:), allocatable :: w
-        ! test the new weight <<<<<<<<<<<<<<<<<<<<<<<<<
+        ! test the new weight
         real(real64), dimension(:), allocatable :: w_tmp
         real(real64) :: step
         integer(int32) :: center
@@ -2235,7 +2236,7 @@ module XC_class
         real(real64), dimension(:,:,:,:), allocatable :: t_const
         type(grid1d) :: t_grid1d
         real(real64), dimension(:,:), allocatable :: t_r2int
-        ! >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
 
         real(real64), dimension(:), allocatable :: g_der_den
         real(real64), dimension(:,:), allocatable :: lip_dev
@@ -2308,7 +2309,7 @@ module XC_class
         nlip = n_idx 
 
         !> derivative constant of lip basis
-        small_lip=LIPBasisInit(nlip, 0)
+        small_lip=LIPBasisInit(nlip, grid_type)
         der_const2 = small_lip%der_const()
         !print *, 'der_const2 ', der_const2(2,:)
 
@@ -2372,7 +2373,7 @@ module XC_class
                 !print *, 'v(j) ', coord(j),  v(j)
             end do
             !> special point. first grid point.
-            t_grid1d = grid1d(coord(1),1,3,[coord(2)-coord(1)])
+            t_grid1d = grid1d(coord(1), 1, 3, [coord(2)-coord(1)], grid_type)
             t_r2int = t_grid1d%r2int()
             aa = vsigma(1)*2.0d0*d_fr(1)*der_const2(1,1)/dr_ds(1)
             b = (t_r2int(1,2)/t_r2int(1,1))*vsigma(2)*2.0d0*d_fr(2)*der_const2(1,2)/dr_ds(2)

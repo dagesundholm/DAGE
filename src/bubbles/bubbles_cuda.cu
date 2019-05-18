@@ -250,7 +250,7 @@ __global__ void calc_cf(Bubble *bub, int offset, int number_of_points, size_t de
 // I cannot see any good reason for this special case (lnw) that is, the
 // derivative at the centre of each bubble should be zero, but why does it have
 // to be enforced?
-#if 1
+#if 0
             // handle the special case of the first cell, where the first
             // data item most likely is not valid
             if (icell == 0) {

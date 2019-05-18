@@ -38,6 +38,10 @@
                     comment="Number of Lagrange interpolation polynomials used in Cube grid."  />
             <parameter visible="#{..general_settings.expert_mode}" name="cube_nlip" title="Cube LIP Count" type="int" default="7" fixed="True" input_type="int" minval="3" maxval="7"
                     comment="Number of Lagrange interpolation polynomials used in Bubbles grids."  />
+            <parameter visible="#{..general_settings.expert_mode}" name="bubbles_grid_type" title="Bubbles grid type" type="int" default="1" fixed="True" input_type="int" minval="1" maxval="3"
+                    comment="grid type in cells of the bubbles."  />
+            <parameter visible="#{..general_settings.expert_mode}" name="cube_grid_type" title="Cube grid type" type="int" default="1" fixed="True" input_type="int" minval="1" maxval="3"
+                    comment="grid type in cells of the cube."  />
             <parameter name="taylor_order" title="Taylor Order in Multiplication" type="int" default="2" minval="2" maxval="10" 
                     comment="Maximum derivate order used in creating the cross terms in Function3D multiplication"/>
         </class>

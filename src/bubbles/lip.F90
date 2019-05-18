@@ -288,7 +288,7 @@ contains
         ! Generate coefficients of the base polynomials
         select case (self%grid_type)
 
-            case (0) ! equidistant
+            case (1) ! equidistant
                 coeffs(1)%p(:,n)=1.d0
                 do i=1,self%nlip               !Iterate over points
                     x_i=i-(self%nlip+1)/2
@@ -300,9 +300,8 @@ contains
                     end do
                 end do
 
-            case (1) ! gauss lobatto
+            case (2) ! gauss lobatto
                 glgrid = gauss_lobatto_grid(self%nlip, self%first, self%last)
-                ! call pprint ( glgrid )
                 coeffs(1)%p(:,n)=1.d0
                 do i=1,self%nlip               !Iterate over points
                     x_i=glgrid(i)
