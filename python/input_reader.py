@@ -850,7 +850,7 @@ class StructureXML(InputXML):
                 result[1] = float(xyz_text[2])
                 result[2] = float(xyz_text[3])
             else:
-                sys.exit("Error: Too many or too little coordinates in 'atom'->'xyz' -tag.")
+                sys.exit("Error: Too many or too few coordinates in 'atom'->'xyz' -tag.")
         
         self.coordinates.append(result)
         self.types.append(atom_type)

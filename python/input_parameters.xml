@@ -186,7 +186,7 @@
     <structure_input abbreviation="struct" name="structures" required="true" fortran_variable_name="structures" global_index_counter="number_of_structures">
         <parameter name="number_of_atoms" type="int" title="Number of Atoms" visible="false" required="true" default="0" />
         <parameter name="number_of_orbitals" type="int" title="Number of Orbitals" visible="false" default="0" />
-        <parameter name="external_electric_field" type="double[]" shape="3" title="External electric field " comment="homogeneous electric field" />
+        <parameter name="external_electric_field" type="double[]" shape="3" default="0.0, 0.0, 0.0" title="External electric field " comment="homogeneous electric field" required="false"/>
         <parameter name="number_of_virtual_orbitals" type="int" title="Number of Virtual Orbitals" default="0" />
         <parameter name="multiplicity" type="int"  required="false" default="0" comment="Spin multiplicity of the electronic state." >
             <option value="0" text_value="automatic" text="automatic" />
