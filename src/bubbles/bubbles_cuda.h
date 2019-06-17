@@ -123,16 +123,19 @@ class Bubbles {
 };
 
 
-__device__ __forceinline__ void getXYZ(int *x, int *y, int *z) {
+__device__ __forceinline__ 
+void getXYZ(int *x, int *y, int *z) {
     *x = blockIdx.x * blockDim.x + threadIdx.x;
     *y = blockIdx.y * blockDim.y + threadIdx.y;
     *z = blockIdx.z * blockDim.z + threadIdx.z;
+    // printf("z: %i, bi: %i, bd: %i, ti: %i \n", *z, blockIdx.z, blockDim.z, threadIdx.z);
 }
 
 /*
  * Returns the cube pointer offset caused by the x, y, z coordinates with given pitch and memory shape in y-direction
  */
-__device__ __forceinline__ int getCubeOffset3D(const int x, const int y, const int z, const size_t pitch, const int memory_y_shape) {
+__device__ __forceinline__
+int getCubeOffset3D(const int x, const int y, const int z, const size_t pitch, const int memory_y_shape) {
     return    z * memory_y_shape * pitch / sizeof(double)
             + y * pitch / sizeof(double)
             + x;
