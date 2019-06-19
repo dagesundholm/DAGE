@@ -239,7 +239,7 @@ contains
 #endif
             stepx(:) = (coordinates_x(end_x) - coordinates_x(start_x)) / (end_x - start_x)
             stepy(:) = (coordinates_y(end_y) - coordinates_y(start_y)) / (end_y - start_y)
-            stepz(:) = (coordinates_z(end_z) - coordinates_z(start_z)) / (end_z - start_y)
+            stepz(:) = (coordinates_z(end_z) - coordinates_z(start_z)) / (end_z - start_z)
             self%core_sparse_grids(i) = Grid3D(qmin, &
                                                [(end_x - start_x) / (nlip-1), &
                                                 (end_y - start_y) / (nlip-1), &

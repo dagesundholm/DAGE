@@ -2201,7 +2201,7 @@ module XC_class
         ! d\rho_r /dr
         real(real64), dimension(:), allocatable :: d_fr
         integer(int32) :: nlip
-        integer(int32) :: grid_type = 2
+        integer(int32), parameter :: grid_type = 1 ! equidistant: 1, lobatto: 2
     
         real(real64), dimension(:), pointer :: e
         real(real64), dimension(:), pointer :: v

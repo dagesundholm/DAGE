@@ -94,7 +94,7 @@ module GaussGenerator_class
         !> Number of LIP points of the default generated grid.
         integer(int32)              :: nlip=7
         !> grid_type. 1: eq, 2: Gauss Lobatto
-        integer(int32)              :: grid_type = 2
+        integer(int32)              :: grid_type = 1
         !> Maximum value of each individual Gaussian shell at the edges
         !! of the default generated grid.
         real(REAL64)                :: thres=1.d-12
@@ -568,7 +568,7 @@ contains
     !! step and nlip.
     function GaussBubblesGenerator_gen_cubegrid(self) result(cubegrid)
         class(GaussBubblesGenerator), intent(in)  :: self
-        type(Grid3D)                        :: cubegrid
+        type(Grid3D)                              :: cubegrid
 
         integer      :: ncell(3)
         real(REAL64) :: box(2,3)
