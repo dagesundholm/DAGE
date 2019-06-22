@@ -715,9 +715,7 @@ double evaluate_derivative_z(const int current_id,
                              const int previous_id1, const int previous_id2, const int previous_id3, const int previous_id4,const int previous_id5, const int previous_id6,
                              const int next_id1, const int next_id2, const int next_id3, const int next_id4, const int next_id5, const int next_id6,
                              const double* __restrict__ device_cube, const int grid_type, const double h) {
-    if (current_id == -1) {
-        return 0.0;
-    }
+    if (current_id == -1) return 0.0;
     double current_value,
            previous_value1, previous_value2, previous_value3, previous_value4, previous_value5, previous_value6,
            next_value1, next_value2, next_value3, next_value4, next_value5, next_value6;
@@ -740,30 +738,30 @@ double evaluate_derivative_z(const int current_id,
 
 #if 1
 
-    if ( previous_id1 > -1 && next_id1 > -1 && previous_id2 > -1 && next_id2 > -1 && previous_id3 > -1 && next_id3 > -1 && previous_id4 > -1 && next_id4 > -1 ) { // x x x x o x x x x
-        return (3.0 * previous_value4 + -32.0 * previous_value3 + 168.0 * previous_value2 - 672.0 * previous_value1  + 672.0 * next_value1 - 168.0 * next_value2 + 32.0 * next_value3 + 3.0 * next_value4 ) / (840.0*h);
-          }
-    else if (previous_id1 > -1 && next_id1 > -1 && previous_id2 > -1 && next_id2 > -1 && previous_id3 > -1 && next_id3 > -1) {
-        return (-1.0 * previous_value3 + 9.0 * previous_value2 - 45.0 * previous_value1  + 45.0 * next_value1 - 9.0 * next_value2 + 1.0 * next_value3) / (60.0*h);
-    }
-    else if ( previous_id1 > -1 && next_id1 > -1 && previous_id2 > -1 && next_id2 > -1) {
-        return (-1.0 * next_value2 + 8.0 * next_value1 - 8.0 * previous_value1 + previous_value2) / (12.0*h);
-    }
-    else if (previous_id1 == -1 && previous_id2 == -1 && next_id1 > -1 & next_id2 > -1) {
-        return (-1.0 * next_value2 + 4.0 * next_value1 - 3.0 * current_value) / (2.0 * h);
-    }
-    else if (previous_id1 > -1 && previous_id2 > -1 && next_id1 == -1 && next_id2 == -1) {
-        return (previous_value2 - 4.0 *previous_value1 + 3.0 * current_value) / (2.0 * h);
-    }
-    else if ( previous_id1 > -1 && next_id1 > -1 && (previous_id2 == -1 || next_id2 == -1)) {
-        return (next_value1 - previous_value1) / (2.0 * h);
-    }
-    else if ( previous_id1 == -1 && next_id1 > -1 && previous_id2 == -1 && next_id2 == -1) {
-        return (next_value1 - current_value) / h;
-    }
-    else if ( previous_id1 > -1 && next_id1 == -1 && previous_id2 == -1 && next_id2 == -1) {
-        return (current_value - previous_value1) / h;
-    }
+        if (previous_id1 > -1 && next_id1 > -1 && previous_id2 > -1 && next_id2 > -1 && previous_id3 > -1 && next_id3 > -1 && previous_id4 > -1 && next_id4 > -1) { // x x x x o x x x x
+            return (3.0 * previous_value4 - 32.0 * previous_value3 + 168.0 * previous_value2 - 672.0 * previous_value1 + 672.0 * next_value1 - 168.0 * next_value2 + 32.0 * next_value3 - 3.0 * next_value4 ) / (840.0*h);
+              }
+        else if (previous_id1 > -1 && next_id1 > -1 && previous_id2 > -1 && next_id2 > -1 && previous_id3 > -1 && next_id3 > -1) {
+            return (-1.0 * previous_value3 + 9.0 * previous_value2 - 45.0 * previous_value1  + 45.0 * next_value1 - 9.0 * next_value2 + 1.0 * next_value3) / (60.0*h);
+        }
+        else if ( previous_id1 > -1 && next_id1 > -1 && previous_id2 > -1 && next_id2 > -1) {
+            return (-1.0 * next_value2 + 8.0 * next_value1 - 8.0 * previous_value1 + previous_value2) / (12.0*h);
+        }
+        else if (previous_id1 == -1 && previous_id2 == -1 && next_id1 > -1 & next_id2 > -1) {
+            return (-1.0 * next_value2 + 4.0 * next_value1 - 3.0 * current_value) / (2.0 * h);
+        }
+        else if (previous_id1 > -1 && previous_id2 > -1 && next_id1 == -1 && next_id2 == -1) {
+            return (previous_value2 - 4.0 *previous_value1 + 3.0 * current_value) / (2.0 * h);
+        }
+        else if ( previous_id1 > -1 && next_id1 > -1 && (previous_id2 == -1 || next_id2 == -1)) {
+            return (next_value1 - previous_value1) / (2.0 * h);
+        }
+        else if ( previous_id1 == -1 && next_id1 > -1 && previous_id2 == -1 && next_id2 == -1) {
+            return (next_value1 - current_value) / h;
+        }
+        else if ( previous_id1 > -1 && next_id1 == -1 && previous_id2 == -1 && next_id2 == -1) {
+            return (current_value - previous_value1) / h;
+        }
 
 #else // doesn't work
     // equidistant, using 7 points:
@@ -775,50 +773,50 @@ double evaluate_derivative_z(const int current_id,
     // accuracy order 6: {-0.0333333333333,0.25           ,-0.833333333333,1.66666666667 ,-2.5          ,1.28333333333 ,0.166666666667}       {-2.  , 15. , -50. , 100. , -150., 77. , 10.} / 60
     // accuracy order 6: {0.166666666667  ,-1.2           ,3.75           ,-6.66666666667,7.5           ,-6            ,2.45}                 {10.  , -72., 225. , -400., 450. , -360, 147.} / 60
 
-    if      ( previous_id3 > -1 && previous_id2 > -1 && previous_id1 > -1 && next_id1 > -1     && next_id2 > -1     && next_id3 > -1     )
-        return ( -1.0  *previous_value3 + 9.0  *previous_value2 + -45. *previous_value1                           + 45.   * next_value1     + -9.  * next_value2     + 1.   * next_value3 ) / (60.0*h);
-    else if ( previous_id2 > -1 && previous_id1 > -1 && next_id1 > -1     && next_id2 > -1     && next_id3 > -1     && next_id4 > -1     )
-        return ( 2.0   *previous_value2 + -24. *previous_value1 + -35. *current_value   + 80.   * next_value1     + -30.  * next_value2     + 8.   * next_value3     + -1.  * next_value4 ) / (60.0*h);
-    else if ( previous_id4 > -1 && previous_id3 > -1 && previous_id2 > -1 && previous_id1 > -1 && next_id1 > -1     && next_id2 > -1     )
-        return ( 1.0   *previous_value4 + -8.  *previous_value3 + 30.  *previous_value2 + -80.  * previous_value1 + 35.   * current_value   + 24.  * next_value1     + -2.  * next_value2 ) / (60.0*h);
-    else if ( previous_id1 > -1 && next_id1 > -1     && next_id2 > -1     && next_id3 > -1     && next_id4 > -1     && next_id5 > -1     )
-        return ( -10.0 *previous_value1 + -77. *current_value   + 150. *next_value1     + -100. * next_value2     + 50.   * next_value3     + -15. * next_value4     + 2.   * next_value5 ) / (60.0*h);
-    else if ( previous_id5 > -1 && previous_id4 > -1 && previous_id3 > -1 && previous_id2 > -1 && previous_id1 > -1 && next_id1 > -1     )
-        return ( -2.0  *previous_value5 + 15.  *previous_value4 + -50. *previous_value3 + 100.  * previous_value2 + -150. * previous_value1 + 77.  * current_value   + 10.  * next_value1 ) / (60.0*h);
-    else if ( next_id1 > -1     && next_id2 > -1     && next_id3 > -1     && next_id4 > -1     && next_id5 > -1     && next_id6 > -1     )
-        return ( -147.0*current_value   + 360. *next_value1     + -450. *next_value2     + 400.  * next_value3     + -225. * next_value4     + 72.  * next_value5     + -10. * next_value6 ) / (60.0*h);
-    else if ( previous_id6 > -1 && previous_id5 > -1 && previous_id4 > -1 && previous_id3 > -1 && previous_id2 > -1 && previous_id1 > -1 )
-        return ( 10.0  *previous_value6 + -72. *previous_value5 + 225.  *previous_value4 + -400. * previous_value3 + 450.  * previous_value2 + -360 * previous_value1 + 147. * current_value ) / (60.0*h);
+        if      ( previous_id3 > -1 && previous_id2 > -1 && previous_id1 > -1 && next_id1 > -1     && next_id2 > -1     && next_id3 > -1     )
+            return ( -1.0  *previous_value3 + 9.0  *previous_value2 + -45. *previous_value1                           + 45.   * next_value1     + -9.  * next_value2     + 1.   * next_value3 ) / (60.0*h);
+        else if ( previous_id2 > -1 && previous_id1 > -1 && next_id1 > -1     && next_id2 > -1     && next_id3 > -1     && next_id4 > -1     )
+            return ( 2.0   *previous_value2 + -24. *previous_value1 + -35. *current_value   + 80.   * next_value1     + -30.  * next_value2     + 8.   * next_value3     + -1.  * next_value4 ) / (60.0*h);
+        else if ( previous_id4 > -1 && previous_id3 > -1 && previous_id2 > -1 && previous_id1 > -1 && next_id1 > -1     && next_id2 > -1     )
+            return ( 1.0   *previous_value4 + -8.  *previous_value3 + 30.  *previous_value2 + -80.  * previous_value1 + 35.   * current_value   + 24.  * next_value1     + -2.  * next_value2 ) / (60.0*h);
+        else if ( previous_id1 > -1 && next_id1 > -1     && next_id2 > -1     && next_id3 > -1     && next_id4 > -1     && next_id5 > -1     )
+            return ( -10.0 *previous_value1 + -77. *current_value   + 150. *next_value1     + -100. * next_value2     + 50.   * next_value3     + -15. * next_value4     + 2.   * next_value5 ) / (60.0*h);
+        else if ( previous_id5 > -1 && previous_id4 > -1 && previous_id3 > -1 && previous_id2 > -1 && previous_id1 > -1 && next_id1 > -1     )
+            return ( -2.0  *previous_value5 + 15.  *previous_value4 + -50. *previous_value3 + 100.  * previous_value2 + -150. * previous_value1 + 77.  * current_value   + 10.  * next_value1 ) / (60.0*h);
+        else if ( next_id1 > -1     && next_id2 > -1     && next_id3 > -1     && next_id4 > -1     && next_id5 > -1     && next_id6 > -1     )
+            return ( -147.0*current_value   + 360. *next_value1     + -450. *next_value2     + 400.  * next_value3     + -225. * next_value4     + 72.  * next_value5     + -10. * next_value6 ) / (60.0*h);
+        else if ( previous_id6 > -1 && previous_id5 > -1 && previous_id4 > -1 && previous_id3 > -1 && previous_id2 > -1 && previous_id1 > -1 )
+            return ( 10.0  *previous_value6 + -72. *previous_value5 + 225.  *previous_value4 + -400. * previous_value3 + 450.  * previous_value2 + -360 * previous_value1 + 147. * current_value ) / (60.0*h);
 
     // equidistant, using 5 points
-    // {-2.08333333333,4,-3,1.33333333333,-0.25}                               {-25., 48, -36, 16., -3.} / 12 
+    // {-2.08333333333,4,-3,1.33333333333,-0.25}                               {-25., 48, -36, 16., -3.} / 12
     // {-0.25,-0.833333333333,1.5,-0.5,0.0833333333333}                        {-3., -10., 18., -6., 1.} / 12
     // {0.0833333333333,-0.666666666667,0,0.666666666667,-0.0833333333333} =   {1., -8.,  0,    8., -1.} / 12
-    // {-0.0833333333333,0.5,-1.5,0.833333333333,0.25}                         {-1., 6., -18., 10., 3.}} / 12 
+    // {-0.0833333333333,0.5,-1.5,0.833333333333,0.25}                         {-1., 6., -18., 10., 3.}} / 12
     // {0.25,-1.33333333333,3,-4,2.08333333333}                                {3., -16., 36, -48, 25.}} / 12
 
-    else if ( previous_id2 > -1 && previous_id1 > -1 && next_id1 > -1     && next_id2 > -1     )
-        return (   1. * previous_value2 +  -8. * previous_value1                          +  8. * next_value1      + -1. * next_value2   ) / (12.0*h);
-    else if ( previous_id1 > -1 && next_id1 > -1     && next_id2 > -1     && next_id3 > -1     )
-        return (  -3. * previous_value1 + -10. * current_value   +  18. * next_value1     +  -6. * next_value2     + 1.  * next_value3   ) / (12.0*h);
-    else if ( previous_id3 > -1 && previous_id2 > -1 && previous_id1 > -1 && next_id1 > -1     )
-        return (  -1. * previous_value3 +   6. * previous_value2 + -18. * previous_value1 +  10. * current_value   + 3.  * next_value1   ) / (12.0*h);
-    else if ( next_id1 > -1     && next_id2 > -1     && next_id3 > -1     && next_id4 > -1     )
-        return ( -25. * current_value   +  48. * next_value1     + -36. * next_value2     +  16. * next_value3     + -3. * next_value4   ) / (12.0*h);
-    else if ( previous_id4 > -1 && previous_id3 > -1 && previous_id2 > -1 && previous_id1 > -1 )
-        return ( 3.0  * previous_value4 + -16. * previous_value3 +  36. * previous_value2 + -48. * previous_value1 + 25. * current_value ) / (12.0*h);
+        else if ( previous_id2 > -1 && previous_id1 > -1 && next_id1 > -1     && next_id2 > -1     )
+            return (   1. * previous_value2 +  -8. * previous_value1                          +  8. * next_value1      + -1. * next_value2   ) / (12.0*h);
+        else if ( previous_id1 > -1 && next_id1 > -1     && next_id2 > -1     && next_id3 > -1     )
+            return (  -3. * previous_value1 + -10. * current_value   +  18. * next_value1     +  -6. * next_value2     + 1.  * next_value3   ) / (12.0*h);
+        else if ( previous_id3 > -1 && previous_id2 > -1 && previous_id1 > -1 && next_id1 > -1     )
+            return (  -1. * previous_value3 +   6. * previous_value2 + -18. * previous_value1 +  10. * current_value   + 3.  * next_value1   ) / (12.0*h);
+        else if ( next_id1 > -1     && next_id2 > -1     && next_id3 > -1     && next_id4 > -1     )
+            return ( -25. * current_value   +  48. * next_value1     + -36. * next_value2     +  16. * next_value3     + -3. * next_value4   ) / (12.0*h);
+        else if ( previous_id4 > -1 && previous_id3 > -1 && previous_id2 > -1 && previous_id1 > -1 )
+            return ( 3.0  * previous_value4 + -16. * previous_value3 +  36. * previous_value2 + -48. * previous_value1 + 25. * current_value ) / (12.0*h);
 
     // equidistant, using 3 points
     // {-1.5,2,-0.5}   {-3,4,-1} / 2
     // {-0.5,0,0.5}  = {-1,0,1} / 2
     // {0.5,-2,1.5}    {1,-4,3} / 2
 
-    else if ( previous_id1 > -1 && next_id1 > -1     )
-        return ( -1. * previous_value1                         +  1. * next_value1   ) / (2.0*h);
-    else if ( next_id1 > -1     && next_id2 > -1     )
-        return ( -3. * current_value   +  4. * next_value1     + -1. * next_value2   ) / (2.0*h);
-    else if ( previous_id2 > -1 && previous_id1 > -1 )
-        return (  1. * previous_value2 + -4. * previous_value1 +  3. * current_value ) / (2.0*h);
+        else if ( previous_id1 > -1 && next_id1 > -1     )
+            return ( -1. * previous_value1                         +  1. * next_value1   ) / (2.0*h);
+        else if ( next_id1 > -1     && next_id2 > -1     )
+            return ( -3. * current_value   +  4. * next_value1     + -1. * next_value2   ) / (2.0*h);
+        else if ( previous_id2 > -1 && previous_id1 > -1 )
+            return (  1. * previous_value2 + -4. * previous_value1 +  3. * current_value ) / (2.0*h);
 
 
 #endif
@@ -864,6 +862,7 @@ double evaluate_derivative_xy(const int current_id,
                               const int previous_id1, const int previous_id2, const int previous_id3, const int previous_id4, const int previous_id5, const int previous_id6,
                               const int next_id1, const int next_id2, const int next_id3, const int next_id4, const int next_id5, const int next_id6,
                               const double* __restrict__ device_cube, const int grid_type, const double h) {
+    if (current_id == -1) return 0.0;
     double current_value = 0.0;
     double previous_value1 = 0.0;
     double next_value1 = 0.0;
@@ -904,30 +903,30 @@ double evaluate_derivative_xy(const int current_id,
 // accuracy order 6: {-0.0333333333333,0.25           ,-0.833333333333,1.66666666667 ,-2.5          ,1.28333333333 ,0.166666666667}       {-2.  , 15. , -50. , 100. , -150., 77. , 10.} / 60
 // accuracy order 6: {0.166666666667  ,-1.2           ,3.75           ,-6.66666666667,7.5           ,-6            ,2.45}                 {10.  , -72., 225. , -400., 450. , -360, 147.} / 60
 #if 1
-          if ( previous_id1 > -1 && next_id1 > -1 && previous_id2 > -1 && next_id2 > -1 && previous_id3 > -1 && next_id3 > -1 && previous_id4 > -1 && next_id4 > -1 ) { // x x x x o x x x x
-              return (3.0 * previous_value4 + -32.0 * previous_value3 + 168.0 * previous_value2 - 672.0 * previous_value1  + 672.0 * next_value1 - 168.0 * next_value2 + 32.0 * next_value3 + 3.0 * next_value4 ) / (840.0*h);
-          }
-          else if ( previous_id1 > -1 && next_id1 > -1 && previous_id2 > -1 && next_id2 > -1 && previous_id3 > -1 && next_id3 > -1) { // x x x o x x x
-              return (-1.0 * previous_value3 + 9.0 * previous_value2 - 45.0 * previous_value1  + 45.0 * next_value1 - 9.0 * next_value2 + 1.0 * next_value3) / (60.0*h);
-          }
-          else if ( previous_id1 > -1 && next_id1 > -1 && previous_id2 > -1 && next_id2 > -1) { // x x o x x
-              return (-1.0 * next_value2 + 8.0 * next_value1 - 8.0 * previous_value1  + previous_value2) / (12.0*h);
-          }
-          else if (previous_id1 == -1 && previous_id2 == -1 && next_id1 > -1 && next_id2 > -1) { // - - o x x
-              return  (-1.0 * next_value2 + 4.0 * next_value1 - 3.0 * current_value) / (2.0 * h);
-          }
-          else if (previous_id1 > -1 && previous_id2 > -1 && next_id1 == -1 && next_id2 == -1) { // x x o - - 
-              return (1.0 * previous_value2 - 4.0 * previous_value2 + 3.0 * current_value) / (2.0 * h);
-          }
-          else if ( previous_id1 > -1 && next_id1 > -1 && (previous_id2 == -1 || next_id2 == -1)) { // - x o x -
-              return (next_value1 - previous_value1) / (2.0 * h);
-          }
-          else if ( previous_id1 == -1 && next_id1 > -1 && previous_id2 == -1 && next_id2 == -1) { // - - o x -
-              return (next_value1 - current_value) / h;
-          }
-          else if ( previous_id1 > -1 && next_id1 == -1 && previous_id2 == -1 && next_id2 == -1) { // - x o - - 
-              return (current_value - previous_value1) / h;
-          }
+        if ( previous_id1 > -1 && next_id1 > -1 && previous_id2 > -1 && next_id2 > -1 && previous_id3 > -1 && next_id3 > -1 && previous_id4 > -1 && next_id4 > -1 ) { // x x x x o x x x x
+            return (3.0 * previous_value4 - 32.0 * previous_value3 + 168.0 * previous_value2 - 672.0 * previous_value1 + 672.0 * next_value1 - 168.0 * next_value2 + 32.0 * next_value3 - 3.0 * next_value4 ) / (840.0*h);
+        }
+        else if ( previous_id1 > -1 && next_id1 > -1 && previous_id2 > -1 && next_id2 > -1 && previous_id3 > -1 && next_id3 > -1) { // x x x o x x x
+            return (-1.0 * previous_value3 + 9.0 * previous_value2 - 45.0 * previous_value1  + 45.0 * next_value1 - 9.0 * next_value2 + 1.0 * next_value3) / (60.0*h);
+        }
+        else if ( previous_id1 > -1 && next_id1 > -1 && previous_id2 > -1 && next_id2 > -1) { // x x o x x
+            return (-1.0 * next_value2 + 8.0 * next_value1 - 8.0 * previous_value1  + previous_value2) / (12.0*h);
+        }
+        else if (previous_id1 == -1 && previous_id2 == -1 && next_id1 > -1 && next_id2 > -1) { // - - o x x
+            return  (-1.0 * next_value2 + 4.0 * next_value1 - 3.0 * current_value) / (2.0 * h);
+        }
+        else if (previous_id1 > -1 && previous_id2 > -1 && next_id1 == -1 && next_id2 == -1) { // x x o - -
+            return (1.0 * previous_value2 - 4.0 * previous_value2 + 3.0 * current_value) / (2.0 * h);
+        }
+        else if ( previous_id1 > -1 && next_id1 > -1 && (previous_id2 == -1 || next_id2 == -1)) { // - x o x -
+            return (next_value1 - previous_value1) / (2.0 * h);
+        }
+        else if ( previous_id1 == -1 && next_id1 > -1 && previous_id2 == -1 && next_id2 == -1) { // - - o x -
+            return (next_value1 - current_value) / h;
+        }
+        else if ( previous_id1 > -1 && next_id1 == -1 && previous_id2 == -1 && next_id2 == -1) { // - x o - -
+            return (current_value - previous_value1) / h;
+        }
 
 #else // works, assuming that there are  >= 7 consecutive valid values
 
@@ -947,8 +946,8 @@ double evaluate_derivative_xy(const int current_id,
               return (  10.0 * previous_value6 + -72.0 * previous_value5 +  225.0 * previous_value4 + -400.0 * previous_value3 +  450.0 * previous_value2 + -360.0 * previous_value1  + 147.0 * current_value)/(60.0*h);
 #endif
 
-        }
-        else if(grid_type == 2){ // lobatto
+    }
+    else if(grid_type == 2){ // lobatto
 // lobatto
 // accuracy order 6: {-3.5            ,4.73385886764     ,-1.88966174185     ,1.06666666667    ,-0.683321604359   ,0.439124478567    ,-0.166666666667}
 // accuracy order 6: {-0.814308671415 ,-2.5881814686e-15 ,1.1519427381       ,-0.532868896033  ,0.320446599096    ,-0.200749059879   ,0.0755372901318}
@@ -958,20 +957,20 @@ double evaluate_derivative_xy(const int current_id,
 // accuracy order 6: {-0.0755372901318,0.200749059879    ,-0.320446599096    ,0.532868896033   ,-1.1519427381     ,2.5881814686e-15  ,0.814308671415}
 // accuracy order 6: {0.166666666667  ,-0.439124478567   ,0.683321604359     ,-1.06666666667   ,1.88966174185     ,-4.73385886764    ,3.5}
 
-      if (previous_id1 == -1)
-          return ( -3.5             * current_value   + 4.73385886764   * next_value1     + -1.88966174185  * next_value2     + 1.06666666667   * next_value3     + -0.683321604359 * next_value4     + 0.439124478567  * next_value5     + -0.166666666667  * next_value6)/h;
-      else if (previous_id2 == -1)
-          return ( -0.814308671415  * previous_value1 + 0.0             * current_value   + 1.1519427381    * next_value1     + -0.532868896033 * next_value2     + 0.320446599096  * next_value3     + -0.200749059879 * next_value4     + 0.0755372901318  * next_value5)/h;
-      else if (previous_id3 == -1)
-          return ( 0.208418888505   * previous_value2 + -0.738601427723 * previous_value1 + 0.0             * current_value   + 0.755566029029  * next_value1     + -0.355480634669 * next_value2     + 0.205463611839  * next_value3     + -0.0753664669809 * next_value4)/h;
-      else if (previous_id3 > -1 && next_id3 > -1)
-          return ( -0.104166666667  * previous_value3 + 0.302514823756  * previous_value2 + -0.668989746863 * previous_value1 + 0.0             * current_value   + 0.668989746863  * next_value1     + -0.302514823756 * next_value2     + 0.104166666667   * next_value3)/h;
-      else if (next_id3 == -1)
-          return ( 0.0753664669809  * previous_value4 + -0.205463611839 * previous_value3 + 0.355480634669  * previous_value2 + -0.755566029029 * previous_value1 + 0.0             * current_value   + 0.738601427723  * next_value1     + -0.208418888505  * next_value2)/h;
-      else if (next_id2 == -1)
-          return ( -0.0755372901318 * previous_value5 + 0.200749059879  * previous_value4 + -0.320446599096 * previous_value3 + 0.532868896033  * previous_value2 + -1.1519427381   * previous_value1 + 0.0             * current_value   + 0.814308671415   * next_value1)/h;
-      else if (next_id1 == -1)
-          return ( 0.166666666667   * previous_value6 + -0.439124478567 * previous_value5 + 0.683321604359  * previous_value4 + -1.06666666667  * previous_value3 + 1.88966174185   * previous_value2 + -4.73385886764  * previous_value1 + 3.5              * current_value)/h;
+        if (previous_id1 == -1)
+            return ( -3.5             * current_value   + 4.73385886764   * next_value1     + -1.88966174185  * next_value2     + 1.06666666667   * next_value3     + -0.683321604359 * next_value4     + 0.439124478567  * next_value5     + -0.166666666667  * next_value6)/h;
+        else if (previous_id2 == -1)
+            return ( -0.814308671415  * previous_value1 + 0.0             * current_value   + 1.1519427381    * next_value1     + -0.532868896033 * next_value2     + 0.320446599096  * next_value3     + -0.200749059879 * next_value4     + 0.0755372901318  * next_value5)/h;
+        else if (previous_id3 == -1)
+            return ( 0.208418888505   * previous_value2 + -0.738601427723 * previous_value1 + 0.0             * current_value   + 0.755566029029  * next_value1     + -0.355480634669 * next_value2     + 0.205463611839  * next_value3     + -0.0753664669809 * next_value4)/h;
+        else if (previous_id3 > -1 && next_id3 > -1)
+            return ( -0.104166666667  * previous_value3 + 0.302514823756  * previous_value2 + -0.668989746863 * previous_value1 + 0.0             * current_value   + 0.668989746863  * next_value1     + -0.302514823756 * next_value2     + 0.104166666667   * next_value3)/h;
+        else if (next_id3 == -1)
+            return ( 0.0753664669809  * previous_value4 + -0.205463611839 * previous_value3 + 0.355480634669  * previous_value2 + -0.755566029029 * previous_value1 + 0.0             * current_value   + 0.738601427723  * next_value1     + -0.208418888505  * next_value2)/h;
+        else if (next_id2 == -1)
+            return ( -0.0755372901318 * previous_value5 + 0.200749059879  * previous_value4 + -0.320446599096 * previous_value3 + 0.532868896033  * previous_value2 + -1.1519427381   * previous_value1 + 0.0             * current_value   + 0.814308671415   * next_value1)/h;
+        else if (next_id1 == -1)
+            return ( 0.166666666667   * previous_value6 + -0.439124478567 * previous_value5 + 0.683321604359  * previous_value4 + -1.06666666667  * previous_value3 + 1.88966174185   * previous_value2 + -4.73385886764  * previous_value1 + 3.5              * current_value)/h;
 
     }
 
