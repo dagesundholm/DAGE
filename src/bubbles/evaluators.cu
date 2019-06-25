@@ -660,9 +660,9 @@ CubeEvaluator_evaluate_grid_gradients(const double* __restrict__ device_cube,
             x_polynomials[j] *= one_per_grid_step_x;
         }
 
-        address =   x
-                + icell_y * device_pitch / sizeof(double) * (nlip-1)
-                + icell_z * device_pitch / sizeof(double) * device_shape_y * (nlip-1);
+        address = x
+                  + icell_y * device_pitch / sizeof(double) * (nlip-1)
+                  + icell_z * device_pitch / sizeof(double) * device_shape_y * (nlip-1);
         for (int j = 0; j < nlip; j++) {
             // add the address by 'j' slices
             int z_address = address + j * device_pitch / sizeof(double) * device_shape_y;
@@ -687,10 +687,9 @@ CubeEvaluator_evaluate_grid_gradients(const double* __restrict__ device_cube,
         gradient[X_] = evaluate_coefficients_register<nlip>(polynomials, y_values);
     }
 
-    address = (z + device_slice_offset) * device_pitch / sizeof(double) * device_shape_y
+    address = x
               + y * device_pitch / sizeof(double)
-              + x;
-
+              + (z + device_slice_offset) * device_pitch / sizeof(double) * device_shape_y;
 
     // if the point handled is valid, let's add it to the results
     if (valid_point) {
@@ -709,268 +708,193 @@ CubeEvaluator_evaluate_grid_gradients(const double* __restrict__ device_cube,
 
 }
 
-// fixme: why is there evaluate_derivative and evaluate_derivative_x?  What is the difference? lnw
+
+
+// fixme lnw
+// fixme: why is there evaluate_derivative{xy/z}?  Why should they be treated independently? lnw
+// nlip tests outcommented, because nlip=7 is hardcoded all over the place anyway (lnw)
 __device__ __forceinline__
-double evaluate_derivative_z(const int current_id,
-                             const int previous_id1, const int previous_id2, const int previous_id3, const int previous_id4,const int previous_id5, const int previous_id6,
-                             const int next_id1, const int next_id2, const int next_id3, const int next_id4, const int next_id5, const int next_id6,
-                             const double* __restrict__ device_cube, const int grid_type, const double h) {
+double evaluate_derivative(const int current_id,
+                           const int previous_id1, const int previous_id2, const int previous_id3, const int previous_id4, const int previous_id5, const int previous_id6,
+                           const int next_id1, const int next_id2, const int next_id3, const int next_id4, const int next_id5, const int next_id6,
+                           const double* __restrict__ device_cube, const int fin_diff_order, const int grid_type, const int local_pos, const double h) {
     if (current_id == -1) return 0.0;
+
+    // printf("xy: %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i\n",  previous_id6, previous_id5, previous_id4, previous_id3, previous_id2, previous_id1, next_id1, next_id2, next_id3, next_id4, next_id5, next_id6);
+
     double current_value,
            previous_value1, previous_value2, previous_value3, previous_value4, previous_value5, previous_value6,
            next_value1, next_value2, next_value3, next_value4, next_value5, next_value6;
-
-    if (previous_id6 > -1) previous_value6 = __ldg(&device_cube[previous_id6]);
-    if (previous_id5 > -1) previous_value5 = __ldg(&device_cube[previous_id5]);
-    if (previous_id4 > -1) previous_value4 = __ldg(&device_cube[previous_id4]);
-    if (previous_id3 > -1) previous_value3 = __ldg(&device_cube[previous_id3]);
-    if (previous_id2 > -1) previous_value2 = __ldg(&device_cube[previous_id2]);
     if (previous_id1 > -1) previous_value1 = __ldg(&device_cube[previous_id1]);
     if (current_id > -1)   current_value   = __ldg(&device_cube[current_id]);
     if (next_id1 > -1)     next_value1     = __ldg(&device_cube[next_id1]);
-    if (next_id2 > -1)     next_value2     = __ldg(&device_cube[next_id2]);
-    if (next_id3 > -1)     next_value3     = __ldg(&device_cube[next_id3]);
-    if (next_id4 > -1)     next_value4     = __ldg(&device_cube[next_id4]);
-    if (next_id5 > -1)     next_value5     = __ldg(&device_cube[next_id5]);
-    if (next_id6 > -1)     next_value6     = __ldg(&device_cube[next_id6]);
+    if (fin_diff_order >= 5){
+        if (previous_id2 > -1) previous_value2 = __ldg(&device_cube[previous_id2]);
+        if (next_id2 > -1)     next_value2     = __ldg(&device_cube[next_id2]);
+    }
+    if (fin_diff_order >= 7){
+        if (previous_id3 > -1) previous_value3 = __ldg(&device_cube[previous_id3]);
+        if (next_id3 > -1)     next_value3     = __ldg(&device_cube[next_id3]);
+    }
+    if (fin_diff_order >= 9){
+        if (previous_id4 > -1) previous_value4 = __ldg(&device_cube[previous_id4]);
+        if (next_id4 > -1)     next_value4     = __ldg(&device_cube[next_id4]);
+    }
+    if (fin_diff_order >= 11){
+        if (next_id5 > -1)     next_value5     = __ldg(&device_cube[next_id5]);
+        if (previous_id5 > -1) previous_value5 = __ldg(&device_cube[previous_id5]);
+    }
+    if (fin_diff_order >= 13){
+        if (previous_id6 > -1) previous_value6 = __ldg(&device_cube[previous_id6]);
+        if (next_id6 > -1)     next_value6     = __ldg(&device_cube[next_id6]);
+    }
+
 
     if(grid_type == 1){ // equidistant
-
 #if 1
-
-        if (previous_id1 > -1 && next_id1 > -1 && previous_id2 > -1 && next_id2 > -1 && previous_id3 > -1 && next_id3 > -1 && previous_id4 > -1 && next_id4 > -1) { // x x x x o x x x x
-            return (3.0 * previous_value4 - 32.0 * previous_value3 + 168.0 * previous_value2 - 672.0 * previous_value1 + 672.0 * next_value1 - 168.0 * next_value2 + 32.0 * next_value3 - 3.0 * next_value4 ) / (840.0*h);
-              }
-        else if (previous_id1 > -1 && next_id1 > -1 && previous_id2 > -1 && next_id2 > -1 && previous_id3 > -1 && next_id3 > -1) {
-            return (-1.0 * previous_value3 + 9.0 * previous_value2 - 45.0 * previous_value1  + 45.0 * next_value1 - 9.0 * next_value2 + 1.0 * next_value3) / (60.0*h);
+        if ( fin_diff_order >= 11 && previous_id1 > -1 && next_id1 > -1 && previous_id2 > -1 && next_id2 > -1 && previous_id3 > -1 && next_id3 > -1 && previous_id4 > -1 && next_id4 > -1 && previous_id5 > -1 && next_id5 > -1 ) { // x x x x x o x x x x x
+            // printf("xy, 11p\n");
+            return (-1.0 * previous_value5 + 12.5 * previous_value4 - 75.0 * previous_value3 + 300.0 * previous_value2 - 1050.0 * previous_value1 + 1050.0 * next_value1 - 300.0 * next_value2 + 75.0 * next_value3 - 12.5 * next_value4 + 1.0 * next_value5) / (1260.0*h);
         }
-        else if ( previous_id1 > -1 && next_id1 > -1 && previous_id2 > -1 && next_id2 > -1) {
+        else if ( fin_diff_order >= 9 && previous_id1 > -1 && next_id1 > -1 && previous_id2 > -1 && next_id2 > -1 && previous_id3 > -1 && next_id3 > -1 && previous_id4 > -1 && next_id4 > -1 ) { // x x x x o x x x x
+            // printf("xy, 9p\n");
+            return (3.0 * previous_value4 - 32.0 * previous_value3 + 168.0 * previous_value2 - 672.0 * previous_value1 + 672.0 * next_value1 - 168.0 * next_value2 + 32.0 * next_value3 - 3.0 * next_value4 ) / (840.0*h);
+        }
+        else if ( fin_diff_order >= 7 && previous_id1 > -1 && next_id1 > -1 && previous_id2 > -1 && next_id2 > -1 && previous_id3 > -1 && next_id3 > -1 ) { // x x x o x x x
+            // printf("xy, 7p\n");
+            return (-1.0 * previous_value3 + 9.0 * previous_value2 - 45.0 * previous_value1 + 45.0 * next_value1 - 9.0 * next_value2 + 1.0 * next_value3) / (60.0*h);
+        }
+        else if ( fin_diff_order >= 5 && previous_id1 > -1 && next_id1 > -1 && previous_id2 > -1 && next_id2 > -1 ) { // x x o x x
+            // printf("xy, 5p\n");
             return (-1.0 * next_value2 + 8.0 * next_value1 - 8.0 * previous_value1 + previous_value2) / (12.0*h);
         }
-        else if (previous_id1 == -1 && previous_id2 == -1 && next_id1 > -1 & next_id2 > -1) {
-            return (-1.0 * next_value2 + 4.0 * next_value1 - 3.0 * current_value) / (2.0 * h);
-        }
-        else if (previous_id1 > -1 && previous_id2 > -1 && next_id1 == -1 && next_id2 == -1) {
-            return (previous_value2 - 4.0 *previous_value1 + 3.0 * current_value) / (2.0 * h);
-        }
-        else if ( previous_id1 > -1 && next_id1 > -1 && (previous_id2 == -1 || next_id2 == -1)) {
+        else if ( previous_id1 > -1 && next_id1 > -1 ) { // x o x
+            // printf("xy, 3p\n");
             return (next_value1 - previous_value1) / (2.0 * h);
         }
-        else if ( previous_id1 == -1 && next_id1 > -1 && previous_id2 == -1 && next_id2 == -1) {
+        else if ( next_id1 > -1 && next_id2 > -1 ) { // o x x
+            return (-1.0 * next_value2 + 4.0 * next_value1 - 3.0 * current_value) / (2.0 * h);
+        }
+        else if ( previous_id1 > -1 && previous_id2 > -1) { // x x o
+            return (1.0 * previous_value2 - 4.0 * previous_value2 + 3.0 * current_value) / (2.0 * h);
+        }
+        else if ( previous_id1 == -1 && next_id1 > -1 ) { // - o x
             return (next_value1 - current_value) / h;
         }
-        else if ( previous_id1 > -1 && next_id1 == -1 && previous_id2 == -1 && next_id2 == -1) {
+        else if ( previous_id1 > -1 && next_id1 == -1 ) { // x o -
             return (current_value - previous_value1) / h;
         }
 
-#else // doesn't work
+#else
+
+    // {3., -32., 168., -672., 0, 672., -168., 32., -3.}
+        if ( previous_id1 > -1 && next_id1 > -1 && previous_id2 > -1 && next_id2 > -1 && previous_id3 > -1 && next_id3 > -1 && previous_id4 > -1 && next_id4 > -1 ) { // x x x x o x x x x
+            return (3.0 * previous_value4 - 32.0 * previous_value3 + 168.0 * previous_value2 - 672.0 * previous_value1 + 672.0 * next_value1 - 168.0 * next_value2 + 32.0 * next_value3 - 3.0 * next_value4 ) / (840.0*h);
+        }
     // equidistant, using 7 points:
-    // accuracy order 6: {-2.45           ,6              ,-7.5           ,6.66666666667 ,-3.75         ,1.2           ,-0.166666666667}      {-147., 360 , -450., 400. , -225., 72. , -10.} / 60
-    // accuracy order 6: {-0.166666666667 ,-1.28333333333 ,2.5            ,-1.66666666667,0.833333333333,-0.25         ,0.0333333333333}      {-10. , -77., 150. , -100., 50.  , -15., 2.} / 60
+    // accuracy order 6: {-2.45           ,6              ,-7.5           ,6.66666666667 ,-3.75         ,1.2           ,-0.166666666667}      {-147., 360 , -450., 400. , -225., 72. ,-10.} / 60
+    // accuracy order 6: {-0.166666666667 ,-1.28333333333 ,2.5            ,-1.66666666667,0.833333333333,-0.25         ,0.0333333333333}      {-10. , -77., 150. , -100., 50.  , -15.,  2.} / 60
     // accuracy order 6: {0.0333333333333 ,-0.4           ,-0.583333333333,1.33333333333 ,-0.5          ,0.133333333333,-0.0166666666667}     {2.   , -24., -35. , 80.  , -30. , 8.  , -1.} / 60
-    // accuracy order 6: {-0.0166666666667,0.15           ,-0.75          ,0             ,0.75          ,-0.15         ,0.0166666666667}   =  (-1   , 9   , -45  , 0    , 45   , -9  , 1) / 60
+    // accuracy order 6: {-0.0166666666667,0.15           ,-0.75          ,0             ,0.75          ,-0.15         ,0.0166666666667}   =  {-1   , 9   , -45  , 0    , 45   , -9  ,   1} / 60
     // accuracy order 6: {0.0166666666667 ,-0.133333333333,0.5            ,-1.33333333333,0.583333333333,0.4           ,-0.0333333333333}     {1.   , -8. , 30.  , -80. , 35.  , 24. , -2.} / 60
     // accuracy order 6: {-0.0333333333333,0.25           ,-0.833333333333,1.66666666667 ,-2.5          ,1.28333333333 ,0.166666666667}       {-2.  , 15. , -50. , 100. , -150., 77. , 10.} / 60
     // accuracy order 6: {0.166666666667  ,-1.2           ,3.75           ,-6.66666666667,7.5           ,-6            ,2.45}                 {10.  , -72., 225. , -400., 450. , -360, 147.} / 60
 
-        if      ( previous_id3 > -1 && previous_id2 > -1 && previous_id1 > -1 && next_id1 > -1     && next_id2 > -1     && next_id3 > -1     )
-            return ( -1.0  *previous_value3 + 9.0  *previous_value2 + -45. *previous_value1                           + 45.   * next_value1     + -9.  * next_value2     + 1.   * next_value3 ) / (60.0*h);
+        else if ( previous_id3 > -1 && previous_id2 > -1 && previous_id1 > -1 && next_id1 > -1     && next_id2 > -1     && next_id3 > -1     )
+            return ( -1.0  * previous_value3 + 9.0  * previous_value2  - 45.  * previous_value1                          + 45.  * next_value1     - 9.  * next_value2     + 1.   * next_value3 ) / (60.0*h);
         else if ( previous_id2 > -1 && previous_id1 > -1 && next_id1 > -1     && next_id2 > -1     && next_id3 > -1     && next_id4 > -1     )
-            return ( 2.0   *previous_value2 + -24. *previous_value1 + -35. *current_value   + 80.   * next_value1     + -30.  * next_value2     + 8.   * next_value3     + -1.  * next_value4 ) / (60.0*h);
+            return ( 2.0   * previous_value2 - 24.  * previous_value1  - 35.  * current_value   + 80.  * next_value1     - 30.  * next_value2     + 8.  * next_value3     - 1.   * next_value4 ) / (60.0*h);
         else if ( previous_id4 > -1 && previous_id3 > -1 && previous_id2 > -1 && previous_id1 > -1 && next_id1 > -1     && next_id2 > -1     )
-            return ( 1.0   *previous_value4 + -8.  *previous_value3 + 30.  *previous_value2 + -80.  * previous_value1 + 35.   * current_value   + 24.  * next_value1     + -2.  * next_value2 ) / (60.0*h);
+            return ( 1.0   * previous_value4 - 8.   * previous_value3  + 30.  * previous_value2 - 80.  * previous_value1 + 35.  * current_value   + 24. * next_value1     - 2.   * next_value2 ) / (60.0*h);
         else if ( previous_id1 > -1 && next_id1 > -1     && next_id2 > -1     && next_id3 > -1     && next_id4 > -1     && next_id5 > -1     )
-            return ( -10.0 *previous_value1 + -77. *current_value   + 150. *next_value1     + -100. * next_value2     + 50.   * next_value3     + -15. * next_value4     + 2.   * next_value5 ) / (60.0*h);
+            return ( -10.0 * previous_value1 - 77.  * current_value    + 150. * next_value1     - 100. * next_value2     + 50.  * next_value3     - 15. * next_value4     + 2.   * next_value5 ) / (60.0*h);
         else if ( previous_id5 > -1 && previous_id4 > -1 && previous_id3 > -1 && previous_id2 > -1 && previous_id1 > -1 && next_id1 > -1     )
-            return ( -2.0  *previous_value5 + 15.  *previous_value4 + -50. *previous_value3 + 100.  * previous_value2 + -150. * previous_value1 + 77.  * current_value   + 10.  * next_value1 ) / (60.0*h);
+            return ( -2.0  * previous_value5 + 15.  * previous_value4  - 50.  * previous_value3 + 100. * previous_value2 - 150. * previous_value1 + 77. * current_value   + 10.  * next_value1 ) / (60.0*h);
         else if ( next_id1 > -1     && next_id2 > -1     && next_id3 > -1     && next_id4 > -1     && next_id5 > -1     && next_id6 > -1     )
-            return ( -147.0*current_value   + 360. *next_value1     + -450. *next_value2     + 400.  * next_value3     + -225. * next_value4     + 72.  * next_value5     + -10. * next_value6 ) / (60.0*h);
+            return ( -147. * current_value   + 360. * next_value1      - 450. * next_value2     + 400. * next_value3     - 225. * next_value4     + 72. * next_value5     - 10.  * next_value6 ) / (60.0*h);
         else if ( previous_id6 > -1 && previous_id5 > -1 && previous_id4 > -1 && previous_id3 > -1 && previous_id2 > -1 && previous_id1 > -1 )
-            return ( 10.0  *previous_value6 + -72. *previous_value5 + 225.  *previous_value4 + -400. * previous_value3 + 450.  * previous_value2 + -360 * previous_value1 + 147. * current_value ) / (60.0*h);
+            return ( 10.0  * previous_value6 - 72.  * previous_value5  + 225. * previous_value4 - 400. * previous_value3 + 450. * previous_value2 - 360 * previous_value1 + 147. * current_value ) / (60.0*h);
 
     // equidistant, using 5 points
-    // {-2.08333333333,4,-3,1.33333333333,-0.25}                               {-25., 48, -36, 16., -3.} / 12
-    // {-0.25,-0.833333333333,1.5,-0.5,0.0833333333333}                        {-3., -10., 18., -6., 1.} / 12
-    // {0.0833333333333,-0.666666666667,0,0.666666666667,-0.0833333333333} =   {1., -8.,  0,    8., -1.} / 12
-    // {-0.0833333333333,0.5,-1.5,0.833333333333,0.25}                         {-1., 6., -18., 10., 3.}} / 12
-    // {0.25,-1.33333333333,3,-4,2.08333333333}                                {3., -16., 36, -48, 25.}} / 12
+    // {-2.08333333333,4,-3,1.33333333333,-0.25}                               {-25.,  48, -36, 16., -3.} / 12
+    // {-0.25,-0.833333333333,1.5,-0.5,0.0833333333333}                        { -3.,-10., 18., -6.,  1.} / 12
+    // {0.0833333333333,-0.666666666667,0,0.666666666667,-0.0833333333333} =   {  1., -8.,   0,  8., -1.} / 12
+    // {-0.0833333333333,0.5,-1.5,0.833333333333,0.25}                         { -1.,  6.,-18., 10.,  3.} / 12
+    // {0.25,-1.33333333333,3,-4,2.08333333333}                                {  3.,-16.,  36, -48, 25.} / 12
 
         else if ( previous_id2 > -1 && previous_id1 > -1 && next_id1 > -1     && next_id2 > -1     )
-            return (   1. * previous_value2 +  -8. * previous_value1                          +  8. * next_value1      + -1. * next_value2   ) / (12.0*h);
+            return (   1. * previous_value2 - 8.  * previous_value1                         +  8. * next_value1     - 1.  * next_value2   ) / (12.0*h);
         else if ( previous_id1 > -1 && next_id1 > -1     && next_id2 > -1     && next_id3 > -1     )
-            return (  -3. * previous_value1 + -10. * current_value   +  18. * next_value1     +  -6. * next_value2     + 1.  * next_value3   ) / (12.0*h);
+            return (  -3. * previous_value1 - 10. * current_value   + 18. * next_value1     - 6.  * next_value2     + 1.  * next_value3   ) / (12.0*h);
         else if ( previous_id3 > -1 && previous_id2 > -1 && previous_id1 > -1 && next_id1 > -1     )
-            return (  -1. * previous_value3 +   6. * previous_value2 + -18. * previous_value1 +  10. * current_value   + 3.  * next_value1   ) / (12.0*h);
+            return (  -1. * previous_value3 +  6. * previous_value2 - 18. * previous_value1 + 10. * current_value   + 3.  * next_value1   ) / (12.0*h);
         else if ( next_id1 > -1     && next_id2 > -1     && next_id3 > -1     && next_id4 > -1     )
-            return ( -25. * current_value   +  48. * next_value1     + -36. * next_value2     +  16. * next_value3     + -3. * next_value4   ) / (12.0*h);
+            return ( -25. * current_value   + 48. * next_value1     - 36. * next_value2     + 16. * next_value3     - 3.  * next_value4   ) / (12.0*h);
         else if ( previous_id4 > -1 && previous_id3 > -1 && previous_id2 > -1 && previous_id1 > -1 )
-            return ( 3.0  * previous_value4 + -16. * previous_value3 +  36. * previous_value2 + -48. * previous_value1 + 25. * current_value ) / (12.0*h);
+            return ( 3.0  * previous_value4 - 16. * previous_value3 + 36. * previous_value2 - 48. * previous_value1 + 25. * current_value ) / (12.0*h);
 
-    // equidistant, using 3 points
-    // {-1.5,2,-0.5}   {-3,4,-1} / 2
-    // {-0.5,0,0.5}  = {-1,0,1} / 2
-    // {0.5,-2,1.5}    {1,-4,3} / 2
-
-        else if ( previous_id1 > -1 && next_id1 > -1     )
-            return ( -1. * previous_value1                         +  1. * next_value1   ) / (2.0*h);
-        else if ( next_id1 > -1     && next_id2 > -1     )
-            return ( -3. * current_value   +  4. * next_value1     + -1. * next_value2   ) / (2.0*h);
-        else if ( previous_id2 > -1 && previous_id1 > -1 )
-            return (  1. * previous_value2 + -4. * previous_value1 +  3. * current_value ) / (2.0*h);
-
-
-#endif
-    }
-    else if(grid_type == 2){ // lobatto
-// lobatto :
-// accuracy order 6: {-3.5            ,4.73385886764     ,-1.88966174185     ,1.06666666667    ,-0.683321604359   ,0.439124478567    ,-0.166666666667}
-// accuracy order 6: {-0.814308671415 ,-2.5881814686e-15 ,1.1519427381       ,-0.532868896033  ,0.320446599096    ,-0.200749059879   ,0.0755372901318}
-// accuracy order 6: {0.208418888505  ,-0.738601427723   ,-4.78702268099e-15 ,0.755566029029   ,-0.355480634669   ,0.205463611839    ,-0.0753664669809}
-// accuracy order 6: {-0.104166666667 ,0.302514823756    ,-0.668989746863    ,0                ,0.668989746863    ,-0.302514823756   ,0.104166666667}
-// accuracy order 6: {0.0753664669809 ,-0.205463611839   ,0.355480634669     ,-0.755566029029  ,4.78702268099e-15 ,0.738601427723    ,-0.208418888505}
-// accuracy order 6: {-0.0755372901318,0.200749059879    ,-0.320446599096    ,0.532868896033   ,-1.1519427381     ,2.5881814686e-15  ,0.814308671415}
-// accuracy order 6: {0.166666666667  ,-0.439124478567   ,0.683321604359     ,-1.06666666667   ,1.88966174185     ,-4.73385886764    ,3.5}
-
-        if ( next_id1 > -1     && next_id2 > -1     && next_id3 > -1     && next_id4 > -1     && next_id5 > -1     && next_id6 > -1 )
-            return ( -3.5             *current_value   + 4.73385886764   *next_value1     + -1.88966174185  *next_value2      + 1.06666666667   * next_value3     + -0.683321604359 * next_value4     + 0.439124478567  * next_value5     + -0.166666666667  * next_value6 ) / h;
-        if ( previous_id1 > -1 && next_id1 > -1     && next_id2 > -1     && next_id3 > -1     && next_id4 > -1     && next_id5 > -1 )
-            return ( -0.814308671415  *previous_value1 + 0.0                              + 1.1519427381    *next_value1      + -0.532868896033 * next_value2     + 0.320446599096  * next_value3     + -0.200749059879 * next_value4     + 0.0755372901318  * next_value5 ) / h;
-        if ( previous_id2 > -1 && previous_id1 > -1 && next_id1 > -1     && next_id2 > -1     && next_id3 > -1     && next_id4 > -1 )
-            return ( 0.208418888505   *previous_value2 + -0.738601427723 *previous_value1 + 0.0                               + 0.755566029029  * next_value1     + -0.355480634669 * next_value2     + 0.205463611839  * next_value3     + -0.0753664669809 * next_value4 ) / h;
-        if ( previous_id3 > -1 && previous_id2 > -1 && previous_id1 > -1 && next_id1 > -1     && next_id2 > -1     && next_id3 > -1 )
-            return ( -0.104166666667  *previous_value3 + 0.302514823756  *previous_value2 + -0.668989746863 *previous_value1  + 0                                 + 0.668989746863  * next_value1     + -0.302514823756 * next_value2     + 0.104166666667   * next_value3 ) / h;
-        if ( previous_id4 > -1 && previous_id3 > -1 && previous_id2 > -1 && previous_id1 > -1 && next_id1 > -1     && next_id2 > -1 )
-            return ( 0.0753664669809  *previous_value4 + -0.205463611839 *previous_value3 + 0.355480634669  *previous_value2  + -0.755566029029 * previous_value1 + 0.0                               + 0.738601427723  * next_value1     + -0.208418888505  * next_value2 ) / h;
-        if ( previous_id5 > -1 && previous_id4 > -1 && previous_id3 > -1 && previous_id2 > -1 && previous_id1 > -1 && next_id1 > -1 )
-            return ( -0.0755372901318 *previous_value5 + 0.200749059879  *previous_value4 + -0.320446599096 *previous_value3  + 0.532868896033  * previous_value2 + -1.1519427381   * previous_value1 + 0.0                               + 0.814308671415   * next_value1 ) / h;
-        if ( previous_id6 > -1 && previous_id5 > -1 && previous_id4 > -1 && previous_id3 > -1 && previous_id2 > -1 && previous_id1 > -1 )
-            return ( 0.166666666667   *previous_value6 + -0.439124478567 *previous_value5 + 0.683321604359  *previous_value4  + -1.06666666667  * previous_value3 + 1.88966174185   * previous_value2 + -4.73385886764  * previous_value1 + 3.5              * current_value ) / h;
-
-    }
-
-    return 0.0;
-}
-
-
-
-
-
-// fixme lnw
-// nlip tests outcommented, because nlip=7 is hardcoded all over the place anyway (lnw)
-__device__ __forceinline__
-double evaluate_derivative_xy(const int current_id,
-                              const int previous_id1, const int previous_id2, const int previous_id3, const int previous_id4, const int previous_id5, const int previous_id6,
-                              const int next_id1, const int next_id2, const int next_id3, const int next_id4, const int next_id5, const int next_id6,
-                              const double* __restrict__ device_cube, const int grid_type, const double h) {
-    if (current_id == -1) return 0.0;
-    double current_value = 0.0;
-    double previous_value1 = 0.0;
-    double next_value1 = 0.0;
-    double previous_value2 = 0.0;
-    double next_value2 = 0.0;
-    double previous_value3 = 0.0;
-    double next_value3 = 0.0;
-    double previous_value4 = 0.0;
-    double next_value4 = 0.0;
-    double previous_value5 = 0.0;
-    double next_value5 = 0.0;
-    double previous_value6 = 0.0;
-    double next_value6 = 0.0;
-
-    if (previous_id6 > -1) previous_value6 = __ldg(&device_cube[previous_id6]);
-    if (previous_id5 > -1) previous_value5 = __ldg(&device_cube[previous_id5]);
-    if (previous_id4 > -1) previous_value4 = __ldg(&device_cube[previous_id4]);
-    if (previous_id3 > -1) previous_value3 = __ldg(&device_cube[previous_id3]);
-    if (previous_id2 > -1) previous_value2 = __ldg(&device_cube[previous_id2]);
-    if (previous_id1 > -1) previous_value1 = __ldg(&device_cube[previous_id1]);
-    if (current_id > -1)   current_value   = __ldg(&device_cube[current_id]);
-    if (next_id1 > -1)     next_value1     = __ldg(&device_cube[next_id1]);
-    if (next_id2 > -1)     next_value2     = __ldg(&device_cube[next_id2]);
-    if (next_id3 > -1)     next_value3     = __ldg(&device_cube[next_id3]);
-    if (next_id4 > -1)     next_value4     = __ldg(&device_cube[next_id4]);
-    if (next_id5 > -1)     next_value5     = __ldg(&device_cube[next_id5]);
-    if (next_id6 > -1)     next_value6     = __ldg(&device_cube[next_id6]);
-
-
-    if(grid_type == 1){ // equidistant
-// equidistant:
-// {3., -32., 168., -672., 0, 672., -168., 32., -3.}
-// accuracy order 6: {-2.45           ,6              ,-7.5           ,6.66666666667 ,-3.75         ,1.2           ,-0.166666666667}      {-147., 360 , -450., 400. , -225., 72. , -10.} / 60
-// accuracy order 6: {-0.166666666667 ,-1.28333333333 ,2.5            ,-1.66666666667,0.833333333333,-0.25         ,0.0333333333333}      {-10. , -77., 150. , -100., 50.  , -15., 2.} / 60
-// accuracy order 6: {0.0333333333333 ,-0.4           ,-0.583333333333,1.33333333333 ,-0.5          ,0.133333333333,-0.0166666666667}     {2.   , -24., -35. , 80.  , -30. , 8.  , -1.} / 60
-// accuracy order 6: {-0.0166666666667,0.15           ,-0.75          ,0             ,0.75          ,-0.15         ,0.0166666666667}   =  (-1   , 9   , -45  , 0    , 45   , -9  , 1) / 60
-// accuracy order 6: {0.0166666666667 ,-0.133333333333,0.5            ,-1.33333333333,0.583333333333,0.4           ,-0.0333333333333}     {1.   , -8. , 30.  , -80. , 35.  , 24. , -2.} / 60
-// accuracy order 6: {-0.0333333333333,0.25           ,-0.833333333333,1.66666666667 ,-2.5          ,1.28333333333 ,0.166666666667}       {-2.  , 15. , -50. , 100. , -150., 77. , 10.} / 60
-// accuracy order 6: {0.166666666667  ,-1.2           ,3.75           ,-6.66666666667,7.5           ,-6            ,2.45}                 {10.  , -72., 225. , -400., 450. , -360, 147.} / 60
-#if 1
-        if ( previous_id1 > -1 && next_id1 > -1 && previous_id2 > -1 && next_id2 > -1 && previous_id3 > -1 && next_id3 > -1 && previous_id4 > -1 && next_id4 > -1 ) { // x x x x o x x x x
-            return (3.0 * previous_value4 - 32.0 * previous_value3 + 168.0 * previous_value2 - 672.0 * previous_value1 + 672.0 * next_value1 - 168.0 * next_value2 + 32.0 * next_value3 - 3.0 * next_value4 ) / (840.0*h);
-        }
-        else if ( previous_id1 > -1 && next_id1 > -1 && previous_id2 > -1 && next_id2 > -1 && previous_id3 > -1 && next_id3 > -1) { // x x x o x x x
-            return (-1.0 * previous_value3 + 9.0 * previous_value2 - 45.0 * previous_value1  + 45.0 * next_value1 - 9.0 * next_value2 + 1.0 * next_value3) / (60.0*h);
-        }
-        else if ( previous_id1 > -1 && next_id1 > -1 && previous_id2 > -1 && next_id2 > -1) { // x x o x x
-            return (-1.0 * next_value2 + 8.0 * next_value1 - 8.0 * previous_value1  + previous_value2) / (12.0*h);
-        }
-        else if (previous_id1 == -1 && previous_id2 == -1 && next_id1 > -1 && next_id2 > -1) { // - - o x x
-            return  (-1.0 * next_value2 + 4.0 * next_value1 - 3.0 * current_value) / (2.0 * h);
-        }
-        else if (previous_id1 > -1 && previous_id2 > -1 && next_id1 == -1 && next_id2 == -1) { // x x o - -
-            return (1.0 * previous_value2 - 4.0 * previous_value2 + 3.0 * current_value) / (2.0 * h);
-        }
-        else if ( previous_id1 > -1 && next_id1 > -1 && (previous_id2 == -1 || next_id2 == -1)) { // - x o x -
-            return (next_value1 - previous_value1) / (2.0 * h);
-        }
-        else if ( previous_id1 == -1 && next_id1 > -1 && previous_id2 == -1 && next_id2 == -1) { // - - o x -
-            return (next_value1 - current_value) / h;
-        }
-        else if ( previous_id1 > -1 && next_id1 == -1 && previous_id2 == -1 && next_id2 == -1) { // - x o - -
-            return (current_value - previous_value1) / h;
-        }
-
-#else // works, assuming that there are  >= 7 consecutive valid values
-
-          if      ( previous_id3 > -1 &&  previous_id2 > -1 && previous_id1 > -1 &&  next_id1 > -1 && next_id2 > -1 && next_id3 > -1 )
-              return (  -1.0 * previous_value3 +   9.0 * previous_value2 +  -45.0 * previous_value1 +    0.0                   +   45.0 * next_value1     +   -9.0 * next_value2      +   1.0 * next_value3)/(60.0*h);
-          else if ( previous_id2 > -1 &&  previous_id1 > -1 && next_id1 > -1 &&  next_id2 > -1 && next_id3 > -1 && next_id4 > -1 )
-              return (   2.0 * previous_value2 + -24.0 * previous_value1 +  -35.0 * current_value   +   80.0 * next_value1     +  -30.0 * next_value2     +    8.0 * next_value3      +  -1.0 * next_value4)/(60.0*h);
-          else if ( previous_id4 > -1 &&  previous_id3 > -1 && previous_id2 > -1 &&  previous_id1 > -1 && next_id1 > -1 && next_id2 > -1 )
-              return (   1.0 * previous_value4 +  -8.0 * previous_value3 +   30.0 * previous_value2 +  -80.0 * previous_value1 +   35.0 * current_value   +   24.0 * next_value1      +  -2.0 * next_value2)/(60.0*h);
-          else if ( previous_id1 > -1 &&  next_id1 > -1 && next_id2 > -1 &&  next_id3 > -1 && next_id4 > -1 && next_id5 > -1 )
-              return ( -10.0 * previous_value1 + -77.0 * current_value   +  150.0 * next_value1     + -100.0 * next_value2     +   50.0 * next_value3     +  -15.0 * next_value4      +   2.0 * next_value5)/(60.0*h);
-          else if ( previous_id5 > -1 &&  previous_id4 > -1 && previous_id3 > -1 &&  previous_id2 > -1 && previous_id1 > -1 && next_id1 > -1 )
-              return (  -2.0 * previous_value5 +  15.0 * previous_value4 +  -50.0 * previous_value3 +  100.0 * previous_value2 + -150.0 * previous_value1 +   77.0 * current_value    +  10.0 * next_value1)/(60*h);
-          else if ( next_id1 > -1 &&  next_id2 > -1 && next_id3 > -1 &&  next_id4 > -1 && next_id5 > -1 && next_id6 > -1 )
-              return (-147.0 * current_value   + 360.0 * next_value1     + -450.0 * next_value2     +  400.0 * next_value3     + -225.0 * next_value4     +   72.0 * next_value5      + -10.0 * next_value6)/(60.0*h);
-          else if ( previous_id6 > -1 &&  previous_id5 > -1 && previous_id4 > -1 &&  previous_id3 > -1 && previous_id2 > -1 && previous_id1 > -1 )
-              return (  10.0 * previous_value6 + -72.0 * previous_value5 +  225.0 * previous_value4 + -400.0 * previous_value3 +  450.0 * previous_value2 + -360.0 * previous_value1  + 147.0 * current_value)/(60.0*h);
 #endif
 
     }
     else if(grid_type == 2){ // lobatto
-// lobatto
-// accuracy order 6: {-3.5            ,4.73385886764     ,-1.88966174185     ,1.06666666667    ,-0.683321604359   ,0.439124478567    ,-0.166666666667}
-// accuracy order 6: {-0.814308671415 ,-2.5881814686e-15 ,1.1519427381       ,-0.532868896033  ,0.320446599096    ,-0.200749059879   ,0.0755372901318}
-// accuracy order 6: {0.208418888505  ,-0.738601427723   ,-4.78702268099e-15 ,0.755566029029   ,-0.355480634669   ,0.205463611839    ,-0.0753664669809}
-// accuracy order 6: {-0.104166666667 ,0.302514823756    ,-0.668989746863    ,0                ,0.668989746863    ,-0.302514823756   ,0.104166666667}
-// accuracy order 6: {0.0753664669809 ,-0.205463611839   ,0.355480634669     ,-0.755566029029  ,4.78702268099e-15 ,0.738601427723    ,-0.208418888505}
-// accuracy order 6: {-0.0755372901318,0.200749059879    ,-0.320446599096    ,0.532868896033   ,-1.1519427381     ,2.5881814686e-15  ,0.814308671415}
-// accuracy order 6: {0.166666666667  ,-0.439124478567   ,0.683321604359     ,-1.06666666667   ,1.88966174185     ,-4.73385886764    ,3.5}
 
-        if (previous_id1 == -1)
-            return ( -3.5             * current_value   + 4.73385886764   * next_value1     + -1.88966174185  * next_value2     + 1.06666666667   * next_value3     + -0.683321604359 * next_value4     + 0.439124478567  * next_value5     + -0.166666666667  * next_value6)/h;
-        else if (previous_id2 == -1)
-            return ( -0.814308671415  * previous_value1 + 0.0             * current_value   + 1.1519427381    * next_value1     + -0.532868896033 * next_value2     + 0.320446599096  * next_value3     + -0.200749059879 * next_value4     + 0.0755372901318  * next_value5)/h;
-        else if (previous_id3 == -1)
-            return ( 0.208418888505   * previous_value2 + -0.738601427723 * previous_value1 + 0.0             * current_value   + 0.755566029029  * next_value1     + -0.355480634669 * next_value2     + 0.205463611839  * next_value3     + -0.0753664669809 * next_value4)/h;
-        else if (previous_id3 > -1 && next_id3 > -1)
-            return ( -0.104166666667  * previous_value3 + 0.302514823756  * previous_value2 + -0.668989746863 * previous_value1 + 0.0             * current_value   + 0.668989746863  * next_value1     + -0.302514823756 * next_value2     + 0.104166666667   * next_value3)/h;
-        else if (next_id3 == -1)
-            return ( 0.0753664669809  * previous_value4 + -0.205463611839 * previous_value3 + 0.355480634669  * previous_value2 + -0.755566029029 * previous_value1 + 0.0             * current_value   + 0.738601427723  * next_value1     + -0.208418888505  * next_value2)/h;
-        else if (next_id2 == -1)
-            return ( -0.0755372901318 * previous_value5 + 0.200749059879  * previous_value4 + -0.320446599096 * previous_value3 + 0.532868896033  * previous_value2 + -1.1519427381   * previous_value1 + 0.0             * current_value   + 0.814308671415   * next_value1)/h;
-        else if (next_id1 == -1)
-            return ( 0.166666666667   * previous_value6 + -0.439124478567 * previous_value5 + 0.683321604359  * previous_value4 + -1.06666666667  * previous_value3 + 1.88966174185   * previous_value2 + -4.73385886764  * previous_value1 + 3.5              * current_value)/h;
+//        static_assert(NLIP==7, "nlip should be 7");
+
+        if (fin_diff_order == 9){
+        
+ // NLIP x central
+ // 9 x aligned
+ // -1 overlap
+
+        }
+        else if (fin_diff_order == 7){
+        
+            if ( previous_id3 > -1 && previous_id2 > -1 && previous_id1 > -1 && next_id1 > -1 && next_id2 > -1 && next_id3 > -1 ){
+			  // some of the following 7 rules are slightly subobtimal in the
+			  // sense that an asymmetric choice of points would have a smaller
+			  // error, but the problem is small and this is easier
+              // {-0.104166666667,   0.302514823756,  -0.668989746863, 0,               0.668989746863, -0.302514823756,  0.104166666667}
+              // {-0.00832295173252, 0.0549857889581, -0.308223373129, -0.702495577585, 1.89978168681,  -1.17161898258,   0.235893409259}
+              // {-0.0014698486431,  0.0193439369289, -0.231190709888, -1.84012169934,  2.5886815899,   -0.552355362652,  0.017112093698}
+              // {-0.00194396911544, 0.0497395221528, -1.1258469276,   0,               1.1258469276,   -0.0497395221528, 0.00194396911544}
+              // {-0.017112093698,   0.552355362652,  -2.5886815899,   1.84012169934,   0.231190709888, -0.0193439369289, 0.0014698486431}
+              // {-0.235893409259,   1.17161898258,   -1.89978168681,  0.702495577585,  0.308223373129, -0.0549857889581, 0.00832295173252}
+              // {-0.104166666667,   0.302514823756,  -0.668989746863, 0,               0.668989746863, -0.302514823756,  0.104166666667}
+                switch(local_pos){
+                    case(0):
+                        return ( -0.104166666667   * previous_value3 + 0.302514823756  * previous_value2 + -0.668989746863 * previous_value1 + 0               * current_value + 0.668989746863 * next_value1 + -0.302514823756  * next_value2 + 0.104166666667   * next_value3 )/h;
+                    case(1):
+                        return ( -0.00832295173252 * previous_value3 + 0.0549857889581 * previous_value2 + -0.308223373129 * previous_value1 + -0.702495577585 * current_value + 1.89978168681  * next_value1 + -1.17161898258   * next_value2 + 0.235893409259   * next_value3 )/h;
+                    case(2):
+                        return ( -0.0014698486431  * previous_value3 + 0.0193439369289 * previous_value2 + -0.231190709888 * previous_value1 + -1.84012169934  * current_value + 2.5886815899   * next_value1 + -0.552355362652  * next_value2 + 0.017112093698   * next_value3 )/h;
+                    case(3):
+                        return ( -0.00194396911544 * previous_value3 + 0.0497395221528 * previous_value2 + -1.1258469276   * previous_value1 + 0               * current_value + 1.1258469276   * next_value1 + -0.0497395221528 * next_value2 + 0.00194396911544 * next_value3 )/h;
+                    case(4):
+                        return ( -0.017112093698   * previous_value3 + 0.552355362652  * previous_value2 + -2.5886815899   * previous_value1 + 1.84012169934   * current_value + 0.231190709888 * next_value1 + -0.0193439369289 * next_value2 + 0.0014698486431  * next_value3 )/h;
+                    case(5):
+                        return ( -0.235893409259   * previous_value3 + 1.17161898258   * previous_value2 + -1.89978168681  * previous_value1 + 0.702495577585  * current_value + 0.308223373129 * next_value1 + -0.0549857889581 * next_value2 + 0.00832295173252 * next_value3 )/h;
+                }
+            }
+            // {-3.5,            4.73385886764,   -1.88966174185, 1.06666666667,   -0.683321604359, 0.439124478567,  -0.166666666667}
+            // {-0.814308671415, 0,               1.1519427381,   -0.532868896033, 0.320446599096,  -0.200749059879, 0.0755372901318}
+            // {0.208418888505,  -0.738601427723, 0,              0.755566029029,  -0.355480634669, 0.205463611839,  -0.0753664669809}
+            else if (previous_id1 == -1)
+                return ( -3.5             * current_value   + 4.73385886764   * next_value1     + -1.88966174185 * next_value2   + 1.06666666667   * next_value3 + -0.683321604359 * next_value4 + 0.439124478567  * next_value5 + -0.166666666667  * next_value6)/h;
+            else if (previous_id2 == -1)
+                return ( -0.814308671415  * previous_value1 + 0.0             * current_value   + 1.1519427381   * next_value1   + -0.532868896033 * next_value2 + 0.320446599096  * next_value3 + -0.200749059879 * next_value4 + 0.0755372901318  * next_value5)/h;
+            else if (previous_id3 == -1)
+                return ( 0.208418888505   * previous_value2 + -0.738601427723 * previous_value1 + 0.0            * current_value + 0.755566029029  * next_value1 + -0.355480634669 * next_value2 + 0.205463611839  * next_value3 + -0.0753664669809 * next_value4)/h;
+            // {0.0753664669809,  -0.205463611839, 0.355480634669,  -0.755566029029, 0,             0.738601427723, -0.208418888505}
+            // {-0.0755372901318, 0.200749059879,  -0.320446599096, 0.532868896033,  -1.1519427381, 0,              0.814308671415}
+            // {0.166666666667,   -0.439124478567, 0.683321604359,  -1.06666666667,  1.88966174185, -4.73385886764, 3.5}
+            else if (next_id3 == -1)
+                return ( 0.0753664669809  * previous_value4 + -0.205463611839 * previous_value3 + 0.355480634669  * previous_value2 + -0.755566029029 * previous_value1 + 0.0             * current_value   + 0.738601427723  * next_value1     + -0.208418888505  * next_value2)/h;
+            else if (next_id2 == -1)
+                return ( -0.0755372901318 * previous_value5 + 0.200749059879  * previous_value4 + -0.320446599096 * previous_value3 + 0.532868896033  * previous_value2 + -1.1519427381   * previous_value1 + 0.0             * current_value   + 0.814308671415   * next_value1)/h;
+            else if (next_id1 == -1)
+                return ( 0.166666666667   * previous_value6 + -0.439124478567 * previous_value5 + 0.683321604359  * previous_value4 + -1.06666666667  * previous_value3 + 1.88966174185   * previous_value2 + -4.73385886764  * previous_value1 + 3.5              * current_value)/h;
+
+        }
 
     }
 
@@ -980,11 +904,9 @@ double evaluate_derivative_xy(const int current_id,
 /*
  * Evaluate cube gradients at grid points for simple equidistant grid.  The results are stored to 'device_gradients'.
  *
- * nlip is not really a lip-order, but rather the number number of points to use for the finite differences
- *
  */
 
-template <int nlip, bool evaluate_gradients_x, bool evaluate_gradients_y, bool evaluate_gradients_z>
+template <int fin_diff_order, bool evaluate_gradients_x, bool evaluate_gradients_y, bool evaluate_gradients_z>
 __global__ void
 CubeEvaluator_evaluate_simple_grid_gradients(
                                              const double* __restrict__ device_cube,
@@ -1034,174 +956,182 @@ CubeEvaluator_evaluate_simple_grid_gradients(
                         && z+slice_offset < grid->shape[Z_];
     if (!valid_point) id = -1;
 
+	// position within a cell.  This is required because there is no
+	// translational symmetry by fractions of a cell, and this is relevant for
+	// finite diff weights.
+    const int local_pos_x = x%(NLIP-1);
+    const int local_pos_y = y%(NLIP-1);
+    const int local_pos_z = z%(NLIP-1);
+
     // evaluate gradient to z direction
-    // nlip tests outcommented, because nlip=7 is hardcoded all over the place anyway (lnw)
     if (evaluate_gradients_z) {
         int previous_id1 = -1, previous_id2 = -1, previous_id3 = -1, previous_id4 = -1, previous_id5 = -1, previous_id6 = -1,
             next_id1 = -1, next_id2 = -1, next_id3 = -1, next_id4 = -1, next_id5 = -1, next_id6 = -1;
-        if (/*nlip >= 3 &&*/ z + slice_offset -1 >= 0) {
+        if (fin_diff_order >= 3 && z + slice_offset -1 >= 0) {
             previous_id1 = getCubeOffset3D(x, y, z+slice_offset-1, device_pitch, device_shape_y);
         }
 
-        if (/*nlip >= 3 &&*/ z + slice_offset +1 < grid->shape[Z_]) {
+        if (fin_diff_order >= 3 && z + slice_offset +1 < grid->shape[Z_]) {
             next_id1 = getCubeOffset3D(x, y, z+slice_offset+1, device_pitch, device_shape_y);
         }
 
-        if (/*nlip >= 5 &&*/ z + slice_offset -2 >= 0) {
+        if (fin_diff_order >= 3 && z + slice_offset -2 >= 0) {
             previous_id2 = getCubeOffset3D(x, y, z+slice_offset-2, device_pitch, device_shape_y);
         }
 
-        if (/*nlip >= 5 &&*/ z + slice_offset +2 < grid->shape[Z_]) {
+        if (fin_diff_order >= 3 && z + slice_offset +2 < grid->shape[Z_]) {
             next_id2 = getCubeOffset3D(x, y, z+slice_offset+2, device_pitch, device_shape_y);
         }
 
-        if (/*nlip >= 7 &&*/ z + slice_offset -3 >= 0) {
+        if (fin_diff_order >= 5 && z + slice_offset -3 >= 0) {
             previous_id3 = getCubeOffset3D(x, y, z+slice_offset-3, device_pitch, device_shape_y);
         }
 
-        if (/*nlip >= 7 &&*/ z + slice_offset +3 < grid->shape[Z_]) {
+        if (fin_diff_order >= 5 && z + slice_offset +3 < grid->shape[Z_]) {
             next_id3 = getCubeOffset3D(x, y, z+slice_offset+3, device_pitch, device_shape_y);
         }
 
-        if (/*nlip >= 7 &&*/ z + slice_offset -4 >= 0) {
+        if (fin_diff_order >= 7 && z + slice_offset -4 >= 0) {
             previous_id4 = getCubeOffset3D(x, y, z+slice_offset-4, device_pitch, device_shape_y);
         }
 
-        if (/*nlip >= 7 &&*/ z + slice_offset +4 < grid->shape[Z_]) {
+        if (fin_diff_order >= 7 && z + slice_offset +4 < grid->shape[Z_]) {
             next_id4 = getCubeOffset3D(x, y, z+slice_offset+4, device_pitch, device_shape_y);
         }
 
-        if (/*nlip >= 7 &&*/ z + slice_offset -5 >= 0) {
+        if (fin_diff_order >= 9 && z + slice_offset -5 >= 0) {
             previous_id5 = getCubeOffset3D(x, y, z+slice_offset-5, device_pitch, device_shape_y);
         }
 
-        if (/*nlip >= 7 &&*/ z + slice_offset +5 < grid->shape[Z_]) {
+        if (fin_diff_order >= 9 && z + slice_offset +5 < grid->shape[Z_]) {
             next_id5 = getCubeOffset3D(x, y, z+slice_offset+5, device_pitch, device_shape_y);
         }
 
-        if (/*nlip >= 7 &&*/ z + slice_offset -6 >= 0) {
+        if (fin_diff_order >= 11 && z + slice_offset -6 >= 0) {
             previous_id6 = getCubeOffset3D(x, y, z+slice_offset-6, device_pitch, device_shape_y);
         }
 
-        if (/*nlip >= 7 &&*/ z + slice_offset +6 < grid->shape[Z_]) {
+        if (fin_diff_order >= 11 && z + slice_offset +6 < grid->shape[Z_]) {
             next_id6 = getCubeOffset3D(x, y, z+slice_offset+6, device_pitch, device_shape_y);
         }
-        double value = evaluate_derivative_z(id, previous_id1, previous_id2, previous_id3, previous_id4, previous_id5, previous_id6,
-                                             next_id1, next_id2, next_id3, next_id4, next_id5, next_id6, device_cube, gridtype_z, h_z);
+        double value = evaluate_derivative(id, previous_id1, previous_id2, previous_id3, previous_id4, previous_id5, previous_id6,
+                                             next_id1, next_id2, next_id3, next_id4, next_id5, next_id6,
+                                             device_cube, fin_diff_order, gridtype_z, local_pos_z, h_z);
         if (valid_point) device_gradients_z[local_id] = multiplier * value;
     }
 
     // evaluate gradient to y direction
-    // nlip tests outcommented, because nlip=7 is hardcoded all over the place anyway (lnw)
     if (evaluate_gradients_y) {
         int previous_id1 = -1, previous_id2 = -1, previous_id3 = -1, previous_id4 = -1, previous_id5 = -1, previous_id6 = -1,
             next_id1 = -1, next_id2 = -1, next_id3 = -1, next_id4 = -1, next_id5 = -1, next_id6 = -1;
-        if (/*nlip >= 3 &&*/ y -1 >= 0) {
+        if (/*fin_diff_order >= 3 &&*/ y -1 >= 0) {
             previous_id1 = getCubeOffset3D(x, y-1, z+slice_offset, device_pitch, device_shape_y);
         }
 
-        if (/*nlip >= 3 &&*/ y + 1 < grid->shape[Y_]) {
+        if (/*fin_diff_order >= 3 &&*/ y + 1 < grid->shape[Y_]) {
             next_id1 = getCubeOffset3D(x, y+1, z+slice_offset, device_pitch, device_shape_y);
         }
 
-        if (/*nlip >= 5 &&*/ y - 2 >= 0) {
+        if (/*fin_diff_order >= 5 &&*/ y - 2 >= 0) {
             previous_id2 = getCubeOffset3D(x, y-2, z+slice_offset, device_pitch, device_shape_y);
         }
 
-        if (/*nlip >= 5 &&*/ y + 2 < grid->shape[Y_]) {
+        if (/*fin_diff_order >= 5 &&*/ y + 2 < grid->shape[Y_]) {
             next_id2 = getCubeOffset3D(x, y+2, z+slice_offset, device_pitch, device_shape_y);
         }
 
-        if (/*nlip >= 7 &&*/ y - 3 >= 0) {
+        if (/*fin_diff_order >= 7 &&*/ y - 3 >= 0) {
             previous_id3 = getCubeOffset3D(x, y-3, z+slice_offset, device_pitch, device_shape_y);
         }
 
-        if (/*nlip >= 7 &&*/ y + 3 < grid->shape[Y_]) {
+        if (fin_diff_order >= 5 && y + 3 < grid->shape[Y_]) {
             next_id3 = getCubeOffset3D(x, y+3, z+slice_offset, device_pitch, device_shape_y);
         }
 
-        if (/*nlip >= 9 &&*/ y - 4 >= 0) {
+        if (fin_diff_order >= 7 && y - 4 >= 0) {
             previous_id4 = getCubeOffset3D(x, y-4, z+slice_offset, device_pitch, device_shape_y);
         }
 
-        if (/*nlip >= 9 &&*/ y + 4 < grid->shape[Y_]) {
+        if (fin_diff_order >= 7 && y + 4 < grid->shape[Y_]) {
             next_id4 = getCubeOffset3D(x, y+4, z+slice_offset, device_pitch, device_shape_y);
         }
 
-        if (/*nlip >= 9 &&*/ y - 5 >= 0) {
+        if (fin_diff_order >= 9 && y - 5 >= 0) {
             previous_id5 = getCubeOffset3D(x, y-5, z+slice_offset, device_pitch, device_shape_y);
         }
 
-        if (/*nlip >= 9 &&*/ y + 5 < grid->shape[Y_]) {
+        if (fin_diff_order >= 9 && y + 5 < grid->shape[Y_]) {
             next_id5 = getCubeOffset3D(x, y+5, z+slice_offset, device_pitch, device_shape_y);
         }
 
-        if (/*nlip >= 9 &&*/ y - 6 >= 0) {
+        if (fin_diff_order >= 11 && y - 6 >= 0) {
             previous_id6 = getCubeOffset3D(x, y-6, z+slice_offset, device_pitch, device_shape_y);
         }
 
-        if (/*nlip >= 9 &&*/ y + 6 < grid->shape[Y_]) {
+        if (fin_diff_order >= 11 && y + 6 < grid->shape[Y_]) {
             next_id6 = getCubeOffset3D(x, y+6, z+slice_offset, device_pitch, device_shape_y);
         }
-        double value = evaluate_derivative_xy(id, previous_id1, previous_id2, previous_id3, previous_id4, previous_id5, previous_id6,
-                                              next_id1, next_id2, next_id3, next_id4, next_id5, next_id6, device_cube, gridtype_y, h_y);
+        double value = evaluate_derivative(id, previous_id1, previous_id2, previous_id3, previous_id4, previous_id5, previous_id6,
+                                           next_id1, next_id2, next_id3, next_id4, next_id5, next_id6,
+                                           device_cube, fin_diff_order, gridtype_y, local_pos_y, h_y);
         if (valid_point) device_gradients_y[local_id] = multiplier * value;
     }
 
     // evaluate gradient to x direction
-    // nlip tests outcommented, because nlip=7 is hardcoded all over the place anyway (lnw)
+    // fin_diff_order tests outcommented, because fin_diff_order=7 is hardcoded all over the place anyway (lnw)
     if (evaluate_gradients_x) {
         int previous_id1 = -1, previous_id2 = -1, previous_id3 = -1, previous_id4 = -1, previous_id5 = -1, previous_id6 = -1,
             next_id1 = -1, next_id2 = -1, next_id3 = -1, next_id4 = -1, next_id5 = -1, next_id6 = -1;
-        if (/*nlip >= 3 &&*/ x -1 >= 0) {
+        if (/*fin_diff_order >= 3 &&*/ x -1 >= 0) {
             previous_id1 = getCubeOffset3D(x-1, y, z+slice_offset, device_pitch, device_shape_y);
         }
 
-        if (/*nlip >= 3 &&*/ x + 1 < grid->shape[X_]) {
+        if (/*fin_diff_order >= 3 &&*/ x + 1 < grid->shape[X_]) {
             next_id1 = getCubeOffset3D(x+1, y, z+slice_offset, device_pitch, device_shape_y);
         }
 
-        if (/*nlip >= 5 &&*/ x - 2 >= 0) {
+        if (/*fin_diff_order >= 5 &&*/ x - 2 >= 0) {
             previous_id2 = getCubeOffset3D(x-2, y, z+slice_offset, device_pitch, device_shape_y);
         }
 
-        if (/*nlip >= 5 &&*/ x + 2 < grid->shape[X_]) {
+        if (/*fin_diff_order >= 5 &&*/ x + 2 < grid->shape[X_]) {
             next_id2 = getCubeOffset3D(x+2, y, z+slice_offset, device_pitch, device_shape_y);
         }
 
-        if (/*nlip >= 7 &&*/ x - 3 >= 0) {
+        if (fin_diff_order >= 5 && x - 3 >= 0) {
             previous_id3 = getCubeOffset3D(x-3, y, z+slice_offset, device_pitch, device_shape_y);
         }
 
-        if (/*nlip >= 7 &&*/ x + 3 < grid->shape[X_]) {
+        if (fin_diff_order >= 5 && x + 3 < grid->shape[X_]) {
             next_id3 = getCubeOffset3D(x+3, y, z+slice_offset, device_pitch, device_shape_y);
         }
 
-        if (/*nlip >= 9 &&*/ x - 4 >= 0) {
+        if (fin_diff_order >= 7 && x - 4 >= 0) {
             previous_id4 = getCubeOffset3D(x-4, y, z+slice_offset, device_pitch, device_shape_y);
         }
 
-        if (/*nlip >= 9 &&*/ x + 4 < grid->shape[X_]) {
+        if (fin_diff_order >= 7 && x + 4 < grid->shape[X_]) {
             next_id4= getCubeOffset3D(x+4, y, z+slice_offset, device_pitch, device_shape_y);
         }
 
-        if (/*nlip >= 9 &&*/ x - 5 >= 0) {
+        if (fin_diff_order >= 9 && x - 5 >= 0) {
             previous_id5 = getCubeOffset3D(x-5, y, z+slice_offset, device_pitch, device_shape_y);
         }
 
-        if (/*nlip >= 9 &&*/ x + 5 < grid->shape[X_]) {
+        if (fin_diff_order >= 9 && x + 5 < grid->shape[X_]) {
             next_id5= getCubeOffset3D(x+5, y, z+slice_offset, device_pitch, device_shape_y);
         }
 
-        if (/*nlip >= 9 &&*/ x - 6 >= 0) {
+        if (fin_diff_order >= 11 && x - 6 >= 0) {
             previous_id6 = getCubeOffset3D(x-6, y, z+slice_offset, device_pitch, device_shape_y);
         }
 
-        if (/*nlip >= 9 &&*/ x + 6 < grid->shape[X_]) {
+        if (fin_diff_order >= 11 && x + 6 < grid->shape[X_]) {
             next_id6= getCubeOffset3D(x+6, y, z+slice_offset, device_pitch, device_shape_y);
         }
-        const double value = evaluate_derivative_xy(id, previous_id1, previous_id2, previous_id3, previous_id4, previous_id5, previous_id6,
-                                                    next_id1, next_id2, next_id3, next_id4, next_id5, next_id6, device_cube, gridtype_x, h_x);
+        const double value = evaluate_derivative(id, previous_id1, previous_id2, previous_id3, previous_id4, previous_id5, previous_id6,
+                                                 next_id1, next_id2, next_id3, next_id4, next_id5, next_id6,
+                                                 device_cube, fin_diff_order, gridtype_x, local_pos_x, h_x);
         if (valid_point) device_gradients_x[local_id] = multiplier * value;
     }
 
@@ -1694,12 +1624,12 @@ void CubeEvaluator::evaluateGrid(Grid3D *grid,
                 // calculate the launch configuration for the f1-inject
                 //int grid_size = warps_per_slice * slice_count * warps_per_block + 1;
                 dim3 block, launch_grid;
-                const int n_fin_diff_points = 9; // could be less, maybe 7? lnw
+                const int fin_diff_order = 7; // could be less, maybe 7? lnw
                 result_cube->getLaunchConfiguration(&launch_grid, &block, slice_count, BLOCK_SIZE);
 
                 // call the kernel
                 if (gradient_direction == X_) {
-                    CubeEvaluator_evaluate_simple_grid_gradients <n_fin_diff_points, true, false, false>
+                    CubeEvaluator_evaluate_simple_grid_gradients <fin_diff_order, true, false, false>
                         <<< launch_grid, block, 0,
                             *this->streamContainer->getStream(device, stream) >>>
                     //CubeEvaluator_evaluate_grid_gradients <NLIP, true, false, false>
@@ -1725,7 +1655,7 @@ void CubeEvaluator::evaluateGrid(Grid3D *grid,
 
                 }
                 else if (gradient_direction == Y_) {
-                    CubeEvaluator_evaluate_simple_grid_gradients <n_fin_diff_points, false, true, false>
+                    CubeEvaluator_evaluate_simple_grid_gradients <fin_diff_order, false, true, false>
                         <<< launch_grid, block, 0,
                             *this->streamContainer->getStream(device, stream) >>>
                     //CubeEvaluator_evaluate_grid_gradients <NLIP, false, true, false>
@@ -1751,7 +1681,7 @@ void CubeEvaluator::evaluateGrid(Grid3D *grid,
 
                 }
                 else if (gradient_direction == Z_) {
-                    CubeEvaluator_evaluate_simple_grid_gradients <n_fin_diff_points, false, false, true>
+                    CubeEvaluator_evaluate_simple_grid_gradients <fin_diff_order, false, false, true>
                         <<< launch_grid, block, 0,
                             *this->streamContainer->getStream(device, stream) >>>
                     //CubeEvaluator_evaluate_grid_gradients <NLIP, false, false, true>
@@ -1777,7 +1707,7 @@ void CubeEvaluator::evaluateGrid(Grid3D *grid,
 
                 }
                 else if (gradient_direction == 3) {
-                    CubeEvaluator_evaluate_simple_grid_gradients <n_fin_diff_points, true, true, true>
+                    CubeEvaluator_evaluate_simple_grid_gradients <fin_diff_order, true, true, true>
                         <<< launch_grid, block, 0,
                             *this->streamContainer->getStream(device, stream) >>>
                     //CubeEvaluator_evaluate_grid_gradients <NLIP, true, true, true>
