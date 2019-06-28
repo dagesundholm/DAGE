@@ -480,7 +480,8 @@ contains
                 end do
 
             case (2) ! gauss lobatto
-                glgrid = gauss_lobatto_grid(new%nlip, 0.d0, real(nlip, 8) ) ! where the second nlip is a length
+                glgrid = gauss_lobatto_grid(new%nlip, 0.d0, real(nlip-1, 8) ) ! where the second nlip is a length
+                write(*,*) 'glgrid: ', glgrid
                 do k=1, nlip-1
                     grid_template(k) = glgrid(k+1)
                 end do
@@ -1334,10 +1335,12 @@ contains
         xgrid=>self%axis(X_)%get_coord()
         ygrid=>self%axis(Y_)%get_coord()
         zgrid=>self%axis(Z_)%get_coord()
+print *, 'xyzgrid', xgrid, ygrid, zgrid ! remove, lnw 
 
         nx = self%axis(X_)%get_shape()
         ny = self%axis(Y_)%get_shape()
         nz = self%axis(Z_)%get_shape()
+print *, 'xyzshape', nx, ny, nz ! remove, lnw
 
         do iz=1,nz
             grid_points(Z_, (iz - 1) * (nx * ny) + 1: iz * (nx * ny)) = zgrid(iz)
