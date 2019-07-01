@@ -78,7 +78,11 @@ module LIPBasis_class
         private
         !> Number of points, or polynomial order +1
         integer(INT32) :: nlip
-        !> choice of grid: 0 -> equidistant, 1 -> gauss-lobatto
+        !> choice of grid: 1 -> equidistant,
+        !                  2 -> gauss-lobatto,
+        !                  3 -> gauss-lobatto with the correct number of points,
+        !                  but after adding a point, constructing the grid and
+        !                  removing the first point
         integer(INT32) :: grid_type
         !> Beginning of the cell (in its own scale)
         real(REAL64) :: first
@@ -113,9 +117,27 @@ contains
 ! %%%%%%%%%%% Constructor %%%%%%%%%%%%%%
     pure function LIPBasisInit(nlip, gridtype) result(new)
         integer, intent(in) :: nlip, gridtype
-        type(LIPBasis) :: new
+        type(LIPBasis)      :: new
+        real(REAL64)        :: first, last
+        real(REAL64)        :: glgrid(nlip)
 
-        new=LIPBasis( nlip=nlip, grid_type=gridtype, first=-(nlip-1)/2, last=nlip/2 )
+        select case (gridtype)
+            case (1, 2) ! equidistant or Gauss-Lobatto
+                first = -(nlip-1)/2
+                last = nlip/2
+
+            ! first generate a gauss-lobatto grid which is one larger (+ plus
+            ! extra space) and then drop the first point
+            case (3)
+                first = -nlip/2
+                last = (nlip+1)/2
+                glgrid = gauss_lobatto_grid(nlip+1, first, last)
+                first = glgrid(2)
+                last = (nlip+1)/2
+            case default
+        end select
+
+        new=LIPBasis( nlip=nlip, grid_type=gridtype, first=first, last=last )
     end function
 
 ! %%%%%%%%%%% Accessors %%%%%%%%%%%%%%
@@ -265,7 +287,7 @@ contains
         class(LIPBasis), intent(in) :: self
         integer,         intent(in) :: der
         type(REAL64_2D)             :: coeffs(1:der+1)
-        real(REAL64)                :: glgrid(self%nlip)
+        real(REAL64)                :: tmp(self%nlip+1), glgrid(self%nlip)
 
         integer(INT32):: i,j,k,n
         real(REAL64) :: x_i,dx
@@ -302,6 +324,20 @@ contains
 
             case (2) ! gauss lobatto
                 glgrid = gauss_lobatto_grid(self%nlip, self%first, self%last)
+                coeffs(1)%p(:,n)=1.d0
+                do i=1,self%nlip               !Iterate over points
+                    x_i=glgrid(i)
+                    do j=1,self%nlip           !Iterate over polynomials
+                        if(i==j) cycle         !Skip x_i=x_j
+                        dx=glgrid(j)-glgrid(i)
+                        coeffs(1)%p(j,1:n-1) = (coeffs(1)%p(j,2:n)-coeffs(1)%p(j,1:n-1)*x_i)/dx
+                        coeffs(1)%p(j,n)=-coeffs(1)%p(j,n)*x_i/dx
+                    end do
+                end do
+
+            case (3) ! gauss lobatto, without the first point
+                tmp = gauss_lobatto_grid(self%nlip+1, real(-self%nlip/2, 8), self%last) ! that's the gl grid with an additional point
+                glgrid = tmp(2:)
                 coeffs(1)%p(:,n)=1.d0
                 do i=1,self%nlip               !Iterate over points
                     x_i=glgrid(i)
@@ -469,8 +505,7 @@ contains
             poly(:,2*(self%nlip-d))=0.d0
             ! if(i==1) then
             ! end if
-            res(:,i)=eval_polys(poly, self%last) -&
-                     eval_polys(poly, self%first)
+            res(:,i)=eval_polys(poly, self%last) - eval_polys(poly, self%first)
         end do
 
         deallocate(coeffs(1)%p)

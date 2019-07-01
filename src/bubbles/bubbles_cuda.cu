@@ -40,7 +40,6 @@
 #define Y_ 1
 #define Z_ 2
 #define R_ 3
-#define FOURPI_ 12.566370614359173
 #if (__CUDA_ARCH__ > 350)
 #define INJECT_BLOCK_SIZE 256
 #else
@@ -247,32 +246,35 @@ __global__ void calc_cf(Bubble *bub, int offset, int number_of_points, size_t de
                 cf_results[threadIdx.x * 8 + j] += f_i* (*(lip++));
             }
 
-// I cannot see any good reason for this special case (lnw) that is, the
-// derivative at the centre of each bubble should be zero, but why does it have
-// to be enforced?
-#if 0
-            // handle the special case of the first cell, where the first
-            // data item most likely is not valid
-            if (icell == 0) {
-                if (i != 0) {
-                    for (j = 1 ; j <= nlip-2; j++) {
-                        df_results[threadIdx.x * 8 + j] += f_i* (*(ldlip++));
+            // I (lnw) cannot see any good reason for this special case that is, the
+            // derivative at the centre of each bubble should be zero, but why does it have
+            // to be enforced?
+            const bool ignore_first = true;
+            if(ignore_first){
+                // handle the special case of the first cell, where the first
+                // data item most likely is not valid
+                if (icell == 0) {
+                    if (i != 0) {
+                        for (j = 1 ; j <= nlip-2; j++) {
+                            df_results[threadIdx.x * 8 + j] += f_i* (*(ldlip++));
+                        }
+                    }
+                    else {
+                        df_results[threadIdx.x * 8] = 0.0;
                     }
                 }
                 else {
-                    df_results[threadIdx.x * 8] = 0.0;
+                    for (j=0; j < nlip-1 ;j++) {
+                        df_results[threadIdx.x * 8 + j] += f_i* (*(dlip++));
+                    }
                 }
             }
-            else {
+            else { // no special treatment
                 for (j=0; j < nlip-1 ;j++) {
                     df_results[threadIdx.x * 8 + j] += f_i* (*(dlip++));
                 }
             }
-#else
-            for (j=0; j < nlip-1 ;j++) {
-                df_results[threadIdx.x * 8 + j] += f_i* (*(dlip++));
-            }
-#endif
+
         }
         // copy the result to device memory
         for (i=0; i < 8; i++) {
@@ -297,9 +299,9 @@ __device__ inline double evaluate_polynomials(int n, const double* __restrict__ 
 }
 
 //#ifdef __CUDA_ARCH__
-#if __CUDA_ARCH__ >= 350 
+#if __CUDA_ARCH__ >= 350
 /*
- *  Evaluates one granular polynomial for coefficients, and x 
+ *  Evaluates one granular polynomial for coefficients, and x
  * NOTE: each thread is different value for coefficient, when entering the function
  * NOTE: each x value must be the same for 8 consecutive threads
  * NOTE: upon return each thread has the same value.
@@ -326,23 +328,23 @@ double evaluate_polynomials_unit_register(const double * __restrict__ coefficien
 }
 
 __device__ inline void horizontal_rotate_8f(double coefficients[8], unsigned int order_number) {
-    coefficients[1] = __shfl(coefficients[1], (order_number+1)%8, 8); 
-    coefficients[2] = __shfl(coefficients[2], (order_number+2)%8, 8); 
-    coefficients[3] = __shfl(coefficients[3], (order_number+3)%8, 8); 
-    coefficients[4] = __shfl(coefficients[4], (order_number+4)%8, 8); 
-    coefficients[5] = __shfl(coefficients[5], (order_number+5)%8, 8); 
-    coefficients[6] = __shfl(coefficients[6], (order_number+6)%8, 8); 
-    coefficients[7] = __shfl(coefficients[7], (order_number+7)%8, 8); 
+    coefficients[1] = __shfl(coefficients[1], (order_number+1)%8, 8);
+    coefficients[2] = __shfl(coefficients[2], (order_number+2)%8, 8);
+    coefficients[3] = __shfl(coefficients[3], (order_number+3)%8, 8);
+    coefficients[4] = __shfl(coefficients[4], (order_number+4)%8, 8);
+    coefficients[5] = __shfl(coefficients[5], (order_number+5)%8, 8);
+    coefficients[6] = __shfl(coefficients[6], (order_number+6)%8, 8);
+    coefficients[7] = __shfl(coefficients[7], (order_number+7)%8, 8);
 }
 
 __device__ inline void horizontal_rotate_8b(double coefficients[8], unsigned int order_number) {
-    coefficients[1] = __shfl(coefficients[1], (order_number+7)%8, 8); 
-    coefficients[2] = __shfl(coefficients[2], (order_number+6)%8, 8); 
-    coefficients[3] = __shfl(coefficients[3], (order_number+5)%8, 8); 
-    coefficients[4] = __shfl(coefficients[4], (order_number+4)%8, 8); 
-    coefficients[5] = __shfl(coefficients[5], (order_number+3)%8, 8); 
-    coefficients[6] = __shfl(coefficients[6], (order_number+2)%8, 8); 
-    coefficients[7] = __shfl(coefficients[7], (order_number+1)%8, 8); 
+    coefficients[1] = __shfl(coefficients[1], (order_number+7)%8, 8);
+    coefficients[2] = __shfl(coefficients[2], (order_number+6)%8, 8);
+    coefficients[3] = __shfl(coefficients[3], (order_number+5)%8, 8);
+    coefficients[4] = __shfl(coefficients[4], (order_number+4)%8, 8);
+    coefficients[5] = __shfl(coefficients[5], (order_number+3)%8, 8);
+    coefficients[6] = __shfl(coefficients[6], (order_number+2)%8, 8);
+    coefficients[7] = __shfl(coefficients[7], (order_number+1)%8, 8);
 }
 
 __device__ inline void vertical_rotate_8(double src[8], unsigned int order_number) {
@@ -355,7 +357,7 @@ __device__ inline void vertical_rotate_8(double src[8], unsigned int order_numbe
     src[3] = (order_number == 1) ? src[2] : src[3];
     src[2] = (order_number == 1) ? src[1] : src[2];
     src[1] = (order_number == 1) ? tmp    : src[1];
-    
+   
     src[1] = (order_number == 2) ? src[7] : src[1];
     src[0] = (order_number == 2) ? src[6] : src[0];
     src[7] = (order_number == 2) ? src[5] : src[7];
@@ -364,7 +366,7 @@ __device__ inline void vertical_rotate_8(double src[8], unsigned int order_numbe
     src[4] = (order_number == 2) ? src[2] : src[4];
     src[3] = (order_number == 2) ? src[1] : src[3];
     src[2] = (order_number == 2) ? tmp    : src[2];
-    
+   
     src[2] = (order_number == 3) ? src[7] : src[2];
     src[1] = (order_number == 3) ? src[6] : src[1];
     src[0] = (order_number == 3) ? src[5] : src[0];
@@ -373,7 +375,7 @@ __device__ inline void vertical_rotate_8(double src[8], unsigned int order_numbe
     src[5] = (order_number == 3) ? src[2] : src[5];
     src[4] = (order_number == 3) ? src[1] : src[4];
     src[3] = (order_number == 2) ? tmp    : src[3];
-    
+   
     src[3] = (order_number == 4) ? src[7] : src[3];
     src[2] = (order_number == 4) ? src[6] : src[2];
     src[1] = (order_number == 4) ? src[5] : src[1];
@@ -382,7 +384,7 @@ __device__ inline void vertical_rotate_8(double src[8], unsigned int order_numbe
     src[6] = (order_number == 4) ? src[2] : src[6];
     src[5] = (order_number == 4) ? src[1] : src[5];
     src[4] = (order_number == 4) ? tmp    : src[4];
-    
+   
     src[4] = (order_number == 5) ? src[7] : src[4];
     src[3] = (order_number == 5) ? src[6] : src[3];
     src[2] = (order_number == 5) ? src[5] : src[2];
@@ -391,7 +393,7 @@ __device__ inline void vertical_rotate_8(double src[8], unsigned int order_numbe
     src[7] = (order_number == 5) ? src[2] : src[7];
     src[6] = (order_number == 5) ? src[1] : src[6];
     src[5] = (order_number == 5) ? tmp    : src[5];
-    
+   
     src[5] = (order_number == 6) ? src[7] : src[5];
     src[4] = (order_number == 6) ? src[6] : src[4];
     src[3] = (order_number == 6) ? src[5] : src[3];
@@ -400,7 +402,7 @@ __device__ inline void vertical_rotate_8(double src[8], unsigned int order_numbe
     src[0] = (order_number == 6) ? src[2] : src[0];
     src[7] = (order_number == 6) ? src[1] : src[7];
     src[6] = (order_number == 6) ? tmp    : src[6];
-    
+   
     src[6] = (order_number == 7) ? src[7] : src[6];
     src[5] = (order_number == 7) ? src[6] : src[5];
     src[4] = (order_number == 7) ? src[5] : src[4];
@@ -413,7 +415,7 @@ __device__ inline void vertical_rotate_8(double src[8], unsigned int order_numbe
 
 
 __device__ inline void transpose8(double coefficients[8], int order_number) {
-    
+
     //printf("Original coefficients %d: %f, %f, %f, %f, %f, %f, %f, %f\n", order_number, coefficients[0], coefficients[1], coefficients[2], coefficients[3], coefficients[4], coefficients[5], coefficients[6], coefficients[7]);
     horizontal_rotate_8f(coefficients, order_number);
     vertical_rotate_8(coefficients, order_number);
@@ -424,12 +426,12 @@ __device__ inline void transpose8(double coefficients[8], int order_number) {
 
 /*
  *  Evaluates the polynomials using shuffle actions. This saves the shared_memory significantly and allows
- *  the increase of the occupancy of the devices. 
- * 
+ *  the increase of the occupancy of the devices.
+ *
  *  This function only needs blockDim.x * 8 bytes of shared memory. This allows the usage of any sized blocks
  *  that are practically useful.
- * 
- *  The number of arithmetic operations is larger than for the version using shared memory only, and thus 
+ *
+ *  The number of arithmetic operations is larger than for the version using shared memory only, and thus
  *  the effect to the execution speed remains to be seen.
  */
 __device__ inline double evaluate_polynomials_shuffle(const int address,
@@ -439,16 +441,16 @@ __device__ inline double evaluate_polynomials_shuffle(const int address,
     double *result = &shared_memory[0];
     //double coefficients[8];
     //double res;
-    
+   
     int remainder =  threadIdx.x%8;
     int base_address = 8*(threadIdx.x/8);
     double res;
-    
-    for (int i = 0; i < 8; i ++) { 
-        // evaluate the polynomials 
+   
+    for (int i = 0; i < 8; i ++) {
+        // evaluate the polynomials
         // NOTE: __shfl(address, i, width=8)  gets the address needed by the thread i/8 in the thread group
         // NOTE: __shfl(x, i, width = 8) gets the coordinate x of the thread i/8 in the thread group
-        // NOTE: the c access (global memory is coalesced), 
+        // NOTE: the c access (global memory is coalesced),
         // NOTE: shared memorybank conflict should not occur, as every thread in the 8 thread group access
         //       the same address, thus resulting in broadcast.
         //coefficients[i] = c[__shfl(address, i, 8) + remainder];
@@ -457,9 +459,9 @@ __device__ inline double evaluate_polynomials_shuffle(const int address,
                                     __shfl(x, i, 8));
         if (remainder == 0) result[base_address + i] = res;
     }
-    
-    
-    // swap the coefficients to be with their rightful owners 
+   
+   
+    // swap the coefficients to be with their rightful owners
     //transpose8(coefficients, remainder);
     return result[threadIdx.x];
     //return evaluate_polynomials_unit_register(coefficients, x, nlip);
@@ -471,8 +473,8 @@ __device__ inline double evaluate_polynomials_shuffle(const int address,
  * Get the thread-id within block.
  */
 __device__ inline int getThreadId() {
-    return   threadIdx.x  
-           + blockDim.x * threadIdx.y 
+    return   threadIdx.x 
+           + blockDim.x * threadIdx.y
            + blockDim.x * blockDim.y * threadIdx.z;
 }
 
@@ -2799,7 +2801,7 @@ double Bubble::integrate() {
         exit(-1);
     }
     
-    return  FOURPI_ * this->integrator->integrate(); // 
+    return  4.0 * M_PI * this->integrator->integrate(); // 
 }
 
 void Bubble::registerHost(double *f) {

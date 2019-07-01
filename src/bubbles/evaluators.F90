@@ -605,6 +605,7 @@ contains
         type(Interpolator1D)                 :: new
 
         integer(INT32)                       :: ncell
+        integer(INT32)                       :: i ! lnw: remove
 
         new%grid => grid
         new%nlip = new%grid%get_nlip()
@@ -623,18 +624,22 @@ contains
         end if
         new%lower_polynomial_coefficients = new%grid%lower_lip%coeffs(new%maximum_derivative_order)
         new%polynomial_coefficients = new%grid%lip%coeffs(new%maximum_derivative_order)
+
+do i=0, new%maximum_derivative_order
+  write(*,*) 'order: ', i, new%lower_polynomial_coefficients(i+1)%p(:,:)
+end do
     end function
 
     !> Interpolate at 'points', for 
     function Interpolator1D_eval_array(self, f_value_arrays, points) result(res)
         class(Interpolator1D), intent(in)  :: self
-        !> coordinates of points where f_vals is evaluated 
+        !> coordinates of points where f_vals is evaluated
         real(REAL64), intent(in)           :: f_value_arrays(:, :)
         real(REAL64), intent(in)           :: points(:)
         real(REAL64)                       :: res(size(points), self%maximum_derivative_order+1, &
                                                   size(f_value_arrays, 2))
-        integer(INT32)                     :: icell(size(points)), start(size(points))
-        real(REAL64)                       :: crd_cell(size(points)), h(size(points))
+        integer(INT32)                     :: icell, start
+        real(REAL64)                       :: crd_cell, h
         !! loop counters and size variables
         integer(INT32)                     :: ipoint, npoints, derivative_order, iarray
 
@@ -644,54 +649,52 @@ contains
         ! Iterate over points
 #ifdef HAVE_OMP
         !$OMP PARALLEL DO IF (npoints > 1000)
-#endif 
+#endif
         do ipoint=1, npoints
             ! Compute local cell coordinate
             ! Find the cell of the ith point
-            icell(ipoint) = self%grid%get_icell(points(ipoint)) ! FIXME why an array?  only the current value is ever used (lnw)
+            icell = self%grid%get_icell(points(ipoint))
 
-            if (icell(ipoint) == 1 .and. self%ignore_first) then
+            if (icell == 1 .and. self%ignore_first) then
                 ! Change of variable to cell coordinates
-                crd_cell(ipoint) = self%grid%x2cell(points(ipoint), icell(ipoint))
+                crd_cell = self%grid%x2cell(points(ipoint), icell)
 
                 ! get the cell step of the cell we are handling
-                h(ipoint)        = self%grid%get_cell_scale(icell(ipoint))
+                h        = self%grid%get_cell_scale(icell)
 
-                ! get the starting grid point index for the selected cell 
-                start(ipoint) = (icell(ipoint) - 1) * (self%nlip - 1) + 2
+                ! get the starting grid point index for the selected cell
+                start    = (icell - 1) * (self%nlip - 1) + 2 !  = 2
 
                 ! evaluate the derivatives for point ipoint
                 forall (derivative_order = 0 : self%maximum_derivative_order, iarray = 1 : size(f_value_arrays, 2))
                     ! Evaluate polynomials in cell coordinates
                     res(ipoint, derivative_order + 1, iarray) = sum(   &
-                            f_value_arrays(start(ipoint): start(ipoint) + (self%nlip - 2), iarray) &
-                            * eval_polys(self%lower_polynomial_coefficients(derivative_order+1)%p(:,:), crd_cell(ipoint) ) ) &
-                            * h(ipoint)**(-derivative_order)
-
+                            f_value_arrays(start: start + (self%nlip - 2), iarray) &
+                            * eval_polys(self%lower_polynomial_coefficients(derivative_order+1)%p(:,:), crd_cell) ) &
+                            * h**(-derivative_order)
                 end forall
-            else if (icell(ipoint) > 0) then
+
+            else if (icell > 0) then
                 ! Change of variable to cell coordinates
-                crd_cell(ipoint) = self%grid%x2cell(points(ipoint), icell(ipoint))
+                crd_cell = self%grid%x2cell(points(ipoint), icell)
 
                 ! get the cell step of the cell we are handling
-                h(ipoint)        = self%grid%get_cell_scale(icell(ipoint))
+                h        = self%grid%get_cell_scale(icell)
 
-                ! get the starting grid point index for the selected cell 
-                start(ipoint) = (icell(ipoint) - 1) * (self%nlip - 1) + 1
+                ! get the starting grid point index for the selected cell
+                start    = (icell - 1) * (self%nlip - 1) + 1
 
                 ! evaluate the derivatives for point ipoint
                 forall (derivative_order = 0 : self%maximum_derivative_order, iarray = 1 : size(f_value_arrays, 2))
                     ! Evaluate polynomials in cell coordinates
                     res(ipoint, derivative_order + 1, iarray) = sum(   &
-                            f_value_arrays(start(ipoint): start(ipoint) + (self%nlip - 1), iarray) &
-                            * eval_polys(self%polynomial_coefficients(derivative_order+1)%p(:,:), crd_cell(ipoint) ) ) &
-                            * h(ipoint)**(-derivative_order)
-
+                            f_value_arrays(start: start + (self%nlip - 1), iarray) &
+                            * eval_polys(self%polynomial_coefficients(derivative_order+1)%p(:,:), crd_cell) ) &
+                            * h**(-derivative_order)
                 end forall
             else
                 res(ipoint, :, :) = 0
             end if
-            
         end do
 #ifdef HAVE_OMP
         !$OMP END PARALLEL DO
@@ -700,11 +703,12 @@ contains
         return
     end function
 
+
     !> Interpolate at gridpoints belonging to cells that contain 'points' for all f_value_arrays
-    !! 
+    !!
     function Interpolator1D_eval_point_cells_array(self, f_value_arrays, points) result(res)
         class(Interpolator1D), intent(in), target  :: self
-        !> coordinates of points where f_vals is evaluated 
+        !> coordinates of points where f_vals is evaluated
         real(REAL64), intent(in)                   :: f_value_arrays(:, :)
         real(REAL64), intent(in)                   :: points(:)
         real(REAL64)                               :: res(size(f_value_arrays, 1), self%maximum_derivative_order+1, &
@@ -767,8 +771,8 @@ contains
         real(REAL64), intent(in)           :: points(:)
         real(REAL64), intent(in)           :: f_vals(self%grid_point_count)
         real(REAL64)                       :: res(size(points), self%maximum_derivative_order+1)
-        integer(INT32)                     :: icell(size(points)), start(size(points))
-        real(REAL64)                       :: crd_cell(size(points)), h(size(points))
+        integer(INT32)                     :: icell, start
+        real(REAL64)                       :: crd_cell, h
         !! loop counters and size variables
         integer(INT32)                     :: ipoint, npoints, derivative_order
 
@@ -782,46 +786,46 @@ contains
         do ipoint=1, npoints
             ! Compute local cell coordinate
             ! Find the cell of the ith point
-            icell(ipoint) = self%grid%get_icell(points(ipoint))
+            icell = self%grid%get_icell(points(ipoint))
             
-            if (icell(ipoint) > 0 .and. self%ignore_first) then
+            if (icell > 0 .and. self%ignore_first) then
 
                 ! Change of variable to cell coordinates
-                crd_cell(ipoint) = self%grid%x2cell(points(ipoint), icell(ipoint))
+                crd_cell = self%grid%x2cell(points(ipoint), icell)
 
                 ! get the cell step of the cell we are handling
-                h(ipoint)        = self%grid%get_cell_scale(icell(ipoint))
+                h        = self%grid%get_cell_scale(icell)
 
                 ! get the starting grid point index for the selected cell 
-                start(ipoint) = (icell(ipoint) - 1) * (self%nlip - 1) + 2
+                start    = (icell - 1) * (self%nlip - 1) + 2
 
                 ! evaluate the derivatives for point ipoint
                 forall (derivative_order = 0 : self%maximum_derivative_order)
                     ! Evaluate polynomials in cell coordinates
                     res(ipoint, derivative_order + 1) = sum(   &
-                            f_vals(start(ipoint): start(ipoint) + (self%nlip - 2)) &
-                            * eval_polys(self%lower_polynomial_coefficients(derivative_order+1)%p(:,:), crd_cell(ipoint) ) ) &
-                            * h(ipoint)**(-derivative_order)
+                            f_vals(start: start + (self%nlip - 2)) &
+                            * eval_polys(self%lower_polynomial_coefficients(derivative_order+1)%p(:,:), crd_cell) ) &
+                            * h**(-derivative_order)
                 end forall
 
-            else if (icell(ipoint) > 0) then
+            else if (icell > 0) then
 
                 ! Change of variable to cell coordinates
-                crd_cell(ipoint) = self%grid%x2cell(points(ipoint), icell(ipoint))
+                crd_cell = self%grid%x2cell(points(ipoint), icell)
 
                 ! get the cell step of the cell we are handling
-                h(ipoint)        = self%grid%get_cell_scale(icell(ipoint))
+                h        = self%grid%get_cell_scale(icell)
 
                 ! get the starting grid point index for the selected cell 
-                start(ipoint) = (icell(ipoint) - 1) * (self%nlip - 1) + 1
+                start    = (icell - 1) * (self%nlip - 1) + 1
 
                 ! evaluate the derivatives for point ipoint
                 forall (derivative_order = 0 : self%maximum_derivative_order)
                     ! Evaluate polynomials in cell coordinates
                     res(ipoint, derivative_order + 1) = sum(   &
-                            f_vals(start(ipoint): start(ipoint) + (self%nlip - 1)) &
-                            * eval_polys(self%polynomial_coefficients(derivative_order+1)%p(:,:), crd_cell(ipoint) ) ) &
-                            * h(ipoint)**(-derivative_order)
+                            f_vals(start: start + (self%nlip - 1)) &
+                            * eval_polys(self%polynomial_coefficients(derivative_order+1)%p(:,:), crd_cell) ) &
+                            * h**(-derivative_order)
                 end forall
             else
                 res(ipoint, :) = 0.0d0

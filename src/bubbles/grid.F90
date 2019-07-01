@@ -161,7 +161,8 @@ module Grid_class
         type(LIPBasis), public    :: lip
         !> A LIP of order `nlip-2`.
         type(LIPBasis), public    :: lower_lip
-        !> choice of grid type within each cell. 1 is equidistant, 2 is gauss-lobatto
+        !> choice of grid type within each cell. 1 is equidistant,
+        !                                        2 is Gauss-Lobatto
         integer(int32)            :: grid_type
         !> If grid is equidistant (ie, all cells have the same size)
         logical, public           :: equidistant_cells
@@ -316,7 +317,8 @@ module Grid_class
         type(LIPBasis), public       :: lip
         !> A LIP of order `nlip-2`.
         type(LIPBasis), public       :: lower_lip
-        !> choice of grid type within each cell. 1 is equidistant, 2 is gauss-lobatto
+        !> choice of grid type within each cell. 1 is equidistant,
+        !                                        2 is Gauss-Lobatto
         integer(int32)               :: grid_type
         !> Periodic boundary conditions.
         type(PBC)                    :: pbc
@@ -460,20 +462,28 @@ contains
         new%ndim  = new%ncell*(new%nlip-1) + 1
 
         allocate(new%cell_scales(new%ncell), source=0.0_REAL64)
-        allocate(new%cellen    (new%ncell), source=0.0_REAL64)
-        allocate(new%celld     (new%ncell), source=0.0_REAL64)
-        allocate(new%grid      (new%ndim),  source=0.0_REAL64)
+        allocate(new%cellen(new%ncell),      source=0.0_REAL64)
+        allocate(new%celld(new%ncell),       source=0.0_REAL64)
+        allocate(new%grid(new%ndim),         source=0.0_REAL64)
 
         new%qmin = qmin
         new%cell_scales = step
 
         new%lip=LIPBasisInit(new%nlip, grid_type)
-        new%lower_lip=LIPBasisInit(new%nlip-1, grid_type)
+        select case (grid_type)
+            case (1)
+                new%lower_lip=LIPBasisInit(new%nlip-1, gridtype=1) ! equidistant, but smaller
+            case (2)
+                new%lower_lip=LIPBasisInit(new%nlip-1, gridtype=3) ! special type
+            case default
+        end select
         new%grid_type = grid_type
+
+        ! write(*,*) 'lip ', new%lip%first, new%lip%last
+        ! write(*,*) 'lower_lip ', new%lower_lip%first, new%lower_lip%last
 
         allocate(grid_template(nlip-1))
         select case (grid_type)
-
             case (1) ! equidistant
                 do k=1, nlip-1
                     grid_template(k) = k
@@ -489,6 +499,8 @@ contains
 
             case default
         end select
+
+        write(*,*) 'grid_template: ', grid_template
 
         ! Grid points
         ipoint=1
@@ -656,7 +668,13 @@ contains
 
         new%nlip = nlip
         new%lip=LIPBasisInit(new%nlip, grid_type)
-        new%lower_lip=LIPBasisInit(new%nlip-1, grid_type)
+        select case (grid_type)
+            case (1)
+                new%lower_lip=LIPBasisInit(new%nlip-1, gridtype=1) ! equidistant, but smaller
+            case (2)
+                new%lower_lip=LIPBasisInit(new%nlip-1, gridtype=3) ! special type
+            case default
+        end select
         new%grid_type = grid_type
         allocate(new%axis(3))
         new%axis(1) = Grid1D(qmin(1), ncell(1), nlip, stepx, grid_type)
@@ -705,7 +723,13 @@ contains
 
         new%nlip = nlip
         new%lip=LIPBasisInit(new%nlip, grid_type)
-        new%lower_lip=LIPBasisInit(new%nlip-1, grid_type)
+        select case (grid_type)
+            case (1)
+                new%lower_lip=LIPBasisInit(new%nlip-1, gridtype=1) ! equidistant, but smaller
+            case (2)
+                new%lower_lip=LIPBasisInit(new%nlip-1, gridtype=3) ! special type
+            case default
+        end select
         new%grid_type = grid_type
         allocate(new%axis(3))
         do i=1, 3
@@ -747,7 +771,13 @@ contains
 
         new%nlip = nlip
         new%lip=LIPBasisInit(new%nlip, grid_type)
-        new%lower_lip=LIPBasisInit(new%nlip-1, grid_type)
+        select case (grid_type)
+            case (1)
+                new%lower_lip=LIPBasisInit(new%nlip-1, gridtype=1) ! equidistant, but smaller
+            case (2)
+                new%lower_lip=LIPBasisInit(new%nlip-1, gridtype=3) ! special type
+            case default
+        end select
         new%grid_type = grid_type
         allocate(new%axis(3))
 
@@ -800,7 +830,13 @@ contains
             new%nlip = NLIP_DEFAULT
         end if
         new%lip=LIPBasisInit(new%nlip, grid_type)
-        new%lower_lip=LIPBasisInit(new%nlip-1, grid_type)
+        select case (grid_type)
+            case (1)
+                new%lower_lip=LIPBasisInit(new%nlip-1, gridtype=1) ! equidistant, but smaller
+            case (2)
+                new%lower_lip=LIPBasisInit(new%nlip-1, gridtype=3) ! special type
+            case default
+        end select
         new%grid_type = grid_type
         allocate(new%axis(3))
         do i=1, 3
@@ -906,7 +942,13 @@ contains
         else
             new%nlip = nlip
             new%lip=LIPBasisInit(new%nlip, grid_type)
-            new%lower_lip=LIPBasisInit(new%nlip-1, grid_type)
+            select case (grid_type)
+                case (1)
+                    new%lower_lip=LIPBasisInit(new%nlip-1, gridtype=1) ! equidistant, but smaller
+                case (2)
+                    new%lower_lip=LIPBasisInit(new%nlip-1, gridtype=3) ! special type
+                case default
+            end select
             new%grid_type = grid_type
             new%id=next_grid_id()
             new%pbc=PBC("")
@@ -1418,7 +1460,13 @@ print *, 'xyzshape', nx, ny, nz ! remove, lnw
         ! the parameters that do not change upon slicing
         new%nlip = self%nlip
         new%lip=LIPBasisInit(new%nlip, self%grid_type)
-        new%lower_lip=LIPBasisInit(new%nlip-1, self%grid_type)
+        select case (self%grid_type)
+            case (1)
+                new%lower_lip=LIPBasisInit(new%nlip-1, gridtype=1) ! equidistant, but smaller
+            case (2)
+                new%lower_lip=LIPBasisInit(new%nlip-1, gridtype=3) ! special type
+            case default
+        end select
         new%pbc = self%pbc
         new%grid_type = self%grid_type
         allocate(new%axis(3))
@@ -1438,7 +1486,13 @@ print *, 'xyzshape', nx, ny, nz ! remove, lnw
         ! the parameters that do not change upon slicing
         new%nlip = self%nlip
         new%lip=LIPBasisInit(new%nlip, self%grid_type)
-        new%lower_lip=LIPBasisInit(new%nlip-1, self%grid_type)
+        select case (self%grid_type)
+            case (1)
+                new%lower_lip=LIPBasisInit(new%nlip-1, gridtype=1) ! equidistant, but smaller
+            case (2)
+                new%lower_lip=LIPBasisInit(new%nlip-1, gridtype=3) ! special type
+            case default
+        end select
         new%grid_type = self%grid_type
 
         ! parameters that have to be recalculated
