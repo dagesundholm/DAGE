@@ -625,9 +625,6 @@ contains
         new%lower_polynomial_coefficients = new%grid%lower_lip%coeffs(new%maximum_derivative_order)
         new%polynomial_coefficients = new%grid%lip%coeffs(new%maximum_derivative_order)
 
-do i=0, new%maximum_derivative_order
-  write(*,*) 'order: ', i, new%lower_polynomial_coefficients(i+1)%p(:,:)
-end do
     end function
 
     !> Interpolate at 'points', for 

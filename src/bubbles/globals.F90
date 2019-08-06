@@ -51,14 +51,17 @@ module globals_m
     integer, parameter :: SL_COORD=X_ ! Coordinate to slice: X for the moment
 
     ! math constants
-    real(REAL64), parameter :: PI=3.141592653589793D0
+    real(REAL64), parameter :: PI=dacos(-1.d0)
+    ! real(REAL64), parameter :: PI=3.141592653589793D0
     real(REAL64), parameter :: FOURPI=4.d0 * PI
-    !real(REAL64), parameter :: PI=atan(1.d0)*4.d0
-    real(REAL64), parameter :: PI_FAC=6.349363593424098D-002 ! (0.5/PI)**0.75
-    real(REAL64), parameter :: TWOOVERSQRTPI=1.1283791670955125739D0
-!    real(REAL64), parameter :: PI_INV=3.183098861837907D-001 ! 1/PI
+    real(REAL64), parameter :: SQRTPI=dsqrt(PI)
+    !real(REAL64), parameter :: PI_FAC=6.349363593424098D-002 ! (0.5/PI)**0.75
+    real(REAL64), parameter :: PI_FAC=(0.5d0/PI)**(0.75d0)
+    ! real(REAL64), parameter :: TWOOVERSQRTPI=1.1283791670955125739D0
+    real(REAL64), parameter :: TWOOVERSQRTPI=2.d0/SQRTPI
+    real(REAL64), parameter :: SQRTPIOVERTWO=SQRTPI/2.d0
     real(REAL64), parameter :: ZETA=0.5d0
-    real(REAL64), parameter :: LN2=LOG(2.0)
+    real(REAL64), parameter :: LN2=dlog(2.d0)
 
     ! physics constants
     real(REAL64), parameter :: C_AU = 137.035999139d0

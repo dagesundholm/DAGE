@@ -43,7 +43,7 @@ module Coulomb3D_class
     public :: Coulomb3D
     public    :: assignment(=)
 
-     !> Computes the electrostatic potential of Function3D in the output grid.
+    !> Computes the electrostatic potential of Function3D in the output grid.
     type, extends(Operator3D)        :: Coulomb3D
         logical, public              :: cut_end_borders(3)
         type(Function3D)             :: nuclear_potential
@@ -119,8 +119,8 @@ contains
         
 
 
-        real(REAL64),pointer                       :: tp(:), tw(:)
-        real(REAL64)                               :: tic, toc
+        real(REAL64), pointer                       :: tp(:), tw(:)
+        real(REAL64)                                :: tic, toc
         
 
         integer(INT32) :: sz, ip, i, ibub, j, k
@@ -162,7 +162,8 @@ contains
         self%nuclear_potential = Function3D(self%result_parallelization_info, type=F3D_TYPE_NUCP)
         self%nuclear_potential%bubbles =  self%get_potential_bubbles(bubbls)
         self%nuclear_potential%cube = 0.0d0
-        call self%nuclear_potential%precalculate_taylor_series_bubbles()
+        call self%nuclear_potential%precalculate_taylor_series_bubbles() ! calc taylor series + mem alloc
+
         self%cut_end_borders = .FALSE.
         self%suboperator = .FALSE.
 
@@ -186,8 +187,7 @@ contains
         !! given (see gaussquad)
         type(GaussQuad),     intent(in), optional   :: gauss
         type(Coulomb3D)                             :: new
-         
-        
+
 
         call new%init_explicit_sub(input_parallel_info, output_parallel_info, bubbls, gauss)
     end function
@@ -370,12 +370,15 @@ contains
 
         ! init new bubbles from the input_function bubbles with all bubbles present, 
         ! and set k of 'new' to -1 (values will be multiplied with r^-1 at evaluation)
-        diagonal_bubbles = Bubbles(lmax = lmax, centers = input_bubbles%get_global_centers(),&
+        diagonal_bubbles = Bubbles(lmax = lmax, &
+                                   centers = input_bubbles%get_global_centers(),&
                                    global_centers = input_bubbles%get_global_centers(), & 
                                    grids = input_bubbles%get_global_grid(), &
                                    global_grids = input_bubbles%get_global_grid(), &
-                                   z = input_bubbles%get_global_z(), global_z = input_bubbles%get_global_z(), &
-                                   k = -1, ibubs = [(i, i = 1, input_bubbles%get_nbub_global())], &
+                                   z = input_bubbles%get_global_z(),&
+                                   global_z = input_bubbles%get_global_z(), &
+                                   k = -1, &
+                                   ibubs = [(i, i = 1, input_bubbles%get_nbub_global())], &
                                    nbub_global = input_bubbles%get_nbub_global()) 
         diagonal_bubbles = 0.0d0
 
@@ -495,7 +498,7 @@ contains
         else
             gau=GaussQuad()
         end if
- 
+
         ! calculate the limits in the in cube (or in the f matrix of self)
         in_cube_limits(1, :) = (in_cell_limits(1, :) - (/1, 1, 1/)) * (self%gridin%get_nlip() - 1) + 1
         in_cube_limits(2, :) = (in_cell_limits(2, :)) * (self%gridin%get_nlip() - 1) + 1        
@@ -503,14 +506,14 @@ contains
         ! calculate the limits in the out cube (or in the f matrix of self)
         out_cube_limits(1, :) = (out_cell_limits(1, :) - (/1, 1, 1/)) * (self%gridout%get_nlip() - 1) + 1
         out_cube_limits(2, :) = (out_cell_limits(2, :)) * (self%gridout%get_nlip() - 1) + 1
-         
+
         ! set input and output grids         
         new%gridout => output_parallel_info%get_grid()
         new%gridin  => input_parallel_info%get_grid()
             
         ! get the shapes of the grids in gridpoints
-        grid_in_shape = new%gridin%get_shape()  
-        grid_out_shape = new%gridout%get_shape()  
+        grid_in_shape = new%gridin%get_shape()
+        grid_out_shape = new%gridout%get_shape()
 
         ! if the parallelization info was given in the initialization of the main operator use it
         ! in other cases the parallelization info of the input function3d is used

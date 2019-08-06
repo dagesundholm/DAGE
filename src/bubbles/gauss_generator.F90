@@ -94,7 +94,7 @@ module GaussGenerator_class
         !> Number of LIP points of the default generated grid.
         integer(int32)              :: nlip=7
         !> grid_type. 1: eq, 2: Gauss Lobatto
-        integer(int32)              :: grid_type = 1
+        integer(int32)              :: grid_type = 2
         !> Maximum value of each individual Gaussian shell at the edges
         !! of the default generated grid.
         real(REAL64)                :: thres=1.d-12
@@ -272,6 +272,7 @@ contains
         extent=sqrt( log(abs(self%q)*(self%alpha/PI)**1.5d0 / self%thres) / &
                       self%alpha )
 
+        write(*,*) 'using gridtype in slater-gen, used for cube '
         cubegrid=Grid3D(centers   = self%center, &
                         radii     = extent, &
                         step      = self%step, &
@@ -583,6 +584,7 @@ contains
 !        extent=[ (maxval(extent, mask=(self%ibub==i) ), i=1,size(self%z) )]
         extent=[ (EXT, i=1,size(self%q) )]
 
+        write(*,*) 'using gridtype in slater-gen, used for cube '
         cubegrid=Grid3D(centers   = self%center, &
                         radii     = extent, &
                         step      = self%step, &

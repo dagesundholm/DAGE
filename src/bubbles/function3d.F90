@@ -1125,7 +1125,7 @@ contains
         call bigben%split("Function3D product")
         dot_product_process = .FALSE.
         if (present(part_of_dot_product)) dot_product_process = part_of_dot_product
-        
+
         if (.not. allocated(new)) then
             allocate(Function3D :: new)
 
@@ -1279,7 +1279,6 @@ contains
             new%cube(:, :, :) = f_cube_pointer(:, :, :)
             call new%inject_bubbles_to_cube(f2%bubbles, factor = 1.0d0)
 
-
             new%cube = new%cube(:, :, :) * (self%cube(:, :, :)+self_inject(:, :, :))
             call bigben%stop()
 
@@ -1292,7 +1291,6 @@ contains
 
             call new%inject_bubbles_to_cube(new%bubbles, factor = -1.0d0)
             call bigben%stop()
-            
 #endif
             
         else
@@ -1305,6 +1303,7 @@ contains
 #endif
         call bigben%stop()
     end subroutine
+
 
     subroutine Function3D_precalculate_taylor_series_bubbles(self, taylor_order, ignore_cube, &
                                                              ignore_bubbles, non_overlapping)
@@ -1383,7 +1382,6 @@ contains
             !end if
         end if
         
-        
 
         if (allocated(self%bubbles_contaminants)) then
             bubbles_contaminants = self%bubbles_contaminants
@@ -1400,7 +1398,7 @@ contains
         if (ignore_bubbles_) bubbles_contaminants = 0.0d0
         
         taylor_series_bubbles = self%bubbles%make_taylor(bubbles_contaminants, cube_contaminants, &
-                                                         taylor_order_, non_overlapping_)  
+                                                         taylor_order_, non_overlapping_)
         deallocate(cube_contaminants)
         deallocate(bubbles_contaminants)
         call bigben%stop()
@@ -1436,9 +1434,6 @@ contains
                     taylor_series_bubbles2 = f2%get_taylor_series_bubbles()
                     taylor_pointer2 => taylor_series_bubbles2
                 end if
-            !    bubbles2 = f2%bubbles + taylor_pointer2
-            !else
-            !    bubbles2 = f2%bubbles
             end if
 
             ! If f2 is cuspy, do Taylor expansion for self
@@ -1450,9 +1445,6 @@ contains
                     taylor_series_bubbles1 = self%get_taylor_series_bubbles()
                     taylor_pointer1 => taylor_series_bubbles1
                 end if
-            !    bubbles1 = self%bubbles + taylor_pointer1
-            !else
-            !    bubbles1 = self%bubbles
             end if
 #ifdef HAVE_CUDA_PROFILING
             call stop_nvtx_timing()
@@ -1461,7 +1453,6 @@ contains
             !result_bubbles = bubbles1 * bubbles2
             call bubbles_multipliers%multiply(self%bubbles, f2%bubbles, &
                           result_bubbles, taylor_pointer1, taylor_pointer2)
-
             
             call taylor_series_bubbles1%destroy()
             call taylor_series_bubbles2%destroy()
@@ -1470,8 +1461,8 @@ contains
             nullify(taylor_pointer1)
             nullify(taylor_pointer2)
         end if
-
     end subroutine
+
 
     !> Inner product
     !! \f$ \int_{\mathbb{R}^3} f_1(\mathbf{r}) f_2(\mathbf{r}) \mathrm{d}^3r\f$
@@ -1509,6 +1500,7 @@ contains
 
         type(BubblesMultiplier), pointer :: bubbles_multiplier
         type(Function3D), allocatable    :: temp
+
         !call bigben%split("Dot product")
         call self%multiply_sub(f2, temp, part_of_dot_product = .TRUE.)
 #ifdef HAVE_CUDA_PROFILING
@@ -2832,6 +2824,7 @@ contains
                                               derivative_y%cube, derivative_z%cube, &
                                               input_function%grid, result_points, &
                                               derivative_points_x, derivative_points_y, derivative_points_z)
+
         else
             
             if (.not. ignore_bubbles_) call self%bubbles_evaluator%evaluate_points(input_function%bubbles, &
@@ -2869,7 +2862,7 @@ contains
         if (.not. ignore_bubbles_ .and. .not. ignore_cube_ ) then
             call result_points%add_in_place(bubbles_result_points)
             call bubbles_result_points%destroy()
-         end if
+        end if
     end subroutine
 
     subroutine Function3DEvaluator_evaluate_grid(self, input_function, result_cube, derivative_x, derivative_y, derivative_z, &
@@ -3102,6 +3095,9 @@ contains
     end function
 
 
+    ! we input cubes containing derivatives and output Points that are evaluated
+    ! in those cubes, but without derivatives because the input is already the
+    ! derivatives
     subroutine CubeEvaluator_evaluate_points_from_cubes(self, input_function_cube, &
                   derivative_x, derivative_y, derivative_z, input_grid, output_points, &
                   output_derivative_x_points, output_derivative_y_points, &
@@ -3125,12 +3121,11 @@ contains
         real(REAL64), allocatable                   :: temp_array(:, :)      
         type(Grid1DPointer)                         :: grid1d_pointers(3)
 #endif                      
-        
+
 #ifdef HAVE_CUDA
 
         call self%set_output_points(output_points)
 
-        
         ! NOTE: downloading from cuda cube is asynchronous, thus the synchronization is required
         ! evaluate the input function cube at points
         call self%set_input_cube(input_function_cube, input_grid)
@@ -3151,7 +3146,6 @@ contains
         call self%set_input_cube(derivative_z, input_grid)
         call self%cuda_evaluate_points_without_gradients(output_derivative_z_points)
         call CUDASync_all()
-        
 
 #else
         grid1d_pointers(X_)%p => input_grid%axis(X_)
@@ -3248,7 +3242,7 @@ contains
         real(REAL64), allocatable                   :: temp_array(:, :)    
         type(Grid1DPointer)                         :: grid1d_pointers(3)
 #endif                      
-        
+
 #ifdef HAVE_CUDA
         
         
@@ -3332,6 +3326,7 @@ contains
         
 #endif
     end subroutine
+
 
     subroutine CubeEvaluator_evaluate_grid(self, input_function_cube, input_grid, output_function_cube, &
                    output_derivative_x_cube, output_derivative_y_cube, output_derivative_z_cube)
@@ -4186,7 +4181,6 @@ contains
         real(REAL64), allocatable     :: tmp_u(:,:,:)
         
 #endif
-        
 
         ! dims: number of grid points per each axis 
         dims=self%get_dims()

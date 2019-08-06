@@ -39,7 +39,7 @@
 extern __shared__ double shared_memory[];
 
 /*
- * NOTE: this method assumes that the grid is equidistant (in the sense that all cells are equal)
+ * NOTE: this method assumes that the grid is equidistant (in the sense that all cells have equal length)
  */
 template <int nlip>
 __device__ inline
@@ -57,7 +57,6 @@ void calculate_icell_equidistant(const Grid1D *grid,
     if (coordinate - start < 0.0) icell = -1;
     double cell_center =  start + ((double)icell + 0.5) * cell_length;
     in_cell_coordinate = (coordinate - cell_center) * one_per_grid_step;
-
 }
 
 /*
@@ -277,9 +276,9 @@ CubeEvaluator_evaluate_points(const double* __restrict__ device_cube,
     if (id + device_point_offset < device_number_of_points && id < point_count ) {
         // get the cell indices and coordinates within cell in grid steps
         calculate_icell_equidistant<NLIP>(
-            grid->axis[X_], points[id + device_point_offset], icell_x, in_cell_coordinate_x, one_per_grid_step_x);
+            grid->axis[X_], points[id + device_point_offset],                             icell_x, in_cell_coordinate_x, one_per_grid_step_x);
         calculate_icell_equidistant<NLIP>(
-            grid->axis[Y_], points[id + device_point_offset + device_number_of_points], icell_y, in_cell_coordinate_y, one_per_grid_step_y);
+            grid->axis[Y_], points[id + device_point_offset + device_number_of_points],   icell_y, in_cell_coordinate_y, one_per_grid_step_y);
         calculate_icell_equidistant<NLIP>(
             grid->axis[Z_], points[id + device_point_offset + device_number_of_points*2], icell_z, in_cell_coordinate_z, one_per_grid_step_z);
     }
@@ -297,7 +296,6 @@ CubeEvaluator_evaluate_points(const double* __restrict__ device_cube,
     }
 
     // read the LIPs in the shared memory
-
     __shared__ double lip[NLIP * NLIP];
     read_lip<NLIP, NLIP>(grid->axis[X_]->lip, threadIdx.x, lip);
 
@@ -717,7 +715,7 @@ __device__ __forceinline__
 double evaluate_derivative(const int current_id,
                            const int previous_id1, const int previous_id2, const int previous_id3, const int previous_id4, const int previous_id5, const int previous_id6,
                            const int next_id1, const int next_id2, const int next_id3, const int next_id4, const int next_id5, const int next_id6,
-                           const double* __restrict__ device_cube, const int fin_diff_order, const int grid_type, const int local_pos, const double h) {
+                           const double* __restrict__ device_cube, const int fin_diff_order, const int grid_type, const int local_pos, const double h){
     if (current_id == -1) return 0.0;
 
     // printf("xy: %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i\n",  previous_id6, previous_id5, previous_id4, previous_id3, previous_id2, previous_id1, next_id1, next_id2, next_id3, next_id4, next_id5, next_id6);
@@ -728,48 +726,42 @@ double evaluate_derivative(const int current_id,
     if (previous_id1 > -1) previous_value1 = __ldg(&device_cube[previous_id1]);
     if (current_id > -1)   current_value   = __ldg(&device_cube[current_id]);
     if (next_id1 > -1)     next_value1     = __ldg(&device_cube[next_id1]);
-    if (fin_diff_order >= 5){
+    if (fin_diff_order >= 3){
         if (previous_id2 > -1) previous_value2 = __ldg(&device_cube[previous_id2]);
         if (next_id2 > -1)     next_value2     = __ldg(&device_cube[next_id2]);
     }
-    if (fin_diff_order >= 7){
+    if (fin_diff_order >= 4){
         if (previous_id3 > -1) previous_value3 = __ldg(&device_cube[previous_id3]);
         if (next_id3 > -1)     next_value3     = __ldg(&device_cube[next_id3]);
     }
-    if (fin_diff_order >= 9){
+    if (fin_diff_order >= 5){
         if (previous_id4 > -1) previous_value4 = __ldg(&device_cube[previous_id4]);
         if (next_id4 > -1)     next_value4     = __ldg(&device_cube[next_id4]);
     }
-    if (fin_diff_order >= 11){
+    if (fin_diff_order >= 6){
         if (next_id5 > -1)     next_value5     = __ldg(&device_cube[next_id5]);
         if (previous_id5 > -1) previous_value5 = __ldg(&device_cube[previous_id5]);
     }
-    if (fin_diff_order >= 13){
+    if (fin_diff_order >= 7){
         if (previous_id6 > -1) previous_value6 = __ldg(&device_cube[previous_id6]);
         if (next_id6 > -1)     next_value6     = __ldg(&device_cube[next_id6]);
     }
 
-
     if(grid_type == 1){ // equidistant
 #if 1
         if ( fin_diff_order >= 11 && previous_id1 > -1 && next_id1 > -1 && previous_id2 > -1 && next_id2 > -1 && previous_id3 > -1 && next_id3 > -1 && previous_id4 > -1 && next_id4 > -1 && previous_id5 > -1 && next_id5 > -1 ) { // x x x x x o x x x x x
-            // printf("xy, 11p\n");
             return (-1.0 * previous_value5 + 12.5 * previous_value4 - 75.0 * previous_value3 + 300.0 * previous_value2 - 1050.0 * previous_value1 + 1050.0 * next_value1 - 300.0 * next_value2 + 75.0 * next_value3 - 12.5 * next_value4 + 1.0 * next_value5) / (1260.0*h);
         }
         else if ( fin_diff_order >= 9 && previous_id1 > -1 && next_id1 > -1 && previous_id2 > -1 && next_id2 > -1 && previous_id3 > -1 && next_id3 > -1 && previous_id4 > -1 && next_id4 > -1 ) { // x x x x o x x x x
-            // printf("xy, 9p\n");
             return (3.0 * previous_value4 - 32.0 * previous_value3 + 168.0 * previous_value2 - 672.0 * previous_value1 + 672.0 * next_value1 - 168.0 * next_value2 + 32.0 * next_value3 - 3.0 * next_value4 ) / (840.0*h);
         }
         else if ( fin_diff_order >= 7 && previous_id1 > -1 && next_id1 > -1 && previous_id2 > -1 && next_id2 > -1 && previous_id3 > -1 && next_id3 > -1 ) { // x x x o x x x
-            // printf("xy, 7p\n");
             return (-1.0 * previous_value3 + 9.0 * previous_value2 - 45.0 * previous_value1 + 45.0 * next_value1 - 9.0 * next_value2 + 1.0 * next_value3) / (60.0*h);
         }
         else if ( fin_diff_order >= 5 && previous_id1 > -1 && next_id1 > -1 && previous_id2 > -1 && next_id2 > -1 ) { // x x o x x
-            // printf("xy, 5p\n");
             return (-1.0 * next_value2 + 8.0 * next_value1 - 8.0 * previous_value1 + previous_value2) / (12.0*h);
         }
         else if ( previous_id1 > -1 && next_id1 > -1 ) { // x o x
-            // printf("xy, 3p\n");
             return (next_value1 - previous_value1) / (2.0 * h);
         }
         else if ( next_id1 > -1 && next_id2 > -1 ) { // o x x
@@ -850,49 +842,56 @@ double evaluate_derivative(const int current_id,
         else if (fin_diff_order == 7){
         
             if ( previous_id3 > -1 && previous_id2 > -1 && previous_id1 > -1 && next_id1 > -1 && next_id2 > -1 && next_id3 > -1 ){
-			  // some of the following 7 rules are slightly subobtimal in the
-			  // sense that an asymmetric choice of points would have a smaller
-			  // error, but the problem is small and this is easier
-              // {-0.104166666667,   0.302514823756,  -0.668989746863, 0,               0.668989746863, -0.302514823756,  0.104166666667}
-              // {-0.00832295173252, 0.0549857889581, -0.308223373129, -0.702495577585, 1.89978168681,  -1.17161898258,   0.235893409259}
-              // {-0.0014698486431,  0.0193439369289, -0.231190709888, -1.84012169934,  2.5886815899,   -0.552355362652,  0.017112093698}
-              // {-0.00194396911544, 0.0497395221528, -1.1258469276,   0,               1.1258469276,   -0.0497395221528, 0.00194396911544}
-              // {-0.017112093698,   0.552355362652,  -2.5886815899,   1.84012169934,   0.231190709888, -0.0193439369289, 0.0014698486431}
-              // {-0.235893409259,   1.17161898258,   -1.89978168681,  0.702495577585,  0.308223373129, -0.0549857889581, 0.00832295173252}
-              // {-0.104166666667,   0.302514823756,  -0.668989746863, 0,               0.668989746863, -0.302514823756,  0.104166666667}
+                // some of the following 7 rules are slightly subobtimal in the
+                // sense that an asymmetric choice of points would have a smaller
+                // error, but the problem is small and this is easier
+                // generated using https://github.com/lnw/finite-diff-weights
+                // assuming a the lobatto grid with points {-3,-2.4906716888357,-1.40654638041214,0,1.40654638041214,2.4906716888357,3}
+                // centre at pos 0: {-0.00194396911544, 0.0497395221528, -1.1258469276,   0,               1.1258469276,   -0.0497395221528, 0.00194396911544}
+                // centre at pos 1: {-0.017112093698,   0.552355362652,  -2.5886815899,   1.84012169934,   0.231190709888, -0.0193439369289, 0.0014698486431}
+                // centre at pos 2: {-0.235893409259,   1.17161898258,   -1.89978168681,  0.702495577585,  0.308223373129, -0.0549857889581, 0.00832295173252}
+                // centre at pos 3: {-0.104166666667,   0.302514823756,  -0.668989746863, 0,               0.668989746863, -0.302514823756,  0.104166666667}
+                // centre at pos 4: {-0.00832295173252, 0.0549857889581, -0.308223373129, -0.702495577585, 1.89978168681,  -1.17161898258,   0.235893409259}
+                // centre at pos 5: {-0.0014698486431,  0.0193439369289, -0.231190709888, -1.84012169934,  2.5886815899,   -0.552355362652,  0.017112093698}
+                // centre at pos 6: {-0.00194396911544, 0.0497395221528, -1.1258469276,   0,               1.1258469276,   -0.0497395221528, 0.00194396911544}
+
                 switch(local_pos){
                     case(0):
-                        return ( -0.104166666667   * previous_value3 + 0.302514823756  * previous_value2 + -0.668989746863 * previous_value1 + 0               * current_value + 0.668989746863 * next_value1 + -0.302514823756  * next_value2 + 0.104166666667   * next_value3 )/h;
-                    case(1):
-                        return ( -0.00832295173252 * previous_value3 + 0.0549857889581 * previous_value2 + -0.308223373129 * previous_value1 + -0.702495577585 * current_value + 1.89978168681  * next_value1 + -1.17161898258   * next_value2 + 0.235893409259   * next_value3 )/h;
-                    case(2):
-                        return ( -0.0014698486431  * previous_value3 + 0.0193439369289 * previous_value2 + -0.231190709888 * previous_value1 + -1.84012169934  * current_value + 2.5886815899   * next_value1 + -0.552355362652  * next_value2 + 0.017112093698   * next_value3 )/h;
-                    case(3):
                         return ( -0.00194396911544 * previous_value3 + 0.0497395221528 * previous_value2 + -1.1258469276   * previous_value1 + 0               * current_value + 1.1258469276   * next_value1 + -0.0497395221528 * next_value2 + 0.00194396911544 * next_value3 )/h;
-                    case(4):
+                    case(1):
                         return ( -0.017112093698   * previous_value3 + 0.552355362652  * previous_value2 + -2.5886815899   * previous_value1 + 1.84012169934   * current_value + 0.231190709888 * next_value1 + -0.0193439369289 * next_value2 + 0.0014698486431  * next_value3 )/h;
-                    case(5):
+                    case(2):
                         return ( -0.235893409259   * previous_value3 + 1.17161898258   * previous_value2 + -1.89978168681  * previous_value1 + 0.702495577585  * current_value + 0.308223373129 * next_value1 + -0.0549857889581 * next_value2 + 0.00832295173252 * next_value3 )/h;
+                    case(3):
+                        return ( -0.104166666667   * previous_value3 + 0.302514823756  * previous_value2 + -0.668989746863 * previous_value1 + 0               * current_value + 0.668989746863 * next_value1 + -0.302514823756  * next_value2 + 0.104166666667   * next_value3 )/h;
+                    case(4):
+                        return ( -0.00832295173252 * previous_value3 + 0.0549857889581 * previous_value2 + -0.308223373129 * previous_value1 + -0.702495577585 * current_value + 1.89978168681  * next_value1 + -1.17161898258   * next_value2 + 0.235893409259   * next_value3 )/h;
+                    case(5):
+                        return ( -0.0014698486431  * previous_value3 + 0.0193439369289 * previous_value2 + -0.231190709888 * previous_value1 + -1.84012169934  * current_value + 2.5886815899   * next_value1 + -0.552355362652  * next_value2 + 0.017112093698   * next_value3 )/h;
                 }
             }
-            // {-3.5,            4.73385886764,   -1.88966174185, 1.06666666667,   -0.683321604359, 0.439124478567,  -0.166666666667}
-            // {-0.814308671415, 0,               1.1519427381,   -0.532868896033, 0.320446599096,  -0.200749059879, 0.0755372901318}
-            // {0.208418888505,  -0.738601427723, 0,              0.755566029029,  -0.355480634669, 0.205463611839,  -0.0753664669809}
+            // generated using https://github.com/lnw/finite-diff-weights
+            // assuming a the lobatto grid with points {-3,-2.4906716888357,-1.40654638041214,0,1.40654638041214,2.4906716888357,3}
+            // centre at pos 0: {-3.5,            4.73385886764,   -1.88966174185, 1.06666666667,   -0.683321604359, 0.439124478567,  -0.166666666667}
+            // centre at pos 1: {-0.814308671415, 0,               1.1519427381,   -0.532868896033, 0.320446599096,  -0.200749059879, 0.0755372901318}
+            // centre at pos 2: {0.208418888505,  -0.738601427723, 0,              0.755566029029,  -0.355480634669, 0.205463611839,  -0.0753664669809}
             else if (previous_id1 == -1)
-                return ( -3.5             * current_value   + 4.73385886764   * next_value1     + -1.88966174185 * next_value2   + 1.06666666667   * next_value3 + -0.683321604359 * next_value4 + 0.439124478567  * next_value5 + -0.166666666667  * next_value6)/h;
+                return ( -3.5            * current_value   + 4.73385886764   * next_value1     + -1.88966174185 * next_value2   + 1.06666666667   * next_value3 + -0.683321604359 * next_value4 + 0.439124478567  * next_value5 + -0.166666666667  * next_value6)/h;
             else if (previous_id2 == -1)
-                return ( -0.814308671415  * previous_value1 + 0.0             * current_value   + 1.1519427381   * next_value1   + -0.532868896033 * next_value2 + 0.320446599096  * next_value3 + -0.200749059879 * next_value4 + 0.0755372901318  * next_value5)/h;
+                return ( -0.814308671415 * previous_value1 + 0               * current_value   + 1.1519427381   * next_value1   + -0.532868896033 * next_value2 + 0.320446599096  * next_value3 + -0.200749059879 * next_value4 +  0.0755372901318 * next_value5)/h;
             else if (previous_id3 == -1)
-                return ( 0.208418888505   * previous_value2 + -0.738601427723 * previous_value1 + 0.0            * current_value + 0.755566029029  * next_value1 + -0.355480634669 * next_value2 + 0.205463611839  * next_value3 + -0.0753664669809 * next_value4)/h;
-            // {0.0753664669809,  -0.205463611839, 0.355480634669,  -0.755566029029, 0,             0.738601427723, -0.208418888505}
-            // {-0.0755372901318, 0.200749059879,  -0.320446599096, 0.532868896033,  -1.1519427381, 0,              0.814308671415}
-            // {0.166666666667,   -0.439124478567, 0.683321604359,  -1.06666666667,  1.88966174185, -4.73385886764, 3.5}
-            else if (next_id3 == -1)
-                return ( 0.0753664669809  * previous_value4 + -0.205463611839 * previous_value3 + 0.355480634669  * previous_value2 + -0.755566029029 * previous_value1 + 0.0             * current_value   + 0.738601427723  * next_value1     + -0.208418888505  * next_value2)/h;
-            else if (next_id2 == -1)
-                return ( -0.0755372901318 * previous_value5 + 0.200749059879  * previous_value4 + -0.320446599096 * previous_value3 + 0.532868896033  * previous_value2 + -1.1519427381   * previous_value1 + 0.0             * current_value   + 0.814308671415   * next_value1)/h;
+                return ( 0.208418888505  * previous_value2 + -0.738601427723 * previous_value1 + 0              * current_value + 0.755566029029  * next_value1 + -0.355480634669 * next_value2 + 0.205463611839  * next_value3 + -0.0753664669809 * next_value4)/h;
+            // generated using https://github.com/lnw/finite-diff-weights
+            // assuming a the lobatto grid with points {-3,-2.4906716888357,-1.40654638041214,0,1.40654638041214,2.4906716888357,3}
+            // centre at pos 4: {0.0753664669809,  -0.205463611839, 0.355480634669,  -0.755566029029, 0,             0.738601427723, -0.208418888505}
+            // centre at pos 5: {-0.0755372901318, 0.200749059879,  -0.320446599096, 0.532868896033,  -1.1519427381, 0,              0.814308671415}
+            // centre at pos 6: {0.166666666667,   -0.439124478567, 0.683321604359,  -1.06666666667,  1.88966174185, -4.73385886764, 3.5}
             else if (next_id1 == -1)
-                return ( 0.166666666667   * previous_value6 + -0.439124478567 * previous_value5 + 0.683321604359  * previous_value4 + -1.06666666667  * previous_value3 + 1.88966174185   * previous_value2 + -4.73385886764  * previous_value1 + 3.5              * current_value)/h;
+                return ( 0.166666666667   * previous_value6 + -0.439124478567 * previous_value5 + 0.683321604359  * previous_value4 + -1.06666666667  * previous_value3 + 1.88966174185 * previous_value2 + -4.73385886764 * previous_value1 + 3.5             * current_value)/h;
+            else if (next_id2 == -1)
+                return ( -0.0755372901318 * previous_value5 + 0.200749059879  * previous_value4 + -0.320446599096 * previous_value3 +  0.532868896033 * previous_value2 + -1.1519427381 * previous_value1 + 0              * current_value   + 0.814308671415  * next_value1)/h;
+            else if (next_id3 == -1)
+                return (  0.0753664669809 * previous_value4 + -0.205463611839 * previous_value3 + 0.355480634669  * previous_value2 + -0.755566029029 * previous_value1 + 0             * current_value   + 0.738601427723 * next_value1     + -0.208418888505 * next_value2)/h;
 
         }
 
@@ -945,8 +944,6 @@ CubeEvaluator_evaluate_simple_grid_gradients(
     int id = getCubeOffset3D(x, y, z+slice_offset, device_pitch, device_shape_y);
     int local_id = getCubeOffset3D(x, y, z+device_slice_offset, device_pitch, device_shape_y);
 
-    // printf("x: %i, y: %i, z: %i, h_x: %f, slice_count:%d, slice_offset:%d \n", x, y, z, h_x, slice_count, device_slice_offset);
-
     bool valid_point =     x >= 0
                         && y >= 0
                         && z+slice_offset >= 0
@@ -961,62 +958,63 @@ CubeEvaluator_evaluate_simple_grid_gradients(
 	// finite diff weights.
     const int local_pos_x = x%(NLIP-1);
     const int local_pos_y = y%(NLIP-1);
-    const int local_pos_z = z%(NLIP-1);
+    const int local_pos_z = (z+slice_offset)%(NLIP-1);
+
 
     // evaluate gradient to z direction
     if (evaluate_gradients_z) {
         int previous_id1 = -1, previous_id2 = -1, previous_id3 = -1, previous_id4 = -1, previous_id5 = -1, previous_id6 = -1,
             next_id1 = -1, next_id2 = -1, next_id3 = -1, next_id4 = -1, next_id5 = -1, next_id6 = -1;
-        if (fin_diff_order >= 3 && z + slice_offset -1 >= 0) {
+        if (/*fin_diff_order >= 3 &&*/ z + slice_offset -1 >= 0) {
             previous_id1 = getCubeOffset3D(x, y, z+slice_offset-1, device_pitch, device_shape_y);
         }
 
-        if (fin_diff_order >= 3 && z + slice_offset +1 < grid->shape[Z_]) {
+        if (/*fin_diff_order >= 3 &&*/ z + slice_offset +1 < grid->shape[Z_]) {
             next_id1 = getCubeOffset3D(x, y, z+slice_offset+1, device_pitch, device_shape_y);
         }
 
-        if (fin_diff_order >= 3 && z + slice_offset -2 >= 0) {
+        if (/*fin_diff_order >= 3 &&*/ z + slice_offset -2 >= 0) {
             previous_id2 = getCubeOffset3D(x, y, z+slice_offset-2, device_pitch, device_shape_y);
         }
 
-        if (fin_diff_order >= 3 && z + slice_offset +2 < grid->shape[Z_]) {
+        if (/*fin_diff_order >= 3 &&*/ z + slice_offset +2 < grid->shape[Z_]) {
             next_id2 = getCubeOffset3D(x, y, z+slice_offset+2, device_pitch, device_shape_y);
         }
 
-        if (fin_diff_order >= 5 && z + slice_offset -3 >= 0) {
+        if (/*fin_diff_order >= 5 &&*/ z + slice_offset -3 >= 0) {
             previous_id3 = getCubeOffset3D(x, y, z+slice_offset-3, device_pitch, device_shape_y);
         }
 
-        if (fin_diff_order >= 5 && z + slice_offset +3 < grid->shape[Z_]) {
+        if (/*fin_diff_order >= 5 &&*/ z + slice_offset +3 < grid->shape[Z_]) {
             next_id3 = getCubeOffset3D(x, y, z+slice_offset+3, device_pitch, device_shape_y);
         }
 
-        if (fin_diff_order >= 7 && z + slice_offset -4 >= 0) {
+        if (/*fin_diff_order >= 7 &&*/ z + slice_offset -4 >= 0) {
             previous_id4 = getCubeOffset3D(x, y, z+slice_offset-4, device_pitch, device_shape_y);
         }
 
-        if (fin_diff_order >= 7 && z + slice_offset +4 < grid->shape[Z_]) {
+        if (/*fin_diff_order >= 7 &&*/ z + slice_offset +4 < grid->shape[Z_]) {
             next_id4 = getCubeOffset3D(x, y, z+slice_offset+4, device_pitch, device_shape_y);
         }
 
-        if (fin_diff_order >= 9 && z + slice_offset -5 >= 0) {
+        if (/*fin_diff_order >= 7 &&*/ z + slice_offset -5 >= 0) {
             previous_id5 = getCubeOffset3D(x, y, z+slice_offset-5, device_pitch, device_shape_y);
         }
 
-        if (fin_diff_order >= 9 && z + slice_offset +5 < grid->shape[Z_]) {
+        if (/*fin_diff_order >= 7 &&*/ z + slice_offset +5 < grid->shape[Z_]) {
             next_id5 = getCubeOffset3D(x, y, z+slice_offset+5, device_pitch, device_shape_y);
         }
 
-        if (fin_diff_order >= 11 && z + slice_offset -6 >= 0) {
+        if (/*fin_diff_order >= 7 &&*/ z + slice_offset -6 >= 0) {
             previous_id6 = getCubeOffset3D(x, y, z+slice_offset-6, device_pitch, device_shape_y);
         }
 
-        if (fin_diff_order >= 11 && z + slice_offset +6 < grid->shape[Z_]) {
+        if (/*fin_diff_order >= 7 &&*/ z + slice_offset +6 < grid->shape[Z_]) {
             next_id6 = getCubeOffset3D(x, y, z+slice_offset+6, device_pitch, device_shape_y);
         }
-        double value = evaluate_derivative(id, previous_id1, previous_id2, previous_id3, previous_id4, previous_id5, previous_id6,
-                                             next_id1, next_id2, next_id3, next_id4, next_id5, next_id6,
-                                             device_cube, fin_diff_order, gridtype_z, local_pos_z, h_z);
+        const double value = evaluate_derivative(id, previous_id1, previous_id2, previous_id3, previous_id4, previous_id5, previous_id6,
+                                                 next_id1, next_id2, next_id3, next_id4, next_id5, next_id6,
+                                                 device_cube, fin_diff_order, gridtype_z, local_pos_z, h_z);
         if (valid_point) device_gradients_z[local_id] = multiplier * value;
     }
 
@@ -1044,36 +1042,36 @@ CubeEvaluator_evaluate_simple_grid_gradients(
             previous_id3 = getCubeOffset3D(x, y-3, z+slice_offset, device_pitch, device_shape_y);
         }
 
-        if (fin_diff_order >= 5 && y + 3 < grid->shape[Y_]) {
+        if (/*fin_diff_order >= 5 &&*/ y + 3 < grid->shape[Y_]) {
             next_id3 = getCubeOffset3D(x, y+3, z+slice_offset, device_pitch, device_shape_y);
         }
 
-        if (fin_diff_order >= 7 && y - 4 >= 0) {
+        if (/*fin_diff_order >= 7 &&*/ y - 4 >= 0) {
             previous_id4 = getCubeOffset3D(x, y-4, z+slice_offset, device_pitch, device_shape_y);
         }
 
-        if (fin_diff_order >= 7 && y + 4 < grid->shape[Y_]) {
+        if (/*fin_diff_order >= 7 &&*/ y + 4 < grid->shape[Y_]) {
             next_id4 = getCubeOffset3D(x, y+4, z+slice_offset, device_pitch, device_shape_y);
         }
 
-        if (fin_diff_order >= 9 && y - 5 >= 0) {
+        if (/*fin_diff_order >= 7 &&*/ y - 5 >= 0) {
             previous_id5 = getCubeOffset3D(x, y-5, z+slice_offset, device_pitch, device_shape_y);
         }
 
-        if (fin_diff_order >= 9 && y + 5 < grid->shape[Y_]) {
+        if (/*fin_diff_order >= 7 &&*/ y + 5 < grid->shape[Y_]) {
             next_id5 = getCubeOffset3D(x, y+5, z+slice_offset, device_pitch, device_shape_y);
         }
 
-        if (fin_diff_order >= 11 && y - 6 >= 0) {
+        if (/*fin_diff_order >= 7 &&*/ y - 6 >= 0) {
             previous_id6 = getCubeOffset3D(x, y-6, z+slice_offset, device_pitch, device_shape_y);
         }
 
-        if (fin_diff_order >= 11 && y + 6 < grid->shape[Y_]) {
+        if (/*fin_diff_order >= 7 &&*/ y + 6 < grid->shape[Y_]) {
             next_id6 = getCubeOffset3D(x, y+6, z+slice_offset, device_pitch, device_shape_y);
         }
-        double value = evaluate_derivative(id, previous_id1, previous_id2, previous_id3, previous_id4, previous_id5, previous_id6,
-                                           next_id1, next_id2, next_id3, next_id4, next_id5, next_id6,
-                                           device_cube, fin_diff_order, gridtype_y, local_pos_y, h_y);
+        const double value = evaluate_derivative(id, previous_id1, previous_id2, previous_id3, previous_id4, previous_id5, previous_id6,
+                                                 next_id1, next_id2, next_id3, next_id4, next_id5, next_id6,
+                                                 device_cube, fin_diff_order, gridtype_y, local_pos_y, h_y);
         if (valid_point) device_gradients_y[local_id] = multiplier * value;
     }
 
@@ -1098,36 +1096,36 @@ CubeEvaluator_evaluate_simple_grid_gradients(
             next_id2 = getCubeOffset3D(x+2, y, z+slice_offset, device_pitch, device_shape_y);
         }
 
-        if (fin_diff_order >= 5 && x - 3 >= 0) {
+        if (/*fin_diff_order >= 5 &&*/ x - 3 >= 0) {
             previous_id3 = getCubeOffset3D(x-3, y, z+slice_offset, device_pitch, device_shape_y);
         }
 
-        if (fin_diff_order >= 5 && x + 3 < grid->shape[X_]) {
+        if (/*fin_diff_order >= 5 &&*/ x + 3 < grid->shape[X_]) {
             next_id3 = getCubeOffset3D(x+3, y, z+slice_offset, device_pitch, device_shape_y);
         }
 
-        if (fin_diff_order >= 7 && x - 4 >= 0) {
+        if (/*fin_diff_order >= 7 &&*/ x - 4 >= 0) {
             previous_id4 = getCubeOffset3D(x-4, y, z+slice_offset, device_pitch, device_shape_y);
         }
 
-        if (fin_diff_order >= 7 && x + 4 < grid->shape[X_]) {
-            next_id4= getCubeOffset3D(x+4, y, z+slice_offset, device_pitch, device_shape_y);
+        if (/*fin_diff_order >= 7 &&*/ x + 4 < grid->shape[X_]) {
+            next_id4 = getCubeOffset3D(x+4, y, z+slice_offset, device_pitch, device_shape_y);
         }
 
-        if (fin_diff_order >= 9 && x - 5 >= 0) {
+        if (/*fin_diff_order >= 7 &&*/ x - 5 >= 0) {
             previous_id5 = getCubeOffset3D(x-5, y, z+slice_offset, device_pitch, device_shape_y);
         }
 
-        if (fin_diff_order >= 9 && x + 5 < grid->shape[X_]) {
-            next_id5= getCubeOffset3D(x+5, y, z+slice_offset, device_pitch, device_shape_y);
+        if (/*fin_diff_order >= 7 &&*/ x + 5 < grid->shape[X_]) {
+            next_id5 = getCubeOffset3D(x+5, y, z+slice_offset, device_pitch, device_shape_y);
         }
 
-        if (fin_diff_order >= 11 && x - 6 >= 0) {
+        if (/*fin_diff_order >= 7 &&*/ x - 6 >= 0) {
             previous_id6 = getCubeOffset3D(x-6, y, z+slice_offset, device_pitch, device_shape_y);
         }
 
-        if (fin_diff_order >= 11 && x + 6 < grid->shape[X_]) {
-            next_id6= getCubeOffset3D(x+6, y, z+slice_offset, device_pitch, device_shape_y);
+        if (/*fin_diff_order >= 7 &&*/ x + 6 < grid->shape[X_]) {
+            next_id6 = getCubeOffset3D(x+6, y, z+slice_offset, device_pitch, device_shape_y);
         }
         const double value = evaluate_derivative(id, previous_id1, previous_id2, previous_id3, previous_id4, previous_id5, previous_id6,
                                                  next_id1, next_id2, next_id3, next_id4, next_id5, next_id6,
@@ -1139,7 +1137,7 @@ CubeEvaluator_evaluate_simple_grid_gradients(
 }
 
 /*
- * Evaluate values of the redial gradients at bubbles, i.e.,
+ * Evaluate values of the radial gradients at bubbles, i.e.,
  * the radial gradients of input bubbles are evaluated to the
  * result bubbles values.
  *
@@ -1615,16 +1613,13 @@ void CubeEvaluator::evaluateGrid(Grid3D *grid,
             int slice_count = device_slice_count / this->streamContainer->getStreamsPerDevice()
                                 + ((device_slice_count % this->streamContainer->getStreamsPerDevice()) > stream);
 
-            // printf("stream: %d, device: %d, slice_count: %d, device_slice_offset: %d, x-shape: %d, y-shape: %d, dev x-shape: %d dev y-shape: %d, pitch: %ld\n", stream, device, slice_count, device_slice_offset, this->input_cube->getShape(X_), this->input_cube->getShape(Y_), device_memory_shape[X_], device_memory_shape[Y_], device_pitches[device]);
-
             check_eval_errors(__FILE__, __LINE__);
-
 
             if (slice_count > 0) {
                 // calculate the launch configuration for the f1-inject
                 //int grid_size = warps_per_slice * slice_count * warps_per_block + 1;
                 dim3 block, launch_grid;
-                const int fin_diff_order = 7; // could be less, maybe 7? lnw
+                const int fin_diff_order = 7;
                 result_cube->getLaunchConfiguration(&launch_grid, &block, slice_count, BLOCK_SIZE);
 
                 // call the kernel

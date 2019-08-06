@@ -479,9 +479,6 @@ contains
         end select
         new%grid_type = grid_type
 
-        ! write(*,*) 'lip ', new%lip%first, new%lip%last
-        ! write(*,*) 'lower_lip ', new%lower_lip%first, new%lower_lip%last
-
         allocate(grid_template(nlip-1))
         select case (grid_type)
             case (1) ! equidistant
@@ -491,7 +488,7 @@ contains
 
             case (2) ! gauss lobatto
                 glgrid = gauss_lobatto_grid(new%nlip, 0.d0, real(nlip-1, 8) ) ! where the second nlip is a length
-                write(*,*) 'glgrid: ', glgrid
+                ! write(*,*) 'glgrid: ', glgrid
                 do k=1, nlip-1
                     grid_template(k) = glgrid(k+1)
                 end do
@@ -499,8 +496,7 @@ contains
 
             case default
         end select
-
-        write(*,*) 'grid_template: ', grid_template
+        ! write(*,*) 'grid_template: ', grid_template
 
         ! Grid points
         ipoint=1

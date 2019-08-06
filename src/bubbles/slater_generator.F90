@@ -116,7 +116,7 @@ module SlaterGenerator_class
         !> nlip
         integer                     :: nlip=7
         !> grid_type.  1: equidistant, 2: Gauss Lobatto
-        integer                     :: grid_type = 1
+        integer                     :: grid_type = 2
         !> Threshold
         real(REAL64)                :: thres=1.d-12
     contains

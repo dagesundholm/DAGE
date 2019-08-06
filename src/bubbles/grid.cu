@@ -158,19 +158,19 @@ void Grid1D::upload() {
     
     for (int device = 0; device < this->streamContainer->getNumberOfDevices(); device ++) {
         streamContainer->setDevice(device);
-        
+
         // get the preallocated device pointers
         device_h = this->device_h[device];
         device_d = this->device_d[device];
         device_gridpoints = this->device_gridpoints[device];
         device_integrals = this->device_integrals[device];
-        
+
         // NOTE: for all devices the first pointer points to  the first value of each array
         host_h = this->h;
         host_d = this->d;
         host_gridpoints = this->gridpoints;
         host_integrals = this->integrals;
-        
+
         // upload the lip to the device
         cudaMemcpyAsync(this->device_lip[device], this->lip, sizeof(double)*(this->nlip)*(this->nlip), cudaMemcpyHostToDevice, *this->streamContainer->getStream(device, 0));
         cudaMemcpyAsync(this->device_derivative_lip[device], this->derivative_lip, sizeof(double)*(this->nlip)*(this->nlip-1), cudaMemcpyHostToDevice, *this->streamContainer->getStream(device, 0));

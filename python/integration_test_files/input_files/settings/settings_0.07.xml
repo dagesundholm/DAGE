@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <settings name="settings_0.07" >
-    <function3d_settings taylor_order="2" bubble_cutoff_radius="14.0" cube_nlip="7" cube_grid_type="1" bubbles_grid_type="1">
+    <function3d_settings taylor_order="2" bubble_cutoff_radius="14.0" cube_nlip="7" cube_grid_type="2" bubbles_grid_type="1">
         <bubble_cell_count>1500</bubble_cell_count>
         <cube_grid_spacing>0.07</cube_grid_spacing>
         <bubble_lmax>3</bubble_lmax>

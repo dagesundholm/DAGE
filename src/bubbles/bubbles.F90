@@ -110,17 +110,17 @@ module bubbles_class
         integer(INT32) :: k=0
         !> Bubble centers
         real(REAL64), public, allocatable :: centers(:,:)
-        !> Glabal bubble centers
+        !> Global bubble centers
         real(REAL64), public, allocatable :: global_centers(:,:)
         !> Nuclear charges
         real(REAL64),         allocatable :: z(:)
         !> Global Nuclear charges
         real(REAL64),         allocatable :: global_z(:)
         !> xwh, dimension of gr = number of atoms, i.e, = nbub
-        type(Grid1DPointer),     public, allocatable :: gr(:)
+        type(Grid1DPointer),     public, allocatable :: gr(:) ! number of bubbles -> (pointers to grid1d)
         type(Grid1DPointer),     public, allocatable :: global_grids(:)
         type(REAL64_2D_Pointer), public, allocatable :: bf(:)
-        type(REAL64_2D), private, allocatable        :: bf_data(:)
+        type(REAL64_2D),        private, allocatable :: bf_data(:) ! number of bubbles -> (grid points : angular functions)
     contains
         procedure, private :: alloc_bf   => bubbles_alloc_bf
 
@@ -197,12 +197,12 @@ module bubbles_class
         procedure :: eval_3dgrid => bubbles_eval_3dgrid
         procedure :: destroy => bubbles_destroy
         generic   :: get_contaminants => Bubbles_get_contaminants, &
-                                      Bubbles_get_foreign_bubbles_contaminants
-        procedure :: make_taylor      => bubbles_make_taylor
-        procedure :: project_onto     => bubbles_project_onto
+                                         Bubbles_get_foreign_bubbles_contaminants
+        procedure :: make_taylor      => Bubbles_make_taylor
+        procedure :: project_onto     => Bubbles_project_onto
 
-        procedure, private :: bubbles_product
-        generic, public    :: operator(*) => bubbles_product
+        procedure, private :: Bubbles_product
+        generic, public    :: operator(*) => Bubbles_product
 
         procedure, private :: get_radial_derivatives => Bubbles_get_radial_derivatives
         procedure          :: radial_derivative      => Bubbles_radial_derivative
@@ -2405,30 +2405,57 @@ contains
         do i = 1, self%get_nbub()
             do n = nmin, nmax
                        
-                ! use linear extrapolation to get the point at zero
-                !result_bubbles%bf(i)%p(1, n) = result_bubbles%bf(i)%p(2, n) &
-                !      - (result_bubbles%bf(i)%p(3, n) - result_bubbles%bf(i)%p(2, n)) 
-
                 ! lagrange interpolation:
-                if (order == 2) then
-                    self%bf(i)%p(1, n) = &
-                        2.0d0 * self%bf(i)%p(2, n) &
-                        -  1.0d0 * self%bf(i)%p(3, n) 
-                        
-                else if (order == 3) then
-                    self%bf(i)%p(1, n) = &
-                           3.0d0 * self%bf(i)%p(2, n) &
-                        -  3.0d0 * self%bf(i)%p(3, n) &
-                        +  1.0d0 * self%bf(i)%p(4, n)
-                
-                else if (order == 6) then
-                    self%bf(i)%p(1, n) = &
-                           6.0d0 * self%bf(i)%p(2, n) &
-                        - 15.0d0 * self%bf(i)%p(3, n) &
-                        + 20.0d0 * self%bf(i)%p(4, n) &
-                        - 15.0d0 * self%bf(i)%p(5, n) &
-                        +  6.0d0 * self%bf(i)%p(6, n) &
-                        -  1.0d0 * self%bf(i)%p(7, n)
+                if( self%gr(i)%p%get_grid_type() == 1) then ! equidistant
+                    if (order == 2) then
+                        self%bf(i)%p(1, n) = &
+                               2.0d0 * self%bf(i)%p(2, n) &
+                            -  1.0d0 * self%bf(i)%p(3, n) 
+                            
+                    else if (order == 3) then
+                        self%bf(i)%p(1, n) = &
+                               3.0d0 * self%bf(i)%p(2, n) &
+                            -  3.0d0 * self%bf(i)%p(3, n) &
+                            +  1.0d0 * self%bf(i)%p(4, n)
+                    
+                    else if (order == 6) then
+                        self%bf(i)%p(1, n) = &
+                               6.0d0 * self%bf(i)%p(2, n) &
+                            - 15.0d0 * self%bf(i)%p(3, n) &
+                            + 20.0d0 * self%bf(i)%p(4, n) &
+                            - 15.0d0 * self%bf(i)%p(5, n) &
+                            +  6.0d0 * self%bf(i)%p(6, n) &
+                            -  1.0d0 * self%bf(i)%p(7, n)
+                    end if
+                else if ( self%gr(i)%p%get_grid_type() == 2) then ! lobatto
+                    ! generated using https://github.com/lnw/finite-diff-weights
+                    ! {1,0,0,0,0,0}
+                    ! {1.46980575696,-0.469805756961,0,0,0,0}
+                    ! {1.77037274348,-1.00204109193,0.231668348449,0,0,0}
+                    ! {2.00174315785,-1.56963915594,0.725790017684,-0.157894019598,0,0}
+                    ! {2.2064157501,-2.21141673934,1.6,-0.799671603001,0.204672592246,0}
+                    ! {2.41108834235,-3.01108834235,3.2,-3.01108834235,2.41108834235,-1}
+
+                    if (order == 2) then
+                        self%bf(i)%p(1, n) = &
+                               1.46980575696  * self%bf(i)%p(2, n) &
+                             - 0.469805756961 * self%bf(i)%p(3, n) 
+                            
+                    else if (order == 3) then
+                        self%bf(i)%p(1, n) = &
+                               1.77037274348  * self%bf(i)%p(2, n) &
+                             - 1.00204109193  * self%bf(i)%p(3, n) &
+                             + 0.231668348449 * self%bf(i)%p(4, n)
+                    
+                    else if (order == 6) then
+                        self%bf(i)%p(1, n) = &
+                               2.41108834235 * self%bf(i)%p(2, n) &
+                             - 3.01108834235 * self%bf(i)%p(3, n) &
+                             + 3.2d0         * self%bf(i)%p(4, n) &
+                             - 3.01108834235 * self%bf(i)%p(5, n) &
+                             + 2.41108834235 * self%bf(i)%p(6, n) &
+                             - 1.d0          * self%bf(i)%p(7, n)
+                    end if
                 end if
             end do
         end do
@@ -2659,8 +2686,8 @@ contains
             ! Compute b_j's such that
             ! \sum b_j x^j = \sum c_j ((x-mp)/h)^j
             allocate(p_shf(nlip, (self%lmax+1)**2))
-            p_shf(1,:) =  p_loc(1,:) !eval_polys(coeffs(1)%p, self%gr(ibub)%p%x2cell(self%bf(ibub)%p(1, :))) & 
-                           ! * self%bf(ibub)%p(1:nlip, :) !
+            p_shf(1,:) =  p_loc(1,:) ! eval_polys(coeffs(1)%p, self%gr(ibub)%p%x2cell(self%bf(ibub)%p(1, :))) & 
+                                     ! * self%bf(ibub)%p(1:nlip, :) !
             p_shf(2:,:)=0.d0
             do ilip=2,nlip
                 do j=1, (self%lmax+1)**2

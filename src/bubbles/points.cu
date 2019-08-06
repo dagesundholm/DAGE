@@ -270,7 +270,6 @@ extern "C" PointCoordinates *pointcoordinates_init_cuda(double *coordinates, int
     return new_point_coordinates;
 }
 
-
 extern "C" void pointcoordinates_destroy_cuda(PointCoordinates *point_coordinates) {
     point_coordinates->destroy();
     delete point_coordinates;
@@ -309,7 +308,5 @@ extern "C" void points_set_to_zero_cuda(Points *points) {
 extern "C" void points_download_cuda(Points *points, double *host_values) {
     points->download(host_values);
 }
-
-
 
 

@@ -84,21 +84,21 @@ module XC_class
         TYPE(xc_f90_pointer_t)       :: exchange_info_pointer
         TYPE(xc_f90_pointer_t)       :: correlation_function_pointer
         TYPE(xc_f90_pointer_t)       :: correlation_info_pointer
-      
+
     contains
-        !> updates xc with the projection method. 
+        !> updates xc with the projection method.
         !! restriction: only for lda.
-        procedure :: eval        => XC_eval  
+        procedure :: eval        => XC_eval
         !> Do the evaluation of input points, called in the eval functions
         procedure, private :: evaluate_points => XC_evaluate_points
         !> project values to bubbles
         procedure :: project_to_bubbles => XC_project_to_bubbles
         !> updates xc with the derivative on grid approach
         !! restriction: lda and gga.
-        procedure :: eval_g      => XC_eval_grid  
+        procedure :: eval_g      => XC_eval_grid
         !> updates xc. not finished. not promising.
         procedure :: eval_taylor => XC_eval_taylor
-        procedure, private :: get_divergence_from_strings & 
+        procedure, private :: get_divergence_from_strings &
                                 => XC_get_divergence_from_strings
         procedure, private :: calculate_density_evaluation_points &
                                  => XC_calculate_density_evaluation_points
@@ -111,26 +111,26 @@ module XC_class
         procedure, private :: evaluate_electron_density_cube => XC_evaluate_electron_density_cube
         procedure, private :: evaluate_electron_density_bubbles_points => XC_evaluate_electron_density_bubbles_points
         procedure, private :: preevaluate_becke_weights => XC_preevaluate_becke_weights
-        procedure          :: destroy            => XC_destroy 
-    end type xc 
-    
+        procedure          :: destroy            => XC_destroy
+    end type xc
+
     !> initialization.
     interface XC
        module procedure xc_init_borrow
     end interface
 
     contains
-    
+
 
     !> Initialize XC object from input orbital.
-    !! xc most quantities initialized to 0, 
+    !! xc most quantities initialized to 0,
     !! NOT cnosistent with the input density yet.
     function XC_init_borrow(orbital, exchange_functional_type, correlation_functional_type, &
                             lmax, laplacian_operator, core_evaluator, orbitals_density_evaluation) &
                             result(new)
         type(function3d),   intent(in)             :: orbital
-        integer(INT32),     intent(in)             :: exchange_functional_type  
-        integer(INT32),     intent(in)             :: correlation_functional_type  
+        integer(INT32),     intent(in)             :: exchange_functional_type
+        integer(INT32),     intent(in)             :: correlation_functional_type
         !> max l for xc bubbles.
         integer(INT32),     intent(in)             :: lmax
         class(Laplacian3D), intent(inout), target  :: laplacian_operator
@@ -677,22 +677,20 @@ module XC_class
         end do
         call harmonics%destroy()
         ! the 2*l+1 belongs inside the loop, but we are doing it here because we can
-         forall (l = 1 : lmax_)
-              spherical_harmonics_points(:, l*l+1:(l+1) * (l+1)) = & 
-                  spherical_harmonics_points(:, l*l+1:(l+1) * (l+1)) * (2*l+1)
-         end forall
+        forall (l = 1 : lmax_)
+            spherical_harmonics_points(:, l*l+1:(l+1) * (l+1)) = & 
+                spherical_harmonics_points(:, l*l+1:(l+1) * (l+1)) * (2*l+1)
+        end forall
         forall (n = 1 : (lmax_+1)**2)
-             spherical_harmonics_points(:, n) = spherical_harmonics_points(:, n) * spherical_weights(:)
+            spherical_harmonics_points(:, n) = spherical_harmonics_points(:, n) * spherical_weights(:)
         end forall
         
         
-            
-
         allocate(becke_weights(result_bubbles%get_nbub()))
         do i = 1,  result_bubbles%get_nbub()  
             ! init the offset to 0
             offset = 0
-            
+
             coord => result_bubbles%gr(i)%p%get_coord()
             bubbles_val => result_bubbles%get_f(i)
             bubbles_val(:, :) = 0.0d0
@@ -736,7 +734,7 @@ module XC_class
             do l = 0, result_bubbles%get_lmax()
                 bubbles_val(:, l*l+1:(l+1)*(l+1)) = &
                       bubbles_val(:, l*l+1:(l+1)*(l+1)) &
-                    * sqrt(dble(4*pi)/(2*l+1))
+                    * sqrt(dble(4*PI)/(2*l+1))
             end do
             bubbles_val(1, 1:) = 0.0d0
             call becke_weights(i)%destroy()
@@ -777,7 +775,6 @@ module XC_class
                                                          correlation_potential_gradients(:), &
                                                          temp_density(:)
         integer                                       :: first_point, last_point, number_of_points, i, counter
-
 
 
         gga_correlation = &
@@ -1145,8 +1142,10 @@ module XC_class
     end subroutine
 
     subroutine XC_evaluate_bubbles(self, &
-                                   evaluate_gradients, input_density, &
-                                   energy_per_particle, potential, &
+                                   evaluate_gradients, &
+                                   input_density, &
+                                   energy_per_particle, &
+                                   potential, &
                                    potential_gradients_x_bubbles, &
                                    potential_gradients_y_bubbles, &
                                    potential_gradients_z_bubbles, &
@@ -1156,7 +1155,7 @@ module XC_class
                                    only_diagonal_bubbles, &
                                    core_density, &
                                    occupied_orbitals)
-        class(XC),        intent(inout),        target     :: self
+        class(XC),        target,           intent(inout)  :: self
         logical,                            intent(in)     :: evaluate_gradients
         type(Function3D),                   intent(in)     :: input_density
         type(Bubbles),                      intent(inout)  :: energy_per_particle
@@ -1164,10 +1163,10 @@ module XC_class
         type(Bubbles),                      intent(inout)  :: potential_gradients_x_bubbles
         type(Bubbles),                      intent(inout)  :: potential_gradients_y_bubbles
         type(Bubbles),                      intent(inout)  :: potential_gradients_z_bubbles
-        type(Bubbles),    optional,         intent(inout)  :: energy_density 
         type(Bubbles),    optional,         intent(inout)  :: divergence_bubbles
         type(Function3D), optional,         intent(in)     :: derivative_x, derivative_y, derivative_z
-        logical, optional,                  intent(in)     :: only_diagonal_bubbles
+        type(Bubbles),    optional,         intent(inout)  :: energy_density 
+        logical,          optional,         intent(in)     :: only_diagonal_bubbles
         type(Function3D), optional,         intent(inout)  :: core_density(:)
         !> The occupied orbitals in an array
         type(Function3D), optional,         intent(in)     :: occupied_orbitals(:)
@@ -1183,12 +1182,12 @@ module XC_class
                                                               divergence(:)
         type(BubblesEvaluator), pointer                    :: bubbles_evaluator
                                                               
-        integer                                            ::  i, j, counter
+        integer                                            :: i, j, counter
         logical                                            :: only_diagonal_bubbles_
         integer, allocatable                               :: ibubs(:)
         type(Function3D),         allocatable              :: core_derivative_x(:), core_derivative_y(:), &
                                                               core_derivative_z(:)
-                                                              
+
         if (present(core_density)) then
             call self%core_evaluator%evaluate_core_gradient(core_density, core_derivative_x, &
                                                             core_derivative_y, core_derivative_z)
@@ -1266,7 +1265,6 @@ module XC_class
                 temp(i)                 = gradients_z(i) * gradients_z(i)
                 call contracted_gradients(i)%add_in_place(temp(i))
                 call temp(i)%destroy()
-
                 
                 potential_contracted_gradients(i) = Points(self%density_evaluation_points(i))
 
@@ -1330,6 +1328,7 @@ module XC_class
             end if
             call self%bubbles_points_evaluators(i)%destroy_stored_objects()
         end do
+
         if (present(core_density)) then
             call destroy_core_functions(core_derivative_x)
             call destroy_core_functions(core_derivative_y)
@@ -1348,7 +1347,8 @@ module XC_class
                                      extrapolate_origo = .TRUE., use_becke_weights = .TRUE.)
 
         ! project the derivative of energy with respect to the density to bubbles
-        call self%project_to_bubbles(potential_density, potential, extrapolate_origo = .TRUE., use_becke_weights = .TRUE.)
+        call self%project_to_bubbles(potential_density, potential, &
+                                     extrapolate_origo = .TRUE., use_becke_weights = .TRUE.)
 
         ! project the derivative of energy with respect to the contracted gradients to bubbles
         if (evaluate_gradients) then
@@ -1406,6 +1406,7 @@ module XC_class
         if (present(energy_density)) deallocate(energy_density_)
         call bigben%stop()
     end subroutine 
+
 
     subroutine XC_evaluate_cores(self, evaluate_gradients, core_density, &
                                  energy_per_particle, potential, &
@@ -1512,7 +1513,7 @@ module XC_class
                                 potential_gradients_z_cube, &
                                 derivative_x, derivative_y, derivative_z, &
                                 energy_density, occupied_orbitals)
-        class(XC),        intent(inout),        target     :: self
+        class(XC),                 target,  intent(inout)  :: self
         type(Function3DEvaluator), pointer, intent(inout)  :: density_evaluator
         logical,                            intent(in)     :: evaluate_gradients
         type(Function3D),                   intent(in)     :: input_density
@@ -1954,7 +1955,7 @@ module XC_class
         call output_electron_density%inject_bubbles_to_cube(output_electron_density%bubbles, factor = -1.0d0)
         
     end subroutine
-    
+
 
     subroutine XC_eval(self, density, potential, energy_per_particle, energy, occupied_orbitals)
         class(XC),        intent(inout), target     :: self
@@ -2042,7 +2043,8 @@ module XC_class
         nullify(evaluator)
         call self%evaluate_bubbles(evaluate_gradients, density, &
                                    energy_per_particle%bubbles, &
-                                   potential%bubbles, potential_contracted_gradients_x%bubbles, &
+                                   potential%bubbles, &
+                                   potential_contracted_gradients_x%bubbles, &
                                    potential_contracted_gradients_y%bubbles, &
                                    potential_contracted_gradients_z%bubbles, &
                                    derivative_x = derivative_x, &
@@ -2054,12 +2056,12 @@ module XC_class
                                    ) !, &
                                    !core_density = core_density)
 
-
         ! deduct the energy density and potential bubbles from corresponding cubes
         call energy_density%inject_bubbles_to_cube(energy_density%bubbles, factor = -1.0d0)
 
         ! deduct the energy density and potential bubbles from corresponding cubes
         call energy_per_particle%inject_bubbles_to_cube(energy_per_particle%bubbles, factor = -1.0d0)
+
         !energy_per_particle%cube = 0.0d0
         call potential%inject_bubbles_to_cube(potential%bubbles, factor = -1.0d0)
         !potential%cube = 0.0d0
@@ -2081,12 +2083,13 @@ module XC_class
                
             
             
-            
             !potential_contracted_gradients%taylor_series_bubbles = 0.0d0
             ! evaluate the term caused to the potential by the gradients and add it to the result
             call self%evaluate_divergence_potential_term(evaluator, divergence_f3d, &
-                                                        potential_contracted_gradients_x, potential_contracted_gradients_y, &
-                                                        potential_contracted_gradients_z, ignore_bubbles = .FALSE.)
+                                                        potential_contracted_gradients_x, &
+                                                        potential_contracted_gradients_y, &
+                                                        potential_contracted_gradients_z, &
+                                                        ignore_bubbles = .FALSE.)
 
 
         end if
@@ -2175,6 +2178,7 @@ module XC_class
         
     end subroutine XC_eval
 
+
     !> update xc.  
     !! restriction: xc have only s bubble. use the same grid as 
     !! the input density. cube equi-distant for each dimension.
@@ -2201,7 +2205,7 @@ module XC_class
         ! d\rho_r /dr
         real(real64), dimension(:), allocatable :: d_fr
         integer(int32) :: nlip
-        integer(int32), parameter :: grid_type = 1 ! equidistant: 1, lobatto: 2
+        integer(int32), parameter :: grid_type = 2 ! equidistant: 1, lobatto: 2
     
         real(real64), dimension(:), pointer :: e
         real(real64), dimension(:), pointer :: v
@@ -2280,8 +2284,6 @@ module XC_class
         real(real64), dimension(:,:), allocatable :: lip_dev_y
         real(real64), dimension(:,:), allocatable :: lip_dev_z
 
-
-        integer(int32) :: succed
 
         print *, '+++ evaluation(update) of xc (grid approach) being called ...'
 
@@ -2656,7 +2658,7 @@ module XC_class
       tmp_den = density%evaluate(point)
       
       lda_x_e(1,:) = lda_x_cst * tmp_den**(1.0d0/3.0d0)
-      lda_x_e(2,:) = -(3.0d0*tmp_den/pi)**(1.0d0/3.0d0)
+      lda_x_e(2,:) = -(3.0d0*tmp_den/PI)**(1.0d0/3.0d0)
       deallocate(tmp_den,lda_x_e)
     end function lda_x_get_e
 
@@ -2671,7 +2673,7 @@ module XC_class
       allocate(lda_x_e(2,size(tmp_den)))
       
       lda_x_e(1,:) = lda_x_cst * tmp_den**(1.0d0/3.0d0)
-      lda_x_e(2,:) = -(3.0d0*tmp_den/pi)**(1.0d0/3.0d0)
+      lda_x_e(2,:) = -(3.0d0*tmp_den/PI)**(1.0d0/3.0d0)
       deallocate(lda_x_e)
     end function lda_x_get_e2
 
@@ -2698,7 +2700,7 @@ module XC_class
       allocate(q1d(size(point,2)))
       allocate(lda_c_pw_e(2,size(point,2)))
       tmp_den = density%evaluate(point)
-      wigner_seitz_radius = (3.0d0/(4.0d0*pi*tmp_den))**(1.0d0/3.0d0)
+      wigner_seitz_radius = (3.0d0/(4.0d0*PI*tmp_den))**(1.0d0/3.0d0)
       rs = wigner_seitz_radius 
       lda_c_pw_e(1,:) = -2.0d0*a*(1+alpha1*rs)* &
       log(1+1/(2.0d0*a*(beta1*sqrt(rs)+beta2*rs+beta3*rs**1.5d0+beta4*rs**(p+1))))
