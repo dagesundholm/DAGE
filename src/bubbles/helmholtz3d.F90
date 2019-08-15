@@ -503,7 +503,7 @@ contains
 #endif
 
 
-    !> Convolutes the helmholtz kernel with the bubbles part
+    !> Convolves the helmholtz kernel with the bubbles part
     function Helmholtz3D_bubbles(self, bubsin) result(new)
         class(Helmholtz3D), intent(in) :: self
         !> Input bubbles. In order for this to work, this must be the bubbles
@@ -517,7 +517,7 @@ contains
     end function
     
 
-    !> Convolutes the helmholtz kernel with the bubbles part
+    !> Convolves the helmholtz kernel with the bubbles part
     subroutine Helmholtz3D_transform_bubbles_sub(self, bubsin, new)
         class(Helmholtz3D), intent(in) :: self
         !> Input bubbles. In order for this to work, this must be the bubbles
@@ -618,7 +618,7 @@ contains
                     temp1(:) = rpow * first_bessel_values(:, l) * vals0(:, id)
                     !call extrapolate_first_nlip7(6, temp1)
                     temp2(:) = rpow * second_bessel_values(:, l) * vals0(:, id)
-                    if (l == 0) call extrapolate_first_nlip7(3, temp2)
+                    if (l == 0) call extrapolate_first_nlip7(3, bubsin%gr(ibub)%p%get_grid_type(), temp2)
                     if (l /= 0) temp2(1) = 0.0d0
                     vals(:, id) =   &
                               (second_bessel_values(:, l)  *  &

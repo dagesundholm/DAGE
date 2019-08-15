@@ -50,7 +50,7 @@ contains
             qd_hole_effective_mass_z, qd_electronic_constant, qd_relative_electron_diffraction_constant, &
             scf_method, scf_type, scf_update_weight, scf_restricted, hf_rohf_f, hf_rohf_a, &
             hf_rohf_b, dft_exchange_type, dft_correlation_type, dft_xc_update_method, &
-            dft_xc_lmax, dft_orbitals_density_evaluation, scfopt_optimizer_type, &
+            dft_xc_lmax, dft_fin_diff_order, dft_orbitals_density_evaluation, scfopt_optimizer_type, &
             scfopt_maximum_iterations, scfopt_total_energy_convergence_threshold, &
             scfopt_eigenvalue_convergence_threshold, scfopt_stored_iteration_count, &
             scfopt_initialization_iteration_count, scfopt_initialization_threshold, &
@@ -278,6 +278,9 @@ contains
         !> lmax for exc, vxc 
         !f2py integer,        intent(in), dimension(number_of_settings+1), depend(number_of_settings), optional :: dft_xc_lmax
         integer,        intent(in), optional :: dft_xc_lmax(number_of_settings+1)
+        !> finite difference order for GGA evaluation 
+        !f2py integer,        intent(in), dimension(number_of_settings+1), depend(number_of_settings), optional :: dft_fin_diff_order
+        integer,        intent(in), optional :: dft_fin_diff_order(number_of_settings+1)
         !> Determines if the electron density and its gradient are (re-)evaluated 
         !! from molecular orbitals. Using this setting makes the calculation more 
         !! accurate but slows it down a bit. 
@@ -852,6 +855,14 @@ contains
             do i = 1, number_of_settings
                 core_object%settings(i)%dft_settings%xc_lmax = &
                     dft_xc_lmax(icounter)
+                icounter = icounter + 1
+            end do
+        end if
+        if (present(dft_fin_diff_order)) then
+            icounter = 1
+            do i = 1, number_of_settings
+                core_object%settings(i)%dft_settings%fin_diff_order = &
+                    dft_fin_diff_order(icounter)
                 icounter = icounter + 1
             end do
         end if

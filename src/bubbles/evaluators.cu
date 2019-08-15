@@ -899,6 +899,8 @@ double evaluate_derivative(const int curr_id,
         else if (finite_diff_order == 5){
             if ( prev_id2 > -1 && prev_id1 > -1 && next_id1 > -1 && next_id2 > -1 ){
 
+                // generated using https://github.com/lnw/finite-diff-weights
+                // assuming a the lobatto grid with points {-3,-2.4906716888357,-1.40654638041214,0,1.40654638041214,2.4906716888357,3}
                 // centre at pos 0: {0.035706928371056, -1.0933955997541,  0,                 1.0933955997541,  -0.035706928371056}
                 // centre at pos 1: {0.35921124012101,  -2.2180302446983,  1.6211545002871,   0.2529151880879,  -0.015250683797656}
                 // centre at pos 2: {0.3998165330722,   -1.1763296553934,  0.48352837852975,  0.32874345055196, -0.035758706760461}
@@ -922,12 +924,16 @@ double evaluate_derivative(const int curr_id,
 
             }
 
+                // generated using https://github.com/lnw/finite-diff-weights
+                // assuming a the lobatto grid with points {-3,-2.4906716888357,-1.40654638041214,0,1.40654638041214,2.4906716888357,3}
                 // centre at pos 0: {-3.1512062536842,  3.9301627535249,  -0.98505481216702, 0.24193000589467,  -0.03583169356836}
                 // centre at pos 1: {-0.98083020142501, 0.38287613952776, 0.72328921328621,  -0.14557478380549, 0.020239632416528}
             else if (prev_id1 == -1)
                 return ( -3.1512062536842  * curr_value  + 3.9301627535249  * next_value1 + -0.98505481216702 * next_value2 + 0.24193000589467  * next_value3 + -0.03583169356836 * next_value4 )/h;
             else if (prev_id2 == -1)
                 return ( -0.98083020142501 * prev_value1 + 0.38287613952776 * curr_value  + 0.72328921328621  * next_value1 + -0.14557478380549 * next_value2 + 0.020239632416528 * next_value3 )/h;
+                // generated using https://github.com/lnw/finite-diff-weights
+                // assuming a the lobatto grid with points {-3,-2.4906716888357,-1.40654638041214,0,1.40654638041214,2.4906716888357,3}
                 // centre at pos 6: {0.03583169356836,   -0.24193000589467, 0.98505481216702,  -3.9301627535249,  3.1512062536842}
                 // centre at pos 5: {-0.020239632416528, 0.14557478380549,  -0.72328921328621, -0.38287613952776, 0.98083020142501}
             else if (next_id1 == -1)
@@ -1152,7 +1158,6 @@ CubeEvaluator_evaluate_simple_grid_gradients(
     }
 
     // evaluate gradient to x direction
-    // finite_diff_order tests outcommented, because finite_diff_order=7 is hardcoded all over the place anyway (lnw)
     if (evaluate_gradients_x) {
         int prev_id1 = -1, prev_id2 = -1, prev_id3 = -1, prev_id4 = -1, prev_id5 = -1, prev_id6 = -1, prev_id7 = -1, prev_id8 = -1, 
             next_id1 = -1, next_id2 = -1, next_id3 = -1, next_id4 = -1, next_id5 = -1, next_id6 = -1, next_id7 = -1, next_id8 = -1;
@@ -1371,7 +1376,7 @@ void BubblesEvaluator::setBubbles(Bubbles *bubbles) {
  * @param bubbles - The bubbles that are evaluated in to the grid
  * @param grid - The grid associated with all the output cubes
  */
-void BubblesEvaluator::evaluateGrid(Grid3D *grid, CudaCube *result_cube, CudaCube *gradient_cube_x, CudaCube *gradient_cube_y, CudaCube *gradient_cube_z, int gradient_direction) {
+void BubblesEvaluator::evaluateGrid(Grid3D *grid, CudaCube *result_cube, CudaCube *gradient_cube_x, CudaCube *gradient_cube_y, CudaCube *gradient_cube_z, int gradient_direction, int fin_diff_ord) {
 
     if (gradient_direction == X_) {
         this->bubbles->inject(grid, result_cube, 0, gradient_cube_x,
@@ -1644,8 +1649,12 @@ void CubeEvaluator::evaluateGrid(Grid3D *grid,
                                  CudaCube *gradient_cube_x,
                                  CudaCube *gradient_cube_y,
                                  CudaCube *gradient_cube_z,
-                                 int gradient_direction) {
+                                 const int gradient_direction,
+                                 const int finite_diff_order) {
     check_eval_errors(__FILE__, __LINE__);
+
+    // printf("fin diff order in evaluateGrid: %i, %i \n", finite_diff_order, gradient_direction);
+
     int total_slice_count = result_cube->getShape(Z_);
     // the minimum l is 0 always in the multiplication
     int device_slice_count;
@@ -1711,17 +1720,14 @@ void CubeEvaluator::evaluateGrid(Grid3D *grid,
                 // calculate the launch configuration for the f1-inject
                 //int grid_size = warps_per_slice * slice_count * warps_per_block + 1;
                 dim3 block, launch_grid;
-                const int finite_diff_order = 9;
+                // const int finite_diff_order = 9;
                 result_cube->getLaunchConfiguration(&launch_grid, &block, slice_count, BLOCK_SIZE);
 
                 // call the kernel
-                if (gradient_direction == X_) {
-                    CubeEvaluator_evaluate_simple_grid_gradients <finite_diff_order, true, false, false>
+                if (gradient_direction == X_ && finite_diff_order==7) {
+                    CubeEvaluator_evaluate_simple_grid_gradients <7, true, false, false>
                         <<< launch_grid, block, 0,
                             *this->streamContainer->getStream(device, stream) >>>
-                    //CubeEvaluator_evaluate_grid_gradients <NLIP, true, false, false>
-                    //    <<< grid_size, BLOCK_SIZE, 0,
-                    //        *this->streamContainer->getStream(device, stream) >>>
                                         (dev_input_cube,
                                         device_pitches[device],
                                         device_memory_shape[Y_],
@@ -1739,85 +1745,162 @@ void CubeEvaluator::evaluateGrid(Grid3D *grid,
                                         slice_count,
                                         //warps_per_string,
                                         1.0);
+                }
+                if (gradient_direction == X_ && finite_diff_order==9) {
+                    CubeEvaluator_evaluate_simple_grid_gradients <9, true, false, false>
+                        <<< launch_grid, block, 0,
+                            *this->streamContainer->getStream(device, stream) >>>
+                                        (dev_input_cube,
+                                        device_pitches[device],
+                                        device_memory_shape[Y_],
+                                        grid->device_copies[device],
+                                        dev_gradient_x,
+                                        dev_gradient_y,
+                                        dev_gradient_z,
+                                        // number of slices handled by this device
+                                        // in previous calls
+                                        device_slice_offset,
+                                        // number of slices handled by all devices
+                                        // in previous calls
+                                        slice_offset,
+                                        // number of slices handled by this call
+                                        slice_count,
+                                        //warps_per_string,
+                                        1.0);
+                }
+                else if (gradient_direction == Y_ && finite_diff_order==7) {
+                    CubeEvaluator_evaluate_simple_grid_gradients <7, false, true, false>
+                        <<< launch_grid, block, 0,
+                            *this->streamContainer->getStream(device, stream) >>>
+                                        (dev_input_cube,
+                                        device_pitches[device],
+                                        device_memory_shape[Y_],
+                                        grid->device_copies[device],
+                                        dev_gradient_x,
+                                        dev_gradient_y,
+                                        dev_gradient_z,
+                                        // number of slices handled by this device
+                                        // in previous calls
+                                        device_slice_offset,
+                                        // number of slices handled by all devices
+                                        // in previous calls
+                                        slice_offset,
+                                        // number of slices handled by this call
+                                        slice_count,
+                                        //warps_per_string,
+                                        1.0);
+                }
+                else if (gradient_direction == Y_ && finite_diff_order==9) {
+                    CubeEvaluator_evaluate_simple_grid_gradients <9, false, true, false>
+                        <<< launch_grid, block, 0,
+                            *this->streamContainer->getStream(device, stream) >>>
+                                        (dev_input_cube,
+                                        device_pitches[device],
+                                        device_memory_shape[Y_],
+                                        grid->device_copies[device],
+                                        dev_gradient_x,
+                                        dev_gradient_y,
+                                        dev_gradient_z,
+                                        // number of slices handled by this device
+                                        // in previous calls
+                                        device_slice_offset,
+                                        // number of slices handled by all devices
+                                        // in previous calls
+                                        slice_offset,
+                                        // number of slices handled by this call
+                                        slice_count,
+                                        //warps_per_string,
+                                        1.0);
+                }
+                else if (gradient_direction == Z_ && finite_diff_order==7) {
+                    CubeEvaluator_evaluate_simple_grid_gradients <7, false, false, true>
+                        <<< launch_grid, block, 0,
+                            *this->streamContainer->getStream(device, stream) >>>
+                                        (dev_input_cube,
+                                        device_pitches[device],
+                                        device_memory_shape[Y_],
+                                        grid->device_copies[device],
+                                        dev_gradient_x,
+                                        dev_gradient_y,
+                                        dev_gradient_z,
+                                        // number of slices handled by this device
+                                        // in previous calls
+                                        device_slice_offset,
+                                        // number of slices handled by all devices
+                                        // in previous calls
+                                        slice_offset,
+                                        // number of slices handled by this call
+                                        slice_count,
+                                        //warps_per_string,
+                                        1.0);
+                }
+                else if (gradient_direction == Z_ && finite_diff_order==9) {
+                    CubeEvaluator_evaluate_simple_grid_gradients <9, false, false, true>
+                        <<< launch_grid, block, 0,
+                            *this->streamContainer->getStream(device, stream) >>>
+                                        (dev_input_cube,
+                                        device_pitches[device],
+                                        device_memory_shape[Y_],
+                                        grid->device_copies[device],
+                                        dev_gradient_x,
+                                        dev_gradient_y,
+                                        dev_gradient_z,
+                                        // number of slices handled by this device
+                                        // in previous calls
+                                        device_slice_offset,
+                                        // number of slices handled by all devices
+                                        // in previous calls
+                                        slice_offset,
+                                        // number of slices handled by this call
+                                        slice_count,
+                                        //warps_per_string,
+                                        1.0);
+                }
+                else if (gradient_direction == 3 && finite_diff_order==7) {
+                    CubeEvaluator_evaluate_simple_grid_gradients <7, true, true, true>
+                        <<< launch_grid, block, 0,
+                            *this->streamContainer->getStream(device, stream) >>>
+                                        (dev_input_cube,
+                                        device_pitches[device],
+                                        device_memory_shape[Y_],
+                                        grid->device_copies[device],
+                                        dev_gradient_x,
+                                        dev_gradient_y,
+                                        dev_gradient_z,
+                                        // number of slices handled by this device
+                                        // in previous calls
+                                        device_slice_offset,
+                                        // number of slices handled by all devices
+                                        // in previous calls
+                                        slice_offset,
+                                        // number of slices handled by this call
+                                        slice_count,
+                                        //warps_per_string,
+                                        1.0);
+                }
+                else if (gradient_direction == 3 && finite_diff_order==9) {
+                    CubeEvaluator_evaluate_simple_grid_gradients <9, true, true, true>
+                        <<< launch_grid, block, 0,
+                            *this->streamContainer->getStream(device, stream) >>>
+                                        (dev_input_cube,
+                                        device_pitches[device],
+                                        device_memory_shape[Y_],
+                                        grid->device_copies[device],
+                                        dev_gradient_x,
+                                        dev_gradient_y,
+                                        dev_gradient_z,
+                                        // number of slices handled by this device
+                                        // in previous calls
+                                        device_slice_offset,
+                                        // number of slices handled by all devices
+                                        // in previous calls
+                                        slice_offset,
+                                        // number of slices handled by this call
+                                        slice_count,
+                                        //warps_per_string,
+                                        1.0);
+                }
 
-                }
-                else if (gradient_direction == Y_) {
-                    CubeEvaluator_evaluate_simple_grid_gradients <finite_diff_order, false, true, false>
-                        <<< launch_grid, block, 0,
-                            *this->streamContainer->getStream(device, stream) >>>
-                    //CubeEvaluator_evaluate_grid_gradients <NLIP, false, true, false>
-                    //    <<< grid_size, BLOCK_SIZE, 0,
-                    //        *this->streamContainer->getStream(device, stream) >>>
-                                        (dev_input_cube,
-                                        device_pitches[device],
-                                        device_memory_shape[Y_],
-                                        grid->device_copies[device],
-                                        dev_gradient_x,
-                                        dev_gradient_y,
-                                        dev_gradient_z,
-                                        // number of slices handled by this device
-                                        // in previous calls
-                                        device_slice_offset,
-                                        // number of slices handled by all devices
-                                        // in previous calls
-                                        slice_offset,
-                                        // number of slices handled by this call
-                                        slice_count,
-                                        //warps_per_string,
-                                        1.0);
-
-                }
-                else if (gradient_direction == Z_) {
-                    CubeEvaluator_evaluate_simple_grid_gradients <finite_diff_order, false, false, true>
-                        <<< launch_grid, block, 0,
-                            *this->streamContainer->getStream(device, stream) >>>
-                    //CubeEvaluator_evaluate_grid_gradients <NLIP, false, false, true>
-                    //    <<< grid_size, BLOCK_SIZE, 0,
-                    //        *this->streamContainer->getStream(device, stream) >>>
-                                        (dev_input_cube,
-                                        device_pitches[device],
-                                        device_memory_shape[Y_],
-                                        grid->device_copies[device],
-                                        dev_gradient_x,
-                                        dev_gradient_y,
-                                        dev_gradient_z,
-                                        // number of slices handled by this device
-                                        // in previous calls
-                                        device_slice_offset,
-                                        // number of slices handled by all devices
-                                        // in previous calls
-                                        slice_offset,
-                                        // number of slices handled by this call
-                                        slice_count,
-                                        //warps_per_string,
-                                        1.0);
-
-                }
-                else if (gradient_direction == 3) {
-                    CubeEvaluator_evaluate_simple_grid_gradients <finite_diff_order, true, true, true>
-                        <<< launch_grid, block, 0,
-                            *this->streamContainer->getStream(device, stream) >>>
-                    //CubeEvaluator_evaluate_grid_gradients <NLIP, true, true, true>
-                    //    <<< grid_size, BLOCK_SIZE, 0,
-                    //        *this->streamContainer->getStream(device, stream) >>>
-                                        (dev_input_cube,
-                                        device_pitches[device],
-                                        device_memory_shape[Y_],
-                                        grid->device_copies[device],
-                                        dev_gradient_x,
-                                        dev_gradient_y,
-                                        dev_gradient_z,
-                                        // number of slices handled by this device
-                                        // in previous calls
-                                        device_slice_offset,
-                                        // number of slices handled by all devices
-                                        // in previous calls
-                                        slice_offset,
-                                        // number of slices handled by this call
-                                        slice_count,
-                                        //warps_per_string,
-                                        1.0);
-                }
                 check_eval_errors(__FILE__, __LINE__);
                 // increase the address by the number of vectors in this array
                 device_slice_offset += slice_count;
@@ -1831,24 +1914,24 @@ void CubeEvaluator::evaluateGrid(Grid3D *grid,
  *  Fortran interfaces for Evaluator        *
  ********************************************/
 
-extern "C" void evaluator_evaluate_grid_cuda(Evaluator *evaluator, Grid3D *grid, CudaCube *result_cube, CudaCube *gradient_cube_x, CudaCube *gradient_cube_y, CudaCube *gradient_cube_z, int gradient_direction) {
-    evaluator->evaluateGrid(grid, result_cube, gradient_cube_x, gradient_cube_y, gradient_cube_z, gradient_direction);
+extern "C" void evaluator_evaluate_grid_cuda(Evaluator *evaluator, Grid3D *grid, CudaCube *result_cube, CudaCube *gradient_cube_x, CudaCube *gradient_cube_y, CudaCube *gradient_cube_z, int gradient_direction, int fin_diff_ord) {
+    evaluator->evaluateGrid(grid, result_cube, gradient_cube_x, gradient_cube_y, gradient_cube_z, gradient_direction, fin_diff_ord);
 }
 
-extern "C" void evaluator_evaluate_grid_without_gradients_cuda(Evaluator *evaluator, Grid3D *grid, CudaCube *result_cube) {
-    evaluator->evaluateGrid(grid, result_cube, NULL, NULL, NULL, -1);
+extern "C" void evaluator_evaluate_grid_without_gradients_cuda(Evaluator *evaluator, Grid3D *grid, CudaCube *result_cube, int fin_diff_ord) {
+    evaluator->evaluateGrid(grid, result_cube, NULL, NULL, NULL, -1, fin_diff_ord);
 }
 
-extern "C" void evaluator_evaluate_grid_x_gradients_cuda(Evaluator *evaluator, Grid3D *grid, CudaCube *result_cube) {
-    evaluator->evaluateGrid(grid, result_cube, NULL, NULL, NULL, X_);
+extern "C" void evaluator_evaluate_grid_x_gradients_cuda(Evaluator *evaluator, Grid3D *grid, CudaCube *result_cube, int fin_diff_ord) {
+    evaluator->evaluateGrid(grid, result_cube, NULL, NULL, NULL, X_, fin_diff_ord);
 }
 
-extern "C" void evaluator_evaluate_grid_y_gradients_cuda(Evaluator *evaluator, Grid3D *grid, CudaCube *result_cube) {
-    evaluator->evaluateGrid(grid, result_cube, NULL, NULL, NULL, Y_);
+extern "C" void evaluator_evaluate_grid_y_gradients_cuda(Evaluator *evaluator, Grid3D *grid, CudaCube *result_cube, int fin_diff_ord) {
+    evaluator->evaluateGrid(grid, result_cube, NULL, NULL, NULL, Y_, fin_diff_ord);
 }
 
-extern "C" void evaluator_evaluate_grid_z_gradients_cuda(Evaluator *evaluator, Grid3D *grid, CudaCube *result_cube) {
-    evaluator->evaluateGrid(grid, result_cube, NULL, NULL, NULL, Z_);
+extern "C" void evaluator_evaluate_grid_z_gradients_cuda(Evaluator *evaluator, Grid3D *grid, CudaCube *result_cube, int fin_diff_ord) {
+    evaluator->evaluateGrid(grid, result_cube, NULL, NULL, NULL, Z_, fin_diff_ord);
 }
 
 extern "C" void evaluator_evaluate_points_cuda(Evaluator *evaluator, Points *result_points, Points *gradient_points_x, Points *gradient_points_y, Points *gradient_points_z, int gradient_direction) {

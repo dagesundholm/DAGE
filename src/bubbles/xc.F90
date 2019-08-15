@@ -75,9 +75,12 @@ module XC_class
         integer,                   allocatable    :: radial_first_points(:, :)
         integer,                   allocatable    :: radial_lmax(:)
         integer(INT32),            allocatable    :: points_per_string(:, :)
-        class(Laplacian3D),         pointer       :: laplacian_operator
+        class(Laplacian3D),        pointer        :: laplacian_operator
         type(CoreEvaluator),       pointer        :: core_evaluator
         logical                                   :: orbitals_density_evaluation
+
+        !> finite difference rule to be used during the gradient evaluation for GGAs
+        integer(INT32)               :: finite_diff_order
 
         !> The pointers to the libxc objects
         TYPE(xc_f90_pointer_t)       :: exchange_function_pointer
@@ -126,8 +129,8 @@ module XC_class
     !! xc most quantities initialized to 0,
     !! NOT cnosistent with the input density yet.
     function XC_init_borrow(orbital, exchange_functional_type, correlation_functional_type, &
-                            lmax, laplacian_operator, core_evaluator, orbitals_density_evaluation) &
-                            result(new)
+                            lmax, laplacian_operator, core_evaluator, orbitals_density_evaluation, &
+                            finite_diff_order) result(new)
         type(function3d),   intent(in)             :: orbital
         integer(INT32),     intent(in)             :: exchange_functional_type
         integer(INT32),     intent(in)             :: correlation_functional_type
@@ -136,6 +139,7 @@ module XC_class
         class(Laplacian3D), intent(inout), target  :: laplacian_operator
         type(CoreEvaluator),intent(inout), target  :: core_evaluator
         logical,            intent(in)             :: orbitals_density_evaluation
+        integer(INT32),     intent(in)             :: finite_diff_order
         logical                                    :: evaluate_gradients
         integer                                    :: i, j, p
         real(REAL64), pointer                      :: coord(:)
@@ -150,6 +154,7 @@ module XC_class
         new%correlation_functional_type = correlation_functional_type
         new%orbitals_density_evaluation = orbitals_density_evaluation
         new%xc_e_int = 0.0d0
+        new%finite_diff_order = finite_diff_order
 
         !> initialize xc function3d. 
         call new%energy_per_particle%init_copy(orbital, type = F3D_TYPE_CUSP, &
@@ -166,11 +171,11 @@ module XC_class
             call xc_f90_func_init(new%correlation_function_pointer, new%correlation_info_pointer, &
                                   new%correlation_functional_type, XC_UNPOLARIZED)
 
-        evaluate_gradients = & 
-            xc_f90_info_family(new%exchange_info_pointer) == XC_FAMILY_GGA .or.  &
-            xc_f90_info_family(new%exchange_info_pointer) == XC_FAMILY_HYB_GGA .or. &
-            xc_f90_info_family(new%correlation_info_pointer) == XC_FAMILY_GGA .or.  &
-            xc_f90_info_family(new%correlation_info_pointer) == XC_FAMILY_HYB_GGA
+!        evaluate_gradients = & 
+!            xc_f90_info_family(new%exchange_info_pointer) == XC_FAMILY_GGA .or.  &
+!            xc_f90_info_family(new%exchange_info_pointer) == XC_FAMILY_HYB_GGA .or. &
+!            xc_f90_info_family(new%correlation_info_pointer) == XC_FAMILY_GGA .or.  &
+!            xc_f90_info_family(new%correlation_info_pointer) == XC_FAMILY_HYB_GGA
 
         
         !> radial integration order
@@ -208,6 +213,7 @@ module XC_class
         call temp%destroy()
        
     end function XC_init_borrow
+
 
     subroutine XC_destroy(self)
         class(XC) :: self
@@ -263,8 +269,6 @@ module XC_class
     end subroutine XC_destroy
 
 
-
-    
 
     subroutine XC_calculate_density_evaluation_points(self, orbital)
         class(XC),        intent(inout) :: self
@@ -616,6 +620,7 @@ module XC_class
             deallocate(temp_becke)
         end do
     end subroutine
+
 
     subroutine XC_project_to_bubbles(self, point_values, result_bubbles, extrapolate_origo, lmax, use_becke_weights)
         class(XC),     intent(in)                :: self
@@ -1483,7 +1488,8 @@ module XC_class
                 call cube_evaluator%evaluate_divergence_as_Function3D(core_potential_gradients_x(i), &
                                                                       core_potential_gradients_y(i), &
                                                                       core_potential_gradients_z(i), &
-                                                                      core_divergence(i), ignore_bubbles = .TRUE.)
+                                                                      core_divergence(i), ignore_bubbles = .TRUE., &
+                                                                      finite_diff_order = self%finite_diff_order)
                  core_divergence(i)%cube = -2.0d0 * core_divergence(i)%cube
             end if
             nullify(cube_evaluator)
@@ -1526,7 +1532,7 @@ module XC_class
         type(Function3D),         optional, intent(in)     :: derivative_x, derivative_y, derivative_z
         real(REAL64),             optional, intent(inout)  :: energy_density(:, :, :)
         type(Function3D),         optional, intent(in)     :: occupied_orbitals(:)
-        real(REAL64),              allocatable             :: potential_density(:), &
+        real(REAL64),             allocatable              :: potential_density(:), &
                                                               potential_contracted_gradients(:), &
                                                               energy_per_particle_(:), &
                                                               contracted_gradients(:), evaluated_density_1d(:)
@@ -1534,11 +1540,12 @@ module XC_class
                                                               gradients_z(:, :, :), evaluated_density(:, :, :)
         real(REAL64),   contiguous,  pointer               :: gradients_x_pointer(:, :, :), gradients_y_pointer(:, :, :), &
                                                               gradients_z_pointer(:, :, :), evaluated_density_pointer(:, :, :), &
-                                                               gradients_x_1d_pointer(:), &
+                                                              gradients_x_1d_pointer(:), &
                                                               gradients_y_1d_pointer(:), gradients_z_1d_pointer(:)
         integer                                            :: output_shape(3), i, j, l(1), counter
         type(Function3D)                                   :: temp
 
+write(*,*) 'begin XC_evaluate_cube'
         call bigben%split('XC-cube')
         output_shape = output_grid%get_shape()
 #ifdef HAVE_CUDA
@@ -1582,7 +1589,8 @@ module XC_class
                                                     derivative_z = derivative_z, &
                                                     derivative_cube_x = gradients_x_pointer, &
                                                     derivative_cube_y = gradients_y_pointer, &
-                                                    derivative_cube_z = gradients_z_pointer)
+                                                    derivative_cube_z = gradients_z_pointer, &
+                                                    finite_diff_order = self%finite_diff_order)
             end if
             
             contracted_gradients =   gradients_x_1d_pointer * gradients_x_1d_pointer &
@@ -1722,7 +1730,8 @@ module XC_class
  
          call density_evaluator%evaluate_divergence_as_Function3D(potential_gradients_x, potential_gradients_y, &
                                                                   potential_gradients_z, &
-                                                                  temp, ignore_bubbles = ignore_bubbles_)
+                                                                  temp, ignore_bubbles = ignore_bubbles_, &
+                                                                  finite_diff_order = self%finite_diff_order)
         !call self%core_evaluator%evaluate_core_divergence_and_collapse(potential_gradients_x, potential_gradients_y, &
         !                                                          potential_gradients_z, &
         !                                                          temp)
@@ -1734,8 +1743,8 @@ module XC_class
         divergence_f3d = (-2.0d0) * temp
         call temp%destroy()
 
-        
     end subroutine
+
     
     subroutine XC_evaluate_electron_density_laplacian(self, occupied_orbitals, laplacian)
         class(XC),        intent(inout), target     :: self
@@ -1757,8 +1766,8 @@ module XC_class
             call temp%destroy()
             deallocate(kin)
             
-            call self%grid_points_evaluator%evaluate_gradients_as_Function3Ds &
-                     (occupied_orbitals(i), derivative_x, derivative_y, derivative_z)
+            call self%grid_points_evaluator%evaluate_gradients_as_Function3Ds(occupied_orbitals(i), &
+                     derivative_x, derivative_y, derivative_z, finite_diff_order = self%finite_diff_order)
             temp = derivative_x * derivative_x
             call temp%product_in_place_REAL64(4.0d0)
             call laplacian%add_in_place(temp)
@@ -1815,8 +1824,8 @@ module XC_class
                 temp_points_x = Points(electron_density)
                 temp_points_y = Points(electron_density)
                 temp_points_z = Points(electron_density)
-                call self%grid_points_evaluator%evaluate_gradients_as_Function3Ds &
-                        (occupied_orbitals(i), temp_x, temp_y, temp_z)
+                call self%grid_points_evaluator%evaluate_gradients_as_Function3Ds(occupied_orbitals(i), &
+                                          temp_x, temp_y, temp_z, finite_diff_order = self%finite_diff_order)
                 call bubbles_points_evaluator%evaluate_points(occupied_orbitals(i), &
                                                                        temp_points, &
                                                                        derivative_x = temp_x,  &
@@ -1905,8 +1914,8 @@ module XC_class
             electron_density = electron_density + 2.0d0 * temp_orbital%cube * temp_orbital%cube
             
             if (evaluate_gradients) then
-                call self%grid_points_evaluator%evaluate_gradients_as_Function3Ds &
-                        (occupied_orbitals(i), temp_x, temp_y, temp_z)
+                call self%grid_points_evaluator%evaluate_gradients_as_Function3Ds(occupied_orbitals(i), &
+                                           temp_x, temp_y, temp_z, finite_diff_order = self%finite_diff_order)
                 call temp_x%inject_bubbles_to_cube(temp_x%bubbles)
                 derivative_x = derivative_x + 4.0d0 * temp_orbital%cube * temp_x%cube 
                 
@@ -1992,6 +2001,7 @@ module XC_class
         type(Points), allocatable                   :: becke_points(:)
         type(Function3D), allocatable               :: core_density(:)
 
+write(*,*) 'begin XC_eval'
         call potential%init_copy(density, lmax = density%bubbles%get_lmax())
         potential = 0.0d0
         call potential_contracted_gradients_x%init_copy(density, lmax = density%bubbles%get_lmax())
@@ -2008,7 +2018,6 @@ module XC_class
             xc_f90_info_family(self%exchange_info_pointer) == XC_FAMILY_HYB_GGA .or. &
             xc_f90_info_family(self%correlation_info_pointer) == XC_FAMILY_GGA .or.  &
             xc_f90_info_family(self%correlation_info_pointer) == XC_FAMILY_HYB_GGA
-
         
         
         !> cube.
@@ -2024,8 +2033,8 @@ module XC_class
         
         if (evaluate_gradients) then
             !call self%evaluate_electron_density_gradient(occupied_orbitals, derivative_x, derivative_y, derivative_z)
-            call self%grid_points_evaluator%evaluate_gradients_as_Function3Ds &
-                     (density, derivative_x, derivative_y, derivative_z)
+            call self%grid_points_evaluator%evaluate_gradients_as_Function3Ds(density, &
+                                   derivative_x, derivative_y, derivative_z, finite_diff_order = self%finite_diff_order)
 
             !call self%core_evaluator%evaluate_core_gradient_and_collapse(core_density, &
             !                                                derivative_x, derivative_y, derivative_z)
@@ -2176,6 +2185,7 @@ module XC_class
 
         !call input_density%destroy()
         
+write(*,*) 'end XC_eval'
     end subroutine XC_eval
 
 

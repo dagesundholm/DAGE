@@ -376,7 +376,7 @@ module Evaluators_class
 
     interface
         pure subroutine Evaluator_evaluate_grid_cuda(evaluator, grid, result_cube, &
-                gradient_cube_x, gradient_cube_y, gradient_cube_z, gradient_direction) bind(C)
+                gradient_cube_x, gradient_cube_y, gradient_cube_z, gradient_direction, finite_diff_order) bind(C)
             use ISO_C_BINDING
             type(C_PTR),    value :: evaluator
             type(C_PTR),    value :: grid
@@ -385,6 +385,7 @@ module Evaluators_class
             type(C_PTR),    value :: gradient_cube_y
             type(C_PTR),    value :: gradient_cube_z
             integer(C_INT), value :: gradient_direction
+            integer(C_INT), value :: finite_diff_order
         end subroutine
     end interface
 
@@ -398,29 +399,32 @@ module Evaluators_class
     end interface
 
     interface
-        pure subroutine Evaluator_evaluate_grid_x_gradients_cuda(evaluator, grid, result_cube) bind(C)
+        pure subroutine Evaluator_evaluate_grid_x_gradients_cuda(evaluator, grid, result_cube, finite_diff_order) bind(C)
             use ISO_C_BINDING
             type(C_PTR),    value :: evaluator
             type(C_PTR),    value :: grid
             type(C_PTR),    value :: result_cube
+            integer(C_INT), value :: finite_diff_order
         end subroutine
     end interface
 
     interface
-        pure subroutine Evaluator_evaluate_grid_y_gradients_cuda(evaluator, grid, result_cube) bind(C)
+        pure subroutine Evaluator_evaluate_grid_y_gradients_cuda(evaluator, grid, result_cube, finite_diff_order) bind(C)
             use ISO_C_BINDING
             type(C_PTR),    value :: evaluator
             type(C_PTR),    value :: grid
             type(C_PTR),    value :: result_cube
+            integer(C_INT), value :: finite_diff_order
         end subroutine
     end interface
 
     interface
-        pure subroutine Evaluator_evaluate_grid_z_gradients_cuda(evaluator, grid, result_cube) bind(C)
+        pure subroutine Evaluator_evaluate_grid_z_gradients_cuda(evaluator, grid, result_cube, finite_diff_order) bind(C)
             use ISO_C_BINDING
             type(C_PTR),    value :: evaluator
             type(C_PTR),    value :: grid
             type(C_PTR),    value :: result_cube
+            integer(C_INT), value :: finite_diff_order
         end subroutine
     end interface
 
@@ -1328,13 +1332,14 @@ contains
     !! To use this method, the 'input_cube' or 'bubbles' has to have been
     !! uploaded and set before hand. Additionally, the 'grid' and 'result_cuda_cube'
     !! have to be set.
-    subroutine Evaluator_cuda_evaluate_grid_derivative(self, direction, results, set_to_zero, download)
+    subroutine Evaluator_cuda_evaluate_grid_derivative(self, direction, results, set_to_zero, download, finite_diff_order)
         !> evaluator object
         class(Evaluator),          intent(inout)    :: self
         integer,                   intent(in)       :: direction
         real(REAL64),              intent(inout)    :: results(:, :, :)
         logical,       optional,   intent(in)       :: set_to_zero,  download
         logical                                     :: set_to_zero_, download_
+        integer,                   intent(in)       :: finite_diff_order
 
         download_    = .TRUE.
         if (present(download))    download_ = download
@@ -1345,13 +1350,13 @@ contains
 
         if (direction == X_) then
             call Evaluator_evaluate_grid_x_gradients_cuda(self%cuda_interface, self%grid%get_cuda_interface(), &
-                                                          self%result_cuda_cube%cuda_interface)
+                                                          self%result_cuda_cube%cuda_interface, finite_diff_order)
         else if (direction == Y_) then
             call Evaluator_evaluate_grid_y_gradients_cuda(self%cuda_interface, self%grid%get_cuda_interface(), &
-                                                          self%result_cuda_cube%cuda_interface)
+                                                          self%result_cuda_cube%cuda_interface, finite_diff_order)
         else if (direction == Z_) then
             call Evaluator_evaluate_grid_z_gradients_cuda(self%cuda_interface, self%grid%get_cuda_interface(), &
-                                                          self%result_cuda_cube%cuda_interface)
+                                                          self%result_cuda_cube%cuda_interface, finite_diff_order)
         end if
         if (download_) call self%result_cuda_cube%download()
 
@@ -1583,31 +1588,55 @@ contains
 
     !> Extrapolate and replace the first values of 'values'
     !! using Lagrange interpolation polynomial of order 'order'.
-    pure subroutine extrapolate_first_nlip7(order, values)
-        integer,      intent(in)    :: order
+    pure subroutine extrapolate_first_nlip7(order, grid_type, values)
+        integer(INT32),      intent(in)    :: order
+        integer(INT32),      intent(in)    :: grid_type
         real(REAL64), intent(inout) :: values(:)
-        if (order == 2) then
-            values(1) = &
-                   2.0d0 * values(2) &
-                -  1.0d0 * values(3) 
-                        
-        else if (order == 3) then
-            values(1) = &
-                   3.0d0 * values(2) &
-                -  3.0d0 * values(3) &
-                +  1.0d0 * values(4)
-                
-        else if (order == 6) then
-            values(1) = &
-                   6.0d0 * values(2) &
-                - 15.0d0 * values(3) &
-                + 20.0d0 * values(4) &
-                - 15.0d0 * values(5) &
-                +  6.0d0 * values(6) &
-                -  1.0d0 * values(7)
+
+        if (grid_type == 1) then ! equidistant
+            if (order == 2) then
+                values(1) = &
+                       2.0d0 * values(2) &
+                    -  1.0d0 * values(3) 
+                            
+            else if (order == 3) then
+                values(1) = &
+                       3.0d0 * values(2) &
+                    -  3.0d0 * values(3) &
+                    +  1.0d0 * values(4)
+                    
+            else if (order == 6) then
+                values(1) = &
+                       6.0d0 * values(2) &
+                    - 15.0d0 * values(3) &
+                    + 20.0d0 * values(4) &
+                    - 15.0d0 * values(5) &
+                    +  6.0d0 * values(6) &
+                    -  1.0d0 * values(7)
+            end if
+       else if (grid_type == 2) then ! lobatto
+            if (order == 2) then
+                values(1) = &
+                      1.46980575696  * values(2) &
+                    - 0.469805756961 * values(3) 
+                            
+            else if (order == 3) then
+                values(1) = &
+                      1.77037274348  * values(2) &
+                    - 1.00204109193  * values(3) &
+                    + 0.231668348449 * values(4)
+                    
+            else if (order == 6) then
+                values(1) = &
+                      2.41108834235  * values(2) &
+                    - 3.01108834235  * values(3) &
+                    + 3.2d0          * values(4) &
+                    - 3.01108834235  * values(5) &
+                    + 2.41108834235  * values(6) &
+                    - 1.d0           * values(7)
+            end if
         end if
     end subroutine
-
 
 end module
 

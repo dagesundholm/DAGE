@@ -236,13 +236,9 @@ contains
                 ! store the energetics to history
                 call self%store_energetics()
                 current_energy = self%scf_cycle%energy
-print *, "(b0) electronic, tot ", current_energy, " ", self%scf_energetics%total_energy(self%iteration_count)  ! remove,lnw
-print *, "(b0) target          -1.838 , 1.124"  ! remove,lnw
             else
                 current_energy = self%scf_energetics%total_energy(self%iteration_count)
                 self%scf_cycle%energy = current_energy - self%scf_energetics%nuclear_repulsion_energy
-print *, "(b1) electronic, tot ", current_energy, " ", self%scf_cycle%energy ! remove,lnw
-print *, "(b1) target          -1.838 , 1.124"  ! remove,lnw
             end if
             
             energy_change = current_energy - previous_energy
@@ -250,7 +246,7 @@ print *, "(b1) target          -1.838 , 1.124"  ! remove,lnw
             previous_energy = current_energy
 
             write(*, '("-----------------------------------------------------------------------")')
-            write(*, '("in power method")')
+            write(*, '("in power method")') ! remove lnw
             write(*, '("Iteration ",i4," completed")'),     self%iteration_count
             write(*, '("Total energy:      ", f24.16,"")'), self%scf_energetics%total_energy(self%iteration_count)
             write(*, '("Electronic energy: ", f24.16,"")'),   self%scf_energetics%total_energy(self%iteration_count) &
@@ -259,6 +255,7 @@ print *, "(b1) target          -1.838 , 1.124"  ! remove,lnw
             write(*, '("Energy change:     ", f24.16,"")'),  energy_change
             write(*, '("-----------------------------------------------------------------------")')
             
+flush(6)
 ! call abort()
 
             if (self%is_converged()) then

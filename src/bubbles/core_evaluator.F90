@@ -250,6 +250,7 @@ contains
         nullify(coordinates_x, coordinates_y, coordinates_z)
     end subroutine
 
+
     subroutine CoreEvaluator_evaluate_contaminants(self, global_function, taylor_order, ignore_bubbles)
         class(CoreEvaluator),           intent(inout) :: self
         type(Function3D),               intent(inout) :: global_function
@@ -311,6 +312,7 @@ contains
         call destroy_core_functions(core_function)
         call destroy_core_functions(temp_function)
     end subroutine
+
 
     subroutine CoreEvaluator_evaluate_core_laplacian(self, global_function, global_laplacian)
         class(CoreEvaluator),           intent(in)    :: self
@@ -397,6 +399,7 @@ contains
         end do
     end subroutine
 
+
     subroutine CoreEvaluator_evaluate_core_gradient(self, core_function, &
                                                     core_gradients_x, core_gradients_y, core_gradients_z)
         class(CoreEvaluator),           intent(inout) :: self
@@ -412,6 +415,7 @@ contains
                   core_gradients_y(i), core_gradients_z(i), ignore_bubbles = .TRUE.)
         end do
     end subroutine
+
 
     subroutine CoreEvaluator_evaluate_points_and_collapse(self, core_function, global_points, &
                                                           bubbls, reinit_core_point_coordinates)

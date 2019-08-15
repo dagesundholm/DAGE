@@ -796,8 +796,7 @@ contains
             cube = cube + equidistant_self%inject_bubbles()
         endif
 
-        file_format = FileFormatInit(cube, eq_grid%get_shape(),&
-                                     eq_grid%get_range())
+        file_format = FileFormatInit(cube, eq_grid%get_shape(), eq_grid%get_range())
 
         call pinfo("Writing "//self%get_label()//" to `"//filename//"'.")
 
@@ -1833,7 +1832,7 @@ contains
         !print '("integrate, cube", f18.14, " bubbles: ", f18.14, " Total:", f18.14)', &
         !    val, bubbles_value, val+bubbles_value
         val = val + bubbles_value
-        val = truncate_number(val, 6)
+        val = truncate_number(val, 4)
         !print *, "total", val
         call bigben%stop()
         return
@@ -2717,7 +2716,7 @@ contains
     !! (derivative_x, derivative_y, and derivative_z)
     subroutine Function3DEvaluator_evaluate_gradients_as_Function3Ds(self, input_function, &
                                                                      derivative_x, derivative_y, derivative_z, &
-                                                                     ignore_bubbles, ignore_cube)
+                                                                     ignore_bubbles, ignore_cube, finite_diff_order)
         !> evaluator object
         class(Function3DEvaluator), intent(inout) :: self
         !> input function3d object
@@ -2725,6 +2724,7 @@ contains
         !> output derivatives as function3d objects
         type(Function3D),          intent(out)    :: derivative_x, derivative_y, derivative_z
         logical,         optional, intent(in)     :: ignore_bubbles, ignore_cube
+        integer,         optional, intent(in)     :: finite_diff_order
         logical                                   :: ignore_bubbles_, ignore_cube_
         type(Bubbles)                             :: bubbles_derivative_x, bubbles_derivative_y, bubbles_derivative_z
         type(Function3D)                          :: temp
@@ -2763,12 +2763,13 @@ contains
                                input_function%grid%axis(Y_)%get_shape(), &
                                input_function%grid%axis(Z_)%get_shape()))
             call self%cube_evaluator%evaluate_grid(input_function%cube, input_function%grid, temp_cube, &
-                                                   derivative_x%cube, derivative_y%cube, derivative_z%cube)
+                                                   derivative_x%cube, derivative_y%cube, derivative_z%cube, &
+                                                   finite_diff_order=finite_diff_order)
             deallocate(temp_cube)
         end if  
         
-        
     end subroutine
+
 
     subroutine Function3DEvaluator_evaluate_points(self, input_function, result_points, derivative_x, derivative_y, derivative_z, &
                                                    derivative_points_x, derivative_points_y, derivative_points_z, &
@@ -2866,8 +2867,8 @@ contains
     end subroutine
 
     subroutine Function3DEvaluator_evaluate_grid(self, input_function, result_cube, derivative_x, derivative_y, derivative_z, &
-                                                   derivative_cube_x, derivative_cube_y, derivative_cube_z, &
-                                                   ignore_cube, ignore_bubbles, ibubs)
+                                                 derivative_cube_x, derivative_cube_y, derivative_cube_z, &
+                                                 ignore_cube, ignore_bubbles, ibubs, finite_diff_order)
         !> evaluator object
         class(Function3DEvaluator),  intent(inout) :: self
         !> input function3d object
@@ -2883,6 +2884,7 @@ contains
         logical,           optional, intent(in)    :: ignore_cube, ignore_bubbles       
         !> The global order numbers of evaluated bubbles, if not given all bubbles are evaluated
         integer,           optional, intent(in)    :: ibubs(:)
+        integer,           optional, intent(in)    :: finite_diff_order
         logical                                    :: ignore_cube_, ignore_bubbles_
         !> output points objects for the derivatives of the input_function in x, y, and z directions
         real(REAL64),      allocatable             :: bubbles_derivative_cube_x(:, :, :), &
@@ -2925,7 +2927,8 @@ contains
         else
             if (.not. ignore_bubbles_) call self%bubbles_evaluator%evaluate_grid(input_function%bubbles, &
                                                 input_function%grid, result_cube, derivative_cube_x, &
-                                                derivative_cube_y, derivative_cube_z, ibubs = ibubs)
+                                                derivative_cube_y, derivative_cube_z, ibubs = ibubs, &
+                                                finite_diff_order = finite_diff_order)
             if (.not. ignore_bubbles_ .and. .not. ignore_cube_ .and. present(derivative_cube_x)) &
                 bubbles_derivative_cube_x = derivative_cube_x
             if (.not. ignore_bubbles_ .and. .not. ignore_cube_ .and. present(derivative_cube_y)) &
@@ -2937,7 +2940,7 @@ contains
 
             if (.not. ignore_cube_)    call self%cube_evaluator%evaluate_grid(input_function%cube, input_function%grid, &
                                                 result_cube, derivative_cube_x, &
-                                                derivative_cube_y, derivative_cube_z)
+                                                derivative_cube_y, derivative_cube_z, finite_diff_order=finite_diff_order)
 
         end if
 
@@ -2958,6 +2961,7 @@ contains
             result_cube(:, :, :) = result_cube(:, :, :) + bubbles_result_cube(:, :, :)
             deallocate(bubbles_result_cube)
         end if
+write(*,*) 'end Function3DEvaluator_evaluate_grid'
     end subroutine
 
     subroutine Function3DEvaluator_evaluate_divergence_points(self, input_function_x,  &
@@ -2986,7 +2990,8 @@ contains
                                                              input_function_y, &
                                                              input_function_z, &
                                                              divergence, &
-                                                             ignore_bubbles, ignore_cube)
+                                                             ignore_bubbles, ignore_cube, &
+                                                             finite_diff_order)
         !> evaluator object
         class(Function3DEvaluator), intent(inout) :: self
         !> input function3d objects containing the three parts of the input vector
@@ -2995,6 +3000,7 @@ contains
         type(Function3D),           intent(out)   :: divergence
         !> If the cube/bubbles are ignored, if not present, nothing is ignored
         logical,           optional, intent(in)   :: ignore_cube, ignore_bubbles  
+        integer,           optional, intent(in)   :: finite_diff_order
         !> Temporary pointers to the 
         real(REAL64), pointer                     :: cube_divergence(:)
         type(Bubbles)                             :: temp_x, temp_y, temp_z
@@ -3010,7 +3016,7 @@ contains
         call divergence%bubbles%destroy()
 
         if (.not. ignore_cube_) call self%cube_evaluator%evaluate_divergence_grid(input_function_x%cube, &
-            input_function_y%cube, input_function_z%cube, input_function_x%grid, divergence%cube)
+            input_function_y%cube, input_function_z%cube, input_function_x%grid, divergence%cube, finite_diff_order)
 
         if (.not. ignore_bubbles_) call self%bubbles_evaluator%evaluate_divergence_as_bubbles(input_function_x%bubbles, &
             input_function_y%bubbles, input_function_z%bubbles, divergence%bubbles)        
@@ -3329,7 +3335,7 @@ contains
 
 
     subroutine CubeEvaluator_evaluate_grid(self, input_function_cube, input_grid, output_function_cube, &
-                   output_derivative_x_cube, output_derivative_y_cube, output_derivative_z_cube)
+                   output_derivative_x_cube, output_derivative_y_cube, output_derivative_z_cube, finite_diff_order)
         !> evaluator object
         class(CubeEvaluator),      intent(inout)    :: self
         !> input function3d object
@@ -3339,6 +3345,7 @@ contains
         real(REAL64), optional,    intent(inout)    :: output_derivative_x_cube(:, :, :)
         real(REAL64), optional,    intent(inout)    :: output_derivative_y_cube(:, :, :)
         real(REAL64), optional,    intent(inout)    :: output_derivative_z_cube(:, :, :)
+        integer,      optional,    intent(in)       :: finite_diff_order
 #ifdef HAVE_CUDA
         real(REAL64), pointer                       :: cube_pointer(:, :, :)
 #else
@@ -3375,7 +3382,8 @@ contains
                                               self%result_cuda_cube%cuda_interface, &
                                               self%gradient_cuda_cube_x%cuda_interface, &
                                               self%gradient_cuda_cube_y%cuda_interface, &
-                                              self%gradient_cuda_cube_z%cuda_interface, 3)
+                                              self%gradient_cuda_cube_z%cuda_interface, 3, &
+                                              finite_diff_order)
             ! start downloading the results. NOTE: this is asynchronous,
             ! the cpu-gpu sync will happen when 'get_results' or 'get_gradients'
             ! is called.
@@ -3385,17 +3393,17 @@ contains
             call CUDASync_all()
         else
             if (present(output_derivative_x_cube)) then
-                call self%cuda_evaluate_grid_derivative(X_, output_derivative_x_cube)
+                call self%cuda_evaluate_grid_derivative(X_, output_derivative_x_cube, finite_diff_order=finite_diff_order)
                 call CUDASync_all()
             end if
 
             if (present(output_derivative_y_cube)) then
-                call self%cuda_evaluate_grid_derivative(Y_, output_derivative_y_cube)
+                call self%cuda_evaluate_grid_derivative(Y_, output_derivative_y_cube, finite_diff_order=finite_diff_order)
                 call CUDASync_all()
             end if
 
             if  (present(output_derivative_z_cube)) then
-                call self%cuda_evaluate_grid_derivative(Z_, output_derivative_z_cube)
+                call self%cuda_evaluate_grid_derivative(Z_, output_derivative_z_cube, finite_diff_order=finite_diff_order)
                 call CUDASync_all()    
             end if
         end if
@@ -3429,7 +3437,7 @@ contains
 
     subroutine CubeEvaluator_evaluate_divergence_grid(self, input_function_cube_x, &
                                   input_function_cube_y, input_function_cube_z, &
-                                  input_grid, output_cube)
+                                  input_grid, output_cube, finite_diff_order)
         !> evaluator object
         class(CubeEvaluator),      intent(inout)    :: self
         !> input cubes in x, y and z direction
@@ -3438,6 +3446,7 @@ contains
                                                        input_function_cube_z(:, :, :)
         type(Grid3D),  target,     intent(in)       :: input_grid
         real(REAL64),              intent(inout)    :: output_cube(:, :, :)
+        integer,                   intent(in)       :: finite_diff_order
 #ifndef HAVE_CUDA
         real(REAL64), allocatable                   :: temp_array(:, :)    
         type(Grid1DPointer)                         :: grid1d_pointers(3)
@@ -3454,7 +3463,7 @@ contains
 
         ! start the evaluation of gradients in x-direction
         call Evaluator_evaluate_grid_x_gradients_cuda(self%cuda_interface, &
-                 self%grid%get_cuda_interface(), self%result_cuda_cube%cuda_interface)
+                 self%grid%get_cuda_interface(), self%result_cuda_cube%cuda_interface, finite_diff_order)
         call CUDASync_all()
 
         ! upload the data needed to evaluated gradients in y direction
@@ -3463,7 +3472,7 @@ contains
 
         ! start the evaluation of gradients in y-direction
         call Evaluator_evaluate_grid_y_gradients_cuda(self%cuda_interface, &
-                 self%grid%get_cuda_interface(), self%result_cuda_cube%cuda_interface)
+                 self%grid%get_cuda_interface(), self%result_cuda_cube%cuda_interface, finite_diff_order)
         call CUDASync_all()
 
         ! upload the data needed to evaluated gradients in z direction
@@ -3472,7 +3481,7 @@ contains
         
         ! start the evaluation of gradients in z-direction
         call Evaluator_evaluate_grid_z_gradients_cuda(self%cuda_interface, &
-                 self%grid%get_cuda_interface(), self%result_cuda_cube%cuda_interface)
+                 self%grid%get_cuda_interface(), self%result_cuda_cube%cuda_interface, finite_diff_order)
         call CUDASync_all()
 
         ! start downloading the results. NOTE: this is asynchronous,

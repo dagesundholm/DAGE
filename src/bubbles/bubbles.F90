@@ -4554,7 +4554,7 @@ contains
     !! and 'get_results' will synchronize the cuda and cpus
     subroutine BubblesEvaluator_evaluate_grid(self,  bubbls, grid, output_function_cube, &
                                               output_derivative_x_cube, output_derivative_y_cube, &
-                                              output_derivative_z_cube, ibubs)
+                                              output_derivative_z_cube, ibubs, finite_diff_order)
         class(BubblesEvaluator), intent(inout)      :: self
         type(Bubbles),             intent(in)       :: bubbls
         type(Grid3D),              intent(in)       :: grid
@@ -4566,6 +4566,7 @@ contains
         integer                                     :: output_shape(3)
 #ifdef HAVE_CUDA
         type(C_PTR)                                 :: original_bubbles, current_bubbles
+        integer,                   intent(in)       :: finite_diff_order
         
         call self%set_input_bubbles(bubbls, ibubs)
         call self%set_output_grid(grid)
@@ -4589,7 +4590,8 @@ contains
                                               self%result_cuda_cube%cuda_interface, &
                                               self%gradient_cuda_cube_x%cuda_interface, &
                                               self%gradient_cuda_cube_y%cuda_interface, &
-                                              self%gradient_cuda_cube_z%cuda_interface, 3)
+                                              self%gradient_cuda_cube_z%cuda_interface, 3, &
+                                              finite_diff_order)
             ! start downloading the results. NOTE: this is asynchronous,
             ! the cpu-gpu sync will happen when 'get_results' or 'get_gradients'
             ! is called.   
@@ -4603,17 +4605,17 @@ contains
             call CUDASync_all()
             
             if (present(output_derivative_x_cube)) then
-                call self%cuda_evaluate_grid_derivative(X_, output_derivative_x_cube)
+                call self%cuda_evaluate_grid_derivative(X_, output_derivative_x_cube, finite_diff_order=finite_diff_order)
                 call CUDASync_all()
             end if
 
             if (present(output_derivative_y_cube)) then
-                call self%cuda_evaluate_grid_derivative(Y_, output_derivative_y_cube)
+                call self%cuda_evaluate_grid_derivative(Y_, output_derivative_y_cube, finite_diff_order=finite_diff_order)
                 call CUDASync_all()
             end if
 
             if  (present(output_derivative_z_cube)) then
-                call self%cuda_evaluate_grid_derivative(Z_, output_derivative_z_cube)
+                call self%cuda_evaluate_grid_derivative(Z_, output_derivative_z_cube, finite_diff_order=finite_diff_order)
                 call CUDASync_all()    
             end if
         end if

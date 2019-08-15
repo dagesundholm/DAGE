@@ -1,0 +1,24 @@
+
+
+-- the currently used initial guess is annoying and poor: One inputs a number
+of MOs expanded in the chosen atom centred basis set in the structure
+definition.  Default is coeffs of zero and one, which is extremely poor for
+almost all structures.
+
+There is some functionality coded in initial_guess.F90 but it seems not to be
+used at the moment.
+
+Implementing something Hueckel-like or h1 would be an obvious first choice.
+
+
+-- how does one input the charge of a system?
+
+
+-- Restricted open shell HF is implemented incompletely and is not functional.
+
+
+-- some wrong fin-diff in the end of evaluator.F90
+
+
+
+

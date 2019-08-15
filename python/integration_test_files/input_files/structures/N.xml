@@ -2,9 +2,9 @@
 <structure name="N" basis_set_name="cc-pVDZ" multiplicity="quartet">
     <atom atom_type="7" charge="7" coordinates="0.0000000000000000,      0.0000000000000000,      0.0000000000000000"/>
     
-    <molecular_orbital orbital_coefficients="1.0,  0.0, 0.0, 0.0, 0.00, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0"/>
-    <molecular_orbital orbital_coefficients="0.0,  1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0"/>
-    <molecular_orbital orbital_coefficients="0.0,  0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0"/>
-    <molecular_orbital orbital_coefficients="0.0,  0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0"/>
-    <molecular_orbital orbital_coefficients="0.0,  0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0"/>
+    <molecular_orbital orbital_coefficients="1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0"/>
+    <molecular_orbital orbital_coefficients="0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0"/>
+    <molecular_orbital orbital_coefficients="0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0"/>
+    <molecular_orbital orbital_coefficients="0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0"/>
+    <molecular_orbital orbital_coefficients="0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0"/>
 </structure>

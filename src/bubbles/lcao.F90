@@ -261,6 +261,7 @@ contains
         end do
     end function
 
+
     !> Return the orbital coefficients for orbitals with specified spin (0: a, 1: b)
     function Structure_get_orbital_coefficients(self, basis_object, spin) result(orbital_coefficients)
         class(Structure), intent(in) :: self
@@ -279,6 +280,13 @@ contains
         ! get the total number of basis functions in the calculation
         number_of_basis_functions = basis_object%get_total_number_of_basis_functions(self)
 
+        if(self%number_of_orbitals > number_of_basis_functions) then
+          write(*,*) 'You have specified ', self%number_of_orbitals, ' MOs, but there are only ', &
+                     number_of_basis_functions, 'basis functions. Exiting ...'
+          call flush(6)
+          call abort()
+        endif
+
         allocate(orbital_coefficients(number_of_basis_functions, number_of_basis_functions), &
                  source = 0.0d0)
         ! go through all orbitals and store the ones with spin == 'spin' 
@@ -290,13 +298,14 @@ contains
                 j = j + 1
             end if
         end do
-        
+
         ! create default coefficients for the orbitals that do not have given coefficients
         do i = j, number_of_basis_functions
             orbital_coefficients(:, i) = 0.0d0
             orbital_coefficients(i, i) = 1.0d0
         end do
     end function
+
 
     pure function Structure_get_atom_type_order_number(self, atom_number) result(atom_type)
         class(Structure), intent(in) :: self
@@ -1015,7 +1024,7 @@ contains
             print "('INPUT ERROR: Not enough molecular orbitals specified&
                     & with spin value: ', i1 , '. Number of orbitals&
                     & required is ', i3, ' and specified is ', i3, '.')", &
-                     spin, size(mos), size(mocoeffs, 2) 
+                     spin, size(mos), size(mocoeffs, 2)
             stop
         end if
         nmo = size(mos)

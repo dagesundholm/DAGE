@@ -1876,7 +1876,7 @@ contains
             stepsizes(iaxis) = (ranges(2, iaxis) - ranges(1, iaxis)) / (ncell(iaxis) * (nlip-1))
             ncell(iaxis) = floor((ranges(2, iaxis) - ranges(1, iaxis)) / ((nlip-1)*stepsizes(iaxis))) 
         enddo
-        
+
         ! allocate the axis stepsizes and give them values
         allocate(stepsize_x(ncell(X_)))
         allocate(stepsize_y(ncell(Y_)))
@@ -1884,7 +1884,7 @@ contains
         stepsize_x = stepsizes(X_)
         stepsize_y = stepsizes(Y_)
         stepsize_z = stepsizes(Z_)
-        
+
         ! init grid via Grid3D_init_step constructor
         grid = Grid3D(ranges(1, :), ncell, nlip, stepsize_x, stepsize_y, stepsize_z, grid_type)
 

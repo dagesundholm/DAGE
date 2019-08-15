@@ -991,7 +991,8 @@ contains
                         settings%dft_settings%xc_update_method, &
                         settings%dft_settings%xc_lmax, laplacian_operator, coulomb_operator, &
                         helmholtz_operator, core_evaluator, scf_cycle, &
-                        settings%dft_settings%orbitals_density_evaluation)
+                        settings%dft_settings%orbitals_density_evaluation, &
+                        settings%dft_settings%fin_diff_order)
                 else
                     ! get molecular orbital coefficients with spin 0: alpha
                     mocoeffs_a = struct%get_orbital_coefficients(basis_set, 0)
@@ -1003,7 +1004,8 @@ contains
                         settings%dft_settings%correlation_type, &
                         settings%dft_settings%xc_update_method, &
                         settings%dft_settings%xc_lmax, scf_cycle, mocoeffs_a, &
-                        settings%dft_settings%orbitals_density_evaluation)
+                        settings%dft_settings%orbitals_density_evaluation, &
+                        settings%dft_settings%fin_diff_order)
                     deallocate(mocoeffs_a)
                 end if
             end if

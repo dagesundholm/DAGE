@@ -169,6 +169,8 @@ module Settings_class
         integer                   :: xc_update_method = 0
         !> lmax for exc, vxc 
         integer                   :: xc_lmax = 0
+        !> finite difference order for GGA evaluation 
+        integer                   :: fin_diff_order = 7
         !> Determines if the electron density and its gradient are (re-)evaluated 
         !! from molecular orbitals. Using this setting makes the calculation more 
         !! accurate but slows it down a bit. 

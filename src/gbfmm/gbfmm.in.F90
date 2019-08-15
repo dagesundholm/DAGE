@@ -258,7 +258,7 @@ contains
         real(REAL64)                        :: rootlen(3)
 
         integer(int32), parameter :: nlip = 7
-        integer(int32), parameter :: grid_type = 1 ! equidistant: 1, lobatto: 2
+        integer(int32), parameter :: grid_type = 2 ! equidistant: 1, lobatto: 2
         
         class(Function3D), allocatable      :: rho
         
@@ -302,7 +302,7 @@ contains
         real(REAL64)                        :: rootlen(3)
 
         integer(int32), parameter :: nlip = 7
-        integer(int32), parameter :: grid_type = 1 ! equidistant: 1, lobatto: 2
+        integer(int32), parameter :: grid_type = 2 ! equidistant: 1, lobatto: 2
         
         
         class(Function3D), allocatable      :: rho
@@ -347,7 +347,7 @@ contains
         real(REAL64)                        :: rootlen(3)
 
         integer(int32), parameter :: nlip = 7
-        integer(int32), parameter :: grid_type = 1 ! equidistant: 1, lobatto: 2
+        integer(int32), parameter :: grid_type = 2 ! equidistant: 1, lobatto: 2
         
         
         class(Function3D), allocatable      :: rho
@@ -392,7 +392,7 @@ contains
         real(REAL64)                        :: rootlen(3)
 
         integer(int32), parameter :: nlip = 7
-        integer(int32), parameter :: grid_type = 1 ! equidistant: 1, lobatto: 2
+        integer(int32), parameter :: grid_type = 2 ! equidistant: 1, lobatto: 2
         
         
         class(Function3D), allocatable      :: rho
@@ -438,7 +438,7 @@ contains
         real(REAL64)                        :: rootlen(3)
 
         integer(int32), parameter :: nlip = 7
-        integer(int32), parameter :: grid_type = 1 ! equidistant: 1, lobatto: 2
+        integer(int32), parameter :: grid_type = 2 ! equidistant: 1, lobatto: 2
         
         
         class(Function3D), allocatable      :: rho
