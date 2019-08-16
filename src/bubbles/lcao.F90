@@ -87,12 +87,14 @@ module LCAO_m
     end type
 
 
-    !> Nuclear coordinates and atom type indeces
+    !> Nuclear coordinates and atom type indices
     type :: Structure
         !> Atom type id
         integer,      allocatable :: atom_type(:)
         !> Atomic number
-        real(REAL64), allocatable :: charge(:)
+        real(REAL64), allocatable :: nuclear_charge(:)
+        !> Sum of all nuclear and electronic charges
+        real(REAL64)              :: system_charge
         !> Indeces of the ignored basis functions for each atom
         integer, allocatable      :: ignored_basis_functions(:, :)
         !> The number of basis functions taken into account
@@ -169,15 +171,15 @@ contains
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !%   Structure                                                                  %
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    function Structure_init_explicit(atom_type, charge, coordinates) result(new)
+    function Structure_init_explicit(atom_type, nuclear_charge, coordinates) result(new)
         integer,      intent(in) :: atom_type(:)
-        real(REAL64), intent(in) :: charge     (size(atom_type))
+        real(REAL64), intent(in) :: nuclear_charge(size(atom_type))
         real(REAL64), intent(in) :: coordinates(3,size(atom_type))
         type(Structure)           :: new
   
-        new%atom_type=atom_type
-        new%charge        =charge
-        new%coordinates   =coordinates
+        new%atom_type      = atom_type
+        new%nuclear_charge = nuclear_charge
+        new%coordinates    = coordinates
     end function
 
     !> Initialize Structure from file.
@@ -203,11 +205,11 @@ contains
         integer                  :: iatom
 
         read(coords_fd,*) natoms
-        allocate(new%atom_type  (natoms))
-        allocate(new%charge     (natoms))
+        allocate(new%atom_type(natoms))
+        allocate(new%nuclear_charge(natoms))
         allocate(new%coordinates(3, natoms))
         do iatom=1,natoms
-            read(coords_fd,*) new%atom_type(iatom), new%charge(iatom), new%coordinates(:,iatom)
+            read(coords_fd,*) new%atom_type(iatom), new%nuclear_charge(iatom), new%coordinates(:,iatom)
         end do
     end function
 
@@ -379,7 +381,7 @@ contains
         
         do i = 1, size(self%atom_type)
             write(file_descriptor, '("    <atom atom_type=""",i0,""" charge=""",f7.4,""" ")', advance='no') &
-                self%atom_type(i), self%charge(i)
+                self%atom_type(i), self%nuclear_charge(i)
                 
             ! write the ignored basis functions
             do j = 1, size(self%ignored_basis_functions, 1)
@@ -456,9 +458,9 @@ contains
     
     pure subroutine Structure_destroy(self)
         class(Structure), intent(inout) :: self
-        if (allocated(self%atom_type))  deallocate(self%atom_type)
-        if (allocated(self%charge))      deallocate(self%charge)
-        if (allocated(self%coordinates)) deallocate(self%coordinates)
+        if (allocated(self%atom_type))      deallocate(self%atom_type)
+        if (allocated(self%nuclear_charge)) deallocate(self%nuclear_charge)
+        if (allocated(self%coordinates))    deallocate(self%coordinates)
     end subroutine
 
 
@@ -502,7 +504,7 @@ contains
 
         allocate(grids(self%get_natoms()))
         do iatom = 1, self%get_natoms()
-            grids(iatom) = Grid1D(self%charge(iatom), n0, nlip, cutoff, grid_type)
+            grids(iatom) = Grid1D(self%nuclear_charge(iatom), n0, nlip, cutoff, grid_type)
         end do
     end subroutine
 
@@ -532,7 +534,7 @@ contains
         real(REAL64),     allocatable :: centers(:, :)
         type(Grid1D)                  :: bubbles_grids(self%get_natoms())
         type(Bubbles)                 :: bubs
-        type(Grid1DPointer)            :: bubble_grid_pointers(self%get_natoms())
+        type(Grid1DPointer)           :: bubble_grid_pointers(self%get_natoms())
         real(REAL64)                  :: center_modulos(3, self%get_natoms()), adjust(3)
         type(Grid3D), pointer         :: global_grid
         real(REAL64), pointer         :: cell_scales(:)
@@ -576,8 +578,8 @@ contains
             global_centers = centers, &
             grids   = bubble_grid_pointers, &
             global_grids = bubble_grid_pointers, &
-            z       = self%charge, &
-            global_z= self%charge )
+            z       = self%nuclear_charge, &
+            global_z= self%nuclear_charge )
     
         deallocate(centers)
         mould=Function3D( parallelization_info, bubs, type=F3D_TYPE_CUSP, &
@@ -585,14 +587,19 @@ contains
         call bubs%destroy()
     end function
 
+
+    ! returns a pair, where the first entry is the number of orbitals with at
+    ! least one electron, and the second entry is the number of orbitals with
+    ! two electrons
     function Structure_get_number_of_occupied_orbitals(self) result(nocc)
         class(Structure),   intent(in) :: self
-        integer                        :: nocc(2), modulus, multiplicity
+        integer                        :: nocc(2)
+        integer                        :: modulus, multiplicity, n_electrons
         
-        
-        modulus = mod(nint(sum(self%charge)), 2)
-        nocc(1) = sum(nint(self%charge)) / 2 + modulus
-        nocc(2) = sum(nint(self%charge)) / 2
+        n_electrons = nint(sum(self%nuclear_charge)) - self%system_charge
+        modulus = mod(n_electrons, 2)
+        nocc(1) = n_electrons / 2 + modulus ! at least signly occupied
+        nocc(2) = n_electrons / 2 ! double occupied
 
         ! if no input multiplicity is given, select the singlet or doublet
         ! multiplicity taking into account the number of extra electrons
@@ -616,13 +623,14 @@ contains
             nocc(1) = nocc(1) + (multiplicity-1) / 2
             nocc(2) = nocc(2) - (multiplicity-1) / 2
         end if
-                
+write(*,*) 'nocc (in Structure_get_number_of_occupied_orbitals)', nocc
+flush(6)
     end function 
+
 
 ! %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ! % MO constructor                                                            %
 ! %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
     
     !> Creates the molecular orbitals as Linear combinations of atomic orbitals. Determines
     !! the basis function types etc by comparing parameters of the basis set 'self'.

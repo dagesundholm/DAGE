@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <structure name="B" basis_set_name="cc-pVDZ" multiplicity="doublet">
-    <atom atom_type="5" charge="5" coordinates="0.0, 0.0, 0.0"/>
+    <atom atom_type="5" nuclear_charge="5" coordinates="0.0, 0.0, 0.0"/>
     <molecular_orbital orbital_coefficients="1.0,  0.0,  0.0,  0.0, 0.0"/>
     <molecular_orbital orbital_coefficients="0.0,  1.0,  0.0,  0.0, 0.0"/>
     <molecular_orbital orbital_coefficients="0.0,  0.0,  0.0,  1.0, 0.0"/>

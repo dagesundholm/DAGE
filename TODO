@@ -16,8 +16,9 @@ Implementing something Hueckel-like or h1 would be an obvious first choice.
 
 -- Restricted open shell HF is implemented incompletely and is not functional.
 
-
--- some wrong fin-diff in the end of evaluator.F90
+-- there ought to be some early input sanitation, which checks if all files are
+there, have been readable, and if the combinations of chosen parameters are a)
+implemented and b) scientifically make sense
 
 
 

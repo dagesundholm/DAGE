@@ -37,8 +37,8 @@ contains
             total_number_of_subshells, total_number_of_folders, total_number_of_scf_en, &
             number_of_scf_energetics, struct_number_of_atoms, struct_number_of_orbitals, &
             struct_external_electric_field, struct_number_of_virtual_orbitals, struct_multiplicity, &
-            struct_name, struct_basis_set_name, struct_basis_set_id, struct_atom_type, &
-            struct_coordinates, struct_charge, struct_number_of_basis_functions, &
+            struct_system_charge, struct_name, struct_basis_set_name, struct_basis_set_id, &
+            struct_atom_type, struct_coordinates, struct_nuclear_charge, struct_number_of_basis_functions, &
             struct_ignored_basis_functions, struct_orbital_coefficients, struct_orbital_spin, &
             f3d_bubble_cell_count, f3d_bubble_lmax, f3d_bubble_cutoff_radius, f3d_cube_grid_spacing, &
             f3d_cube_cutoff_radius, f3d_bubbles_center_offset, f3d_bubbles_nlip, &
@@ -108,6 +108,9 @@ contains
         !> Spin multiplicity of the electronic state. 
         !f2py integer,        intent(in), dimension(number_of_structures+1), depend(number_of_structures), optional :: struct_multiplicity
         integer,        intent(in), optional :: struct_multiplicity(number_of_structures+1)
+        !> sum of all nuclear and electronic charges 
+        !f2py real(8),        intent(in), dimension(number_of_structures+1), depend(number_of_structures), optional :: struct_system_charge
+        real(8),        intent(in), optional :: struct_system_charge(number_of_structures+1)
         !> Name or abbreviation identifying the structure. 
         !f2py character*256, intent(in), dimension(number_of_structures+1), depend(number_of_structures), optional :: struct_name
         character*256, intent(in), optional :: struct_name(number_of_structures+1)
@@ -124,8 +127,8 @@ contains
         integer,        intent(in)           :: struct_atom_type(total_number_of_atoms+1)
         !f2py real(8),        intent(in), dimension(3, total_number_of_atoms+1), depend(total_number_of_atoms)           :: struct_coordinates
         real(8),        intent(in)           :: struct_coordinates(3, total_number_of_atoms+1)
-        !f2py real(8),        intent(in), dimension(total_number_of_atoms+1), depend(total_number_of_atoms)           :: struct_charge
-        real(8),        intent(in)           :: struct_charge(total_number_of_atoms+1)
+        !f2py real(8),        intent(in), dimension(total_number_of_atoms+1), depend(total_number_of_atoms)           :: struct_nuclear_charge
+        real(8),        intent(in)           :: struct_nuclear_charge(total_number_of_atoms+1)
         !> The number of basis functions used for this atom. If -1 the number of available 
         !! basis functions is used. 
         !f2py integer,        intent(in), dimension(total_number_of_atoms+1), depend(total_number_of_atoms), optional :: struct_number_of_basis_functions
@@ -456,6 +459,14 @@ contains
                 icounter = icounter + 1
             end do
         end if
+        if (present(struct_system_charge)) then
+            icounter = 1
+            do i = 1, number_of_structures
+                core_object%structures(i)%system_charge = &
+                    struct_system_charge(icounter)
+                icounter = icounter + 1
+            end do
+        end if
         if (present(struct_name)) then
             icounter = 1
             do i = 1, number_of_structures
@@ -494,8 +505,8 @@ contains
         end do
         icounter = 1
         do i = 1, number_of_structures
-            core_object%structures(i)%charge = &
-                struct_charge(icounter : icounter + struct_number_of_atoms(i)-1)
+            core_object%structures(i)%nuclear_charge = &
+                struct_nuclear_charge(icounter : icounter + struct_number_of_atoms(i)-1)
             icounter = icounter + struct_number_of_atoms(i)
         end do
         if (present(struct_number_of_basis_functions)) then

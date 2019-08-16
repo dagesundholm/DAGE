@@ -199,10 +199,11 @@
             <option value="6" text_value="sextet" text="sextet" />
             <option value="7" text_value="septet" text="septet" />
         </parameter>
+        <parameter name="system_charge" type="double" title="System charge" required="false" default="0" comment="sum of all nuclear and electronic charges"/>
         <class name="atom" global_index_counter="total_number_of_atoms" local_index_counter="number_of_atoms" fortran_variable_name="structures">
             <parameter name="atom_type" type="int"  title="Atom Type" required="true" comment="Index linking the basis set with the 'atom type' of structure. By default the 'atom_type' is the order number of atom in periodic table, but other values can also be given."/>
             <parameter name="coordinates" type="double[]" shape="3" title="Atom Coordinates" required="true" />
-            <parameter name="charge" type="double" title="Atom Charge" required="true" />
+            <parameter name="nuclear_charge" type="double" title="Atom Charge" required="true" />
             <parameter name="number_of_basis_functions" title="Number of basis functions" 
                        comment="The number of basis functions used for this atom. If -1 the number of available basis functions is used." type="int" default="-1" />
             
