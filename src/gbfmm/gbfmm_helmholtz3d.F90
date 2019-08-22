@@ -80,7 +80,7 @@ module GBFMMHelmholtz3D_class
 #endif
     contains
         
-        procedure               :: operate_on                   => GBFMMHelmholtz3D_operate 
+        procedure               :: operate_on                   => GBFMMHelmholtz3D_operate
         procedure               :: operate_farfield             => GBFMMHelmholtz3D_operate_farfield
         procedure               :: simplify                     => GBFMMHelmholtz3D_simplify
         procedure               :: operate_nearfield            => GBFMMHelmholtz3D_operate_nearfield

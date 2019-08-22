@@ -171,16 +171,16 @@ contains
 
 ! %%%%%%%%%%% Workers %%%%%%%%%%%%%%
     !> @todo This should be moved to grid.F90 or similar
-    subroutine overlap(self,s,cellh) ! cellh used as scaling lnw
-        type(LIPBasis) :: self
-        real(REAL64), dimension(:,:), intent(out) :: s
-        real(REAL64), dimension(:), intent(in) :: cellh
+    subroutine overlap(self, s, cell_scales)
+        type(LIPBasis)               :: self
+        real(REAL64), intent(out)    :: s(:,:)
+        real(REAL64), intent(in)     :: cell_scales(:)
 
-        real(REAL64), allocatable :: ints(:,:)
-        integer(INT32) :: ncell,icell,i,j,k,l, ndim
+        real(REAL64), allocatable    :: ints(:,:)
+        integer(INT32)               :: ncell,icell,i,j,k,l, ndim
 
         s=0.d0
-        ncell=size(cellh)
+        ncell=size(cell_scales)
         ndim=size(s(:,1))
 
         ints=self%overlaps(0)
@@ -190,7 +190,7 @@ contains
                 do j=1,self%nlip
                     k=(icell-1)*(self%nlip-1)+i
                     l=(icell-1)*(self%nlip-1)+j
-                    s(k,l)=s(k,l)+ints(i,j)*cellh(icell)
+                    s(k,l)=s(k,l)+ints(i,j)*cell_scales(icell)
                 end do
             end do
         end do

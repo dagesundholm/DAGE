@@ -608,9 +608,6 @@ contains
         logical,        optional, intent(in) :: ignore_first
         type(Interpolator1D)                 :: new
 
-        integer(INT32)                       :: ncell
-        integer(INT32)                       :: i ! lnw: remove
-
         new%grid => grid
         new%nlip = new%grid%get_nlip()
         new%grid_point_count = new%grid%get_shape()
@@ -628,8 +625,8 @@ contains
         end if
         new%lower_polynomial_coefficients = new%grid%lower_lip%coeffs(new%maximum_derivative_order)
         new%polynomial_coefficients = new%grid%lip%coeffs(new%maximum_derivative_order)
-
     end function
+
 
     !> Interpolate at 'points', for 
     function Interpolator1D_eval_array(self, f_value_arrays, points) result(res)
@@ -1597,14 +1594,14 @@ contains
             if (order == 2) then
                 values(1) = &
                        2.0d0 * values(2) &
-                    -  1.0d0 * values(3) 
-                            
+                    -  1.0d0 * values(3)
+
             else if (order == 3) then
                 values(1) = &
                        3.0d0 * values(2) &
                     -  3.0d0 * values(3) &
                     +  1.0d0 * values(4)
-                    
+
             else if (order == 6) then
                 values(1) = &
                        6.0d0 * values(2) &
@@ -1618,14 +1615,14 @@ contains
             if (order == 2) then
                 values(1) = &
                       1.46980575696  * values(2) &
-                    - 0.469805756961 * values(3) 
-                            
+                    - 0.469805756961 * values(3)
+
             else if (order == 3) then
                 values(1) = &
                       1.77037274348  * values(2) &
                     - 1.00204109193  * values(3) &
                     + 0.231668348449 * values(4)
-                    
+
             else if (order == 6) then
                 values(1) = &
                       2.41108834235  * values(2) &

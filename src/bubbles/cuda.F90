@@ -941,9 +941,6 @@ contains
         call cudablas_mm_multiplication_batched_cuda(self%cuda_interface, device_id, stream_id, &
                                                      a%cuda_interface, b%cuda_interface, c%cuda_interface, &
                                                      slice_dimension, alpha, beta, waited_event)
-
-     
-            
     end subroutine
 
 

@@ -150,9 +150,9 @@ module Function3D_class
         procedure :: get_cube_contaminants => function3d_get_cube_contaminants
         procedure :: get_taylor_series_bubbles => Function3D_get_taylor_series_bubbles
         procedure :: precalculate_taylor_series_bubbles => Function3D_precalculate_taylor_series_bubbles
-        procedure  :: dispose_extra_bubbles      => Function3D_dispose_extra_bubbles
-        procedure  :: inject_extra_bubbles       => Function3D_inject_extra_bubbles
-        procedure  :: inject_bubbles_to_cube     => Function3D_inject_bubbles_to_cube
+        procedure :: dispose_extra_bubbles      => Function3D_dispose_extra_bubbles
+        procedure :: inject_extra_bubbles       => Function3D_inject_extra_bubbles
+        procedure :: inject_bubbles_to_cube     => Function3D_inject_bubbles_to_cube
 
         ! Communication
         procedure :: communicate_cube          => Function3D_communicate_cube
@@ -169,6 +169,7 @@ module Function3D_class
         procedure :: product_in_place_REAL64 => Function3D_product_in_place_REAL64
         procedure :: print_out_cube_at_point => Function3D_print_out_cube_at_point
         procedure :: print_out_centers => Function3D_print_out_centers
+        procedure :: print_function => Function3D_print_function  ! debug only, can be removed 
 
         ! Binary operators
         procedure, private :: Function3D_add
@@ -1091,6 +1092,7 @@ contains
         call self%multiply_sub(f2, new, cell_limits, part_of_dot_product, result_bubbles)
     end function
 
+
     !> Multiply the cubes of f1 and f2 using the grid of f1
     subroutine Function3D_multiply_sub(self, f2, new, cell_limits, part_of_dot_product, result_bubbles) 
         class(Function3D), intent(in),    target       :: self
@@ -1832,7 +1834,7 @@ contains
         !print '("integrate, cube", f18.14, " bubbles: ", f18.14, " Total:", f18.14)', &
         !    val, bubbles_value, val+bubbles_value
         val = val + bubbles_value
-        val = truncate_number(val, 4)
+        val = truncate_number(val, 2) ! used to be 6, lnw
         !print *, "total", val
         call bigben%stop()
         return
@@ -2187,6 +2189,7 @@ contains
 
     end subroutine
 
+
     !> Injects bubbles with angular quantum number l > 'lmax' of 'self%bubbles' to the cube
     !! and stores the l <= 'lmax' bubbles to 'self%bubbles'.
     subroutine Function3D_inject_extra_bubbles(self, lmax, injected_bubbles)
@@ -2214,6 +2217,7 @@ contains
 
     end subroutine
     
+
     subroutine Function3D_dispose_extra_bubbles(self, lmax)
         class(Function3D),      intent(inout), target   :: self
         !> The maximum angular quantum number of the preserved bubbles,
@@ -2230,6 +2234,7 @@ contains
         end if
 
     end subroutine
+
     
     subroutine Function3D_print_out_cube_at_point(self, point, dx, dy, dz)
         class(Function3D), intent(in)       :: self
@@ -2247,9 +2252,9 @@ contains
         if (present(dz)) dz_ = dz
         
         nlip = self%grid%get_nlip()
-        ix =   self%grid%axis(X_)%get_icell(point(X_)) * (nlip-1) +1 &
+        ix = self%grid%axis(X_)%get_icell(point(X_)) * (nlip-1) +1 &
             + self%grid%lip%get_first()
-        iy =   self%grid%axis(Y_)%get_icell(point(Y_)) * (nlip-1) +1 &
+        iy = self%grid%axis(Y_)%get_icell(point(Y_)) * (nlip-1) +1 &
             + self%grid%lip%get_first()
         iz = self%grid%axis(Z_)%get_icell(point(Z_)) * (nlip-1) +1 &
             + self%grid%lip%get_first()
@@ -2311,6 +2316,51 @@ contains
 
         end do
     end subroutine
+
+
+    subroutine Function3D_print_function(self)
+        class(Function3D), intent(in)  :: self
+        integer                        :: i
+        real(REAL64)                   :: center(3)
+
+
+        write(*,*) 'corners 111', self%cube(1, 1, 1), &
+                                  self%cube(1+1, 1+1, 1+1)
+        write(*,*) 'corners z11', self%cube(self%grid%axis(X_)%get_shape(), 1, 1), &
+                                  self%cube(self%grid%axis(X_)%get_shape()-1, 1+1, 1+1)
+        write(*,*) 'corners 1z1', self%cube(1, self%grid%axis(Y_)%get_shape(), 1), &
+                                  self%cube(1+1, self%grid%axis(Y_)%get_shape()-1, 1+1)
+        write(*,*) 'corners 11z', self%cube(1, 1, self%grid%axis(Z_)%get_shape()), &
+                                  self%cube(1+1, 1+1, self%grid%axis(Z_)%get_shape()-1)
+        write(*,*) 'corners zz1', self%cube(self%grid%axis(X_)%get_shape(), self%grid%axis(Y_)%get_shape(), 1), &
+                                  self%cube(self%grid%axis(X_)%get_shape()-1, self%grid%axis(Y_)%get_shape()-1, 1+1)
+        write(*,*) 'corners z1z', self%cube(self%grid%axis(X_)%get_shape(), 1, self%grid%axis(Z_)%get_shape()), &
+                                  self%cube(self%grid%axis(X_)%get_shape()-1, 1+1, self%grid%axis(Z_)%get_shape()-1)
+        write(*,*) 'corners 1zz', self%cube(1, self%grid%axis(Y_)%get_shape(), self%grid%axis(Z_)%get_shape()), &
+                                  self%cube(1+1, self%grid%axis(Y_)%get_shape()-1, self%grid%axis(Z_)%get_shape()-1)
+        write(*,*) 'corners zzz', self%cube(self%grid%axis(X_)%get_shape(), &
+                                            self%grid%axis(Y_)%get_shape(), self%grid%axis(Z_)%get_shape()), &
+                                  self%cube(self%grid%axis(X_)%get_shape()-1, &
+                                            self%grid%axis(Y_)%get_shape()-1, self%grid%axis(Z_)%get_shape()-1)
+        write(*,*) 'centre value', self%cube(self%grid%axis(X_)%get_shape()/2 + 1, &
+                                            self%grid%axis(Y_)%get_shape()/2 + 1, self%grid%axis(Z_)%get_shape()/2 + 1)
+
+   !      do i = 1, self%bubbles%get_nbub()
+   !          center = self%bubbles%get_centers(i)
+   !          write(*,*) 'center', center
+   !          call self%print_out_cube_at_point(center)
+   !      end do
+
+   !      write(*,*) 'l=0', self%bubbles%bf(1)%p(:,1)
+   !      write(*,*) 'l=1', self%bubbles%bf(1)%p(:,2)
+   !      write(*,*) 'l=1', self%bubbles%bf(1)%p(:,3)
+   !      write(*,*) 'l=1', self%bubbles%bf(1)%p(:,4)
+
+    end subroutine
+
+
+
+
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !%                          Function3D Multipole tools                    %
@@ -3652,7 +3702,6 @@ write(*,*) 'end Function3DEvaluator_evaluate_grid'
         !call temp%destroy()
         !deallocate(temp)
      
-        
     end function
 
     pure subroutine Operator3D_set_transformation_weights(self, weights) 
@@ -3734,6 +3783,7 @@ write(*,*) 'end Function3DEvaluator_evaluate_grid'
         end if
     end subroutine
 
+
     subroutine Operator3D_operator_cube(self, func, new, cell_limits)
         !> Operator
         class(Operator3D)                 :: self
@@ -3754,8 +3804,8 @@ write(*,*) 'end Function3DEvaluator_evaluate_grid'
         integer                           :: dims(X_:Z_, IN_:OUT_) ! (3, 2) array
 #endif
 
-        ! get the cube which is operated, in case no limits are specified
-        ! the entire cube is operated      
+        ! get the cube which is operated on, in case no limits are specified
+        ! the entire cube is operated on
         if (present(cell_limits)) then
             ! each cell has nlip-1 grid points
             cube_limits(1, :) = (cell_limits(1, :) - [1, 1, 1]) * (self%gridout%get_nlip() - 1) + 1
@@ -3775,8 +3825,8 @@ write(*,*) 'end Function3DEvaluator_evaluate_grid'
         if (self%cuda_inited .and. .not. self%suboperator) then
             new%cube = 0.0d0
             ! set the cuda cube host cubes
-            call self%output_cuda_cube%set_host(new%cube)
-            call self%input_cuda_cube%set_host(cube)
+            call self%output_cuda_cube%set_host(new%cube) ! link c-host and f-host
+            call self%input_cuda_cube%set_host(cube) ! link c-host and f-host
 
             ! upload the cuda cube data to gpu
             call self%output_cuda_cube%upload()
@@ -3806,7 +3856,7 @@ write(*,*) 'end Function3DEvaluator_evaluate_grid'
             ! unset the the input and output host cubes
             call self%output_cuda_cube%unset_host()
             call self%input_cuda_cube%unset_host()
-            call CUDASync_all()
+            call CUDASync_all()  ! really? lnw
         else
             temp_cube = self%transform_cube(cube)
             new%cube = temp_cube
@@ -3822,6 +3872,7 @@ write(*,*) 'end Function3DEvaluator_evaluate_grid'
         !call bigben%stop()
     end subroutine
 
+
     subroutine Operator3D_operator_bubbles(self, func, new, operate_bubbles)
         !> Operator
         class(Operator3D)              :: self
@@ -3833,7 +3884,6 @@ write(*,*) 'end Function3DEvaluator_evaluate_grid'
         logical, intent(in)            :: operate_bubbles
         type(Bubbles)                  :: temp
         ! operate on bubbles
-
 
         if (operate_bubbles) then
             !call bigben%split("Operator bubbles")
@@ -4132,8 +4182,6 @@ write(*,*) 'end Function3DEvaluator_evaluate_grid'
             stream_pointer_count = (t_points_per_stream+1) * (dims(Z_,IN_) + dims(Z_,IN_) + dims(Y_,OUT_))
             self%cuda_blas = CUDABlas(stream_pointer_count, container)
 
-
-            
             ! init the input & output cuda cubes
             if (.NOT. self%suboperator) then
                 self%input_cuda_cube = CudaCube(self%gridin%get_shape(), container = container)
@@ -4293,7 +4341,7 @@ write(*,*) 'end Function3DEvaluator_evaluate_grid'
 
 #ifdef HAVE_CUDA
 
-    recursive subroutine Operator3D_transform_cuda_cube(self, cubein, cubeout, cuda_blas, &
+    subroutine Operator3D_transform_cuda_cube(self, cubein, cubeout, cuda_blas, &
                                                             cuda_fx, cuda_fy, cuda_fz, tmp1, tmp2)
         class(Operator3D),  intent(in), target  :: self
         type(CUDACube),   intent(in)      :: cubein
@@ -4366,19 +4414,21 @@ write(*,*) 'end Function3DEvaluator_evaluate_grid'
             end do
         else ! otherwise, use the batched dgemm
             allocate(waited_events(number_of_devices))
-            do ip=1, size(self%w), number_of_devices 
+            do ip=1, size(self%w), number_of_devices ! iterate over t-points
                 ! to x direction
                 do device = 1, min(number_of_devices, size(self%w)-ip+1)
-                    ! we must wait the the z-direction is complete before we can start the next round
+                    ! we must wait until the z-direction is complete before we can start the next round
                     waited_events(device) = StreamContainer_record_device_event(stream_container, device)
                     slice1 = cuda_fx%slice(Z_,ip+device-1)
                     call cuda_blas%mm_multiplication_batched(ip+device-1, (ip-1)/number_of_devices, slice1, &
                              cubein, tmp1, 1.d0, 0.d0, Z_, waited_events(device))
                     call slice1%destroy()
                 end do
+                ! call CudaSync_all()
 
                 ! to y direction
                 do device = 1, min(number_of_devices, size(self%w)-ip+1)
+                    ! waited_events(device) = StreamContainer_record_device_event(stream_container, device) ! remove, lnw ?
                     slice1 = cuda_fy%slice(Z_,ip+device-1)
                     call cuda_blas%mm_multiplication_batched(ip+device-1, (ip-1)/number_of_devices, tmp1, &
                              slice1, tmp2, 1.0d0, 0.0d0, Z_, waited_events(device))
@@ -4388,14 +4438,19 @@ write(*,*) 'end Function3DEvaluator_evaluate_grid'
                 ! to z direction
                 do device = 1, min(number_of_devices, size(self%w)-ip+1)
                     slice1 = cuda_fz%slice(Z_, ip+device-1)
-                    ! we must wait the y-direction to be complete before we can call the z-direction
+                    ! we must wait for the y-direction to be complete before we can call the z-direction
                     waited_events(device) = StreamContainer_record_device_event(stream_container, device)
 
                     call cuda_blas%mm_multiplication_batched(ip+device-1, (ip-1)/number_of_devices, tmp2, &
                              slice1, cubeout, self%w(ip+device-1), 1.0d0, Y_, waited_events(device))
                     call slice1%destroy()
-                    
                 end do
+
+                ! the following line should be removed/replaced by something less extreme.
+                ! However, at the moment it is required, otherwise jobs like
+                ! H-atom/URHF/varying cube sizes fail in an indeterministic way.  (lnw, 201908)
+                call CudaSync_all()
+
             end do
             deallocate(waited_events)
         end if

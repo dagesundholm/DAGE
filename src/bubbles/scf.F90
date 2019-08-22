@@ -98,7 +98,7 @@ contains
     !> Checks if the calculation is converged by checking agaist the criteria
     function SCFOptimizer_is_converged(self) result(converged)
         class(SCFOptimizer), intent(in)            :: self
-        real(REAL64)                               :: error, previous_energy
+        real(REAL64)                               :: delta, previous_energy
         logical                                    :: converged, total_energy_converged, &
                                                       eigen_values_converged
         integer                                    :: i
@@ -109,11 +109,11 @@ contains
             previous_energy = self%scf_energetics%total_energy(self%iteration_count-1)
         end if
         
-        ! get the error and check against the total energy convergen threshold
-        error = abs(self%scf_energetics%total_energy(self%iteration_count) - previous_energy)
-        total_energy_converged = self%iteration_count > 1 .and. error < self%total_energy_convergence_threshold
+        ! get the delta and check against the total energy convergence threshold
+        delta = abs(self%scf_energetics%total_energy(self%iteration_count) - previous_energy)
+        total_energy_converged = self%iteration_count > 1 .and. delta < self%total_energy_convergence_threshold
         
-        ! if the total energy criteria is fulfilled, check the eigen value criteria
+        ! if the total energy criterion is fulfilled, check the eigen value criteria
         if (self%iteration_count > 1) then
             do i = 1, size(self%scf_energetics%eigen_values, 1)
                 if (  abs(  self%scf_energetics%eigen_values(i, self%iteration_count) &
@@ -255,7 +255,7 @@ contains
             write(*, '("Energy change:     ", f24.16,"")'),  energy_change
             write(*, '("-----------------------------------------------------------------------")')
             
-flush(6)
+! flush(6)
 ! call abort()
 
             if (self%is_converged()) then
@@ -301,8 +301,7 @@ flush(6)
                                                   self%action_object%store_result_functions)
                 end if
             end if
-            
-            
+
         end do
     end subroutine
 

@@ -72,7 +72,7 @@ module Helmholtz3D_class
         !! The resulting extra bubbles are injected to the cube
         integer                          :: lmax = 4
     contains
-        procedure :: operate_on          => Helmholtz3D_operate 
+        procedure :: operate_on          => Helmholtz3D_operate
         procedure :: transform_cube      => Helmholtz3D_cube
         procedure :: transform_bubbles   => Helmholtz3D_bubbles
         procedure :: destroy             => Helmholtz3D_destroy
@@ -458,13 +458,11 @@ contains
         real(REAL64), allocatable       :: centers(:, :)
         logical                         :: operate_bubbles
 
-               
         if (present (only_cube)) then
             operate_bubbles = .not. only_cube
         else
             operate_bubbles = .TRUE.
         end if
-
 
         ! Apply the modified coulomb operator
         call self%coulomb_operator%operate_on(func, new, only_cube = .TRUE.)
@@ -479,7 +477,7 @@ contains
             !call new%inject_extra_bubbles(self%lmax)
         end if
         call self%set_energy(0.0d0)
-        
+
     end subroutine
 
 
