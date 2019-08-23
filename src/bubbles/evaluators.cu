@@ -1720,7 +1720,6 @@ void CubeEvaluator::evaluateGrid(Grid3D *grid,
                 // calculate the launch configuration for the f1-inject
                 //int grid_size = warps_per_slice * slice_count * warps_per_block + 1;
                 dim3 block, launch_grid;
-                // const int finite_diff_order = 9;
                 result_cube->getLaunchConfiguration(&launch_grid, &block, slice_count, BLOCK_SIZE);
 
                 // call the kernel

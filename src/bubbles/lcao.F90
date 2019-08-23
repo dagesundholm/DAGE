@@ -282,10 +282,10 @@ contains
         ! get the total number of basis functions in the calculation
         number_of_basis_functions = basis_object%get_total_number_of_basis_functions(self)
 
-        if(self%number_of_orbitals > number_of_basis_functions) then
-          write(*,*) 'You have specified ', self%number_of_orbitals, ' MOs, but there are only ', &
+        if(number_of_orbitals > number_of_basis_functions) then
+          write(*,*) 'You have specified ', number_of_orbitals, ' MOs, but there are only ', &
                      number_of_basis_functions, 'basis functions. Exiting ...'
-          call flush(6)
+          flush(6)
           call abort()
         endif
 
@@ -623,8 +623,6 @@ contains
             nocc(1) = nocc(1) + (multiplicity-1) / 2
             nocc(2) = nocc(2) - (multiplicity-1) / 2
         end if
-write(*,*) 'nocc (in Structure_get_number_of_occupied_orbitals)', nocc
-flush(6)
     end function 
 
 

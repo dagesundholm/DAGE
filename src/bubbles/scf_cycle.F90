@@ -2389,7 +2389,6 @@ write(*,*) 'kin,pot,eval', self%kinetic_matrix(1, 1), self%nuclear_electron_matr
         call electron_density%communicate_cube(reversed_order = .TRUE.)
         
 write(*,*) 'end HelmholtzSCFCycle_calculate_electron_density_worker'
-call flush(6)
     end subroutine 
 
     
@@ -3198,18 +3197,15 @@ call flush(6)
         real(REAL64)                                      :: occupations(size(self%orbitals))
         integer                                           :: nclosed
 write(*,*) 'begin RestrictedHelmholtzSCFCycle_calculate_closed_shell_el_dens'
-call flush(6)
         
         call bigben%split("Computing closed shell electron density")
         nclosed = min(self%nocc_a, self%nocc_b)
         occupations(:nclosed) = 2
         occupations(nclosed+1:) = 0
-write(*,*) 'occupations', occupations
-call flush(6)
         call self%calculate_electron_density_worker(self%orbitals, occupations, self%electron_density)
         call bigben%stop()
+
 write(*,*) 'end RestrictedHelmholtzSCFCycle_calculate_closed_shell_el_dens'
-call flush(6)
     end subroutine
 
 
@@ -3219,7 +3215,6 @@ call flush(6)
         real(REAL64)                                      :: occupations(size(self%orbitals))
         integer                                           :: nclosed, nocc
 write(*,*) 'begin RestrictedHelmholtzSCFCycle_calculate_open_shell_el_dens'
-call flush(6)
         
         call bigben%split("Computing open shell electron density")
         nclosed = min(self%nocc_a, self%nocc_b)
@@ -3227,13 +3222,10 @@ call flush(6)
         occupations(:nclosed) = 0
         occupations(nclosed+1:nocc) = 1
         occupations(nocc+1:) = 0
-write(*,*) 'occupations', occupations
-call flush(6)
         call self%calculate_electron_density_worker(self%orbitals, occupations, self%electron_density)
         call bigben%stop()
         
 write(*,*) 'end RestrictedHelmholtzSCFCycle_calculate_open_shell_el_dens'
-call flush(6)
     end subroutine
 
 
@@ -3725,7 +3717,6 @@ write(*,*) 'begin UnRestrictedHelmholtzSCFCycle_update_orbitals'
         real(REAL64), allocatable              :: orthogonalizing_matrix(:, :)
         logical                                :: do_update
 write(*,*) 'begin RHFCycle_calculate_hamiltonian_matrix'
-call flush(6)
         
         call bigben%split("Creating Fock matrix")
 
@@ -3778,7 +3769,6 @@ call flush(6)
         ! stop fock matrix creation timing
         call bigben%stop()
 write(*,*) 'end RHFCycle_calculate_hamiltonian_matrix'
-call flush(6)
     end subroutine
 
 !--------------------------------------------------------------------!
@@ -3857,7 +3847,6 @@ call flush(6)
         real(REAL64)                            :: tmp, total, energy, alpha, beta
       
 write(*,*) 'begin ROHFCycle_calculate_orbital_potentials'
-call flush(6)
         
 #ifdef HAVE_CUDA_PROFILING
         call start_nvtx_timing("Orbital Potentials")
@@ -4056,7 +4045,7 @@ call flush(6)
 write(*,*) 'You are trying to run a restricted open shell HF calculation, but',&
 'this is not implemented.  If you do want to implement it, look for example at',&
 'the electron density which is wrong atm.'
-call flush(6)
+flush(6)
 call abort()
 
         call bigben%split("Creating Fock matrix")

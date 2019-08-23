@@ -11,15 +11,10 @@ used at the moment.
 Implementing something Hueckel-like or h1 would be an obvious first choice.
 
 
--- how does one input the charge of a system?
-
-
--- Restricted open shell HF is implemented incompletely and is not functional.
-
 -- there ought to be some early input sanitation, which checks if all files are
 there, have been readable, and if the combinations of chosen parameters are a)
 implemented and b) scientifically make sense
 
 
-
+-- print the complete set of input parameters
 
