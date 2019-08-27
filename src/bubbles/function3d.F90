@@ -1831,11 +1831,11 @@ contains
         
         call self%parallelization_info%sum_real(val)
         call self%parallelization_info%sum_real(bubbles_value)
-        !print '("integrate, cube", f18.14, " bubbles: ", f18.14, " Total:", f18.14)', &
-        !    val, bubbles_value, val+bubbles_value
+        ! print '("integrate, cube", f18.14, " bubbles: ", f18.14, " Total:", f18.14)', &
+        !     val, bubbles_value, val+bubbles_value
         val = val + bubbles_value
-        val = truncate_number(val, 2) ! used to be 6, lnw
-        !print *, "total", val
+        ! val = truncate_number(val, 6) ! used to be 6, lnw
+        ! print *, "total", val
         call bigben%stop()
         return
     end function
@@ -3804,6 +3804,9 @@ write(*,*) 'end Function3DEvaluator_evaluate_grid'
         integer                           :: dims(X_:Z_, IN_:OUT_) ! (3, 2) array
 #endif
 
+write(*,*) 'func'
+call func%print_function()
+
         ! get the cube which is operated on, in case no limits are specified
         ! the entire cube is operated on
         if (present(cell_limits)) then
@@ -3862,6 +3865,8 @@ write(*,*) 'end Function3DEvaluator_evaluate_grid'
             new%cube = temp_cube
             deallocate(temp_cube)
         end if
+write(*,*) 'new'
+call new%print_function()
 #else
         temp_cube = self%transform_cube(cube)
         new%cube = temp_cube

@@ -713,7 +713,7 @@ contains
         do i=1,size(mos_a)
             norm = mos_a(i) .dot. mos_a(i)
             one_per_norm = 1.0d0 / sqrt(norm)
-            one_per_norm = truncate_number(one_per_norm, 2) ! used to be 4, lnw
+            ! one_per_norm = truncate_number(one_per_norm, 4) ! used to be 4, lnw
             call mos_a(i)%product_in_place_REAL64(one_per_norm)
             call mos_a(i)%precalculate_taylor_series_bubbles()
         end do
@@ -723,7 +723,7 @@ contains
             do i=1, size(mos_b)
                 norm = mos_b(i) .dot. mos_b(i)
                 one_per_norm = 1.0d0 / sqrt(norm)
-                one_per_norm = truncate_number(one_per_norm, 2) ! used to be 4, lnw
+                ! one_per_norm = truncate_number(one_per_norm, 4) ! used to be 4, lnw
                 
                 call mos_b(i)%product_in_place_REAL64(one_per_norm)
                 call mos_b(i)%precalculate_taylor_series_bubbles()

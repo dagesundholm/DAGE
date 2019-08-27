@@ -923,7 +923,7 @@ call check_memory_cuda()
         
         do i = 1, number_of_orbitals_
             normalizing_factor = 1.0d0 / sqrt(orbitals(i) .dot. orbitals(i))
-            normalizing_factor = truncate_number(normalizing_factor, 2) ! used to be 4, lnw
+            ! normalizing_factor = truncate_number(normalizing_factor, 4) ! used to be 4, lnw
             call orbitals(i)%product_in_place_REAL64(normalizing_factor)
         end do
     end subroutine
@@ -1000,6 +1000,7 @@ call check_memory_cuda()
         deallocate(orbitals)
         call bigben%stop()
         self%coulomb_potential_is_valid = .FALSE.
+
     end subroutine
 
     subroutine SCFCycle_get_energy_order(self, order)
@@ -2050,7 +2051,7 @@ write(*,*) 'begin SCFCycle_calculate_one_electron_mats'
                 if (evaluate_all) then
                     do i=1,j
                         self%kinetic_matrix(i,j) = self%orbitals(i) .dot. self%kin
-                        self%kinetic_matrix(i,j) = truncate_number(self%kinetic_matrix(i,j), 2) ! used to be 8, lnw
+                        ! self%kinetic_matrix(i,j) = truncate_number(self%kinetic_matrix(i,j), 8) ! used to be 8, lnw
                         self%kinetic_matrix(j,i) = self%kinetic_matrix(i, j)
                         self%overlap_matrix(i,j) = self%orbitals(i) .dot. self%orbitals(j)
                         self%overlap_matrix(j,i) = self%overlap_matrix(i, j)
@@ -2059,7 +2060,7 @@ write(*,*) 'begin SCFCycle_calculate_one_electron_mats'
                     end do
                 else
                     self%kinetic_matrix(j,j) = temp_function .dot. self%kin
-                    self%kinetic_matrix(j,j) = truncate_number(self%kinetic_matrix(j,j), 2) ! used to be 8, lnw
+                    ! self%kinetic_matrix(j,j) = truncate_number(self%kinetic_matrix(j,j), 8) ! used to be 8, lnw
                     call temp_function%destroy()
                     self%overlap_matrix(j,j) = self%orbitals(j) .dot. self%orbitals(j)
                     self%nuclear_electron_matrix(j,j) = self%orbitals(j) .dot. self%temp
@@ -3233,6 +3234,7 @@ write(*,*) 'end RestrictedHelmholtzSCFCycle_calculate_open_shell_el_dens'
         class(RestrictedHelmholtzSCFCycle), &
                           intent(inout), target :: self
         real(REAL64),     intent(in)            :: scaling_factor
+write(*,*) 'begin RestrictedHelmholtzSCFCycle_update_orbitals'
 
         ! get orbital potentials, if they are not valid
         if (.not. self%orbital_potentials_are_valid) then
@@ -3242,6 +3244,7 @@ write(*,*) 'end RestrictedHelmholtzSCFCycle_calculate_open_shell_el_dens'
         ! call the worker routine that does the hard work
         call self%update_orbitals_worker(scaling_factor)
         
+write(*,*) 'end RestrictedHelmholtzSCFCycle_update_orbitals'
     end subroutine
     
     !> Destroy and deallocate the things defined in 
@@ -3436,6 +3439,7 @@ write(*,*) 'begin UnRestrictedHelmholtzSCFCycle_update_orbitals'
             call self%update_orbitals_worker(scaling_factor)
         end if
 
+write(*,*) 'end UnRestrictedHelmholtzSCFCycle_update_orbitals'
     end subroutine
 
 
