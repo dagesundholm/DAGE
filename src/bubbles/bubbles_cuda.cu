@@ -55,6 +55,8 @@
 /** \brief Size of the CUDA blocks in the Z dimension */
 #define BLOCKDIMZ 4
 
+#define FULL_MASK 0xffffffff
+
 #define STR_HELPER(x) #x
 #define STR(x) STR_HELPER(x)
 
@@ -298,8 +300,10 @@ __device__ inline double evaluate_polynomials(int n, const double* __restrict__ 
     return result;
 }
 
-//#ifdef __CUDA_ARCH__
-#if __CUDA_ARCH__ >= 350
+
+// __shfl* are defined from 3.x until including 6.x.  
+// they are replaced by __shfl*_sync
+#if (__CUDA_ARCH__ >= 350) && (__CUDA_ARCH__ < 700)
 /*
  *  Evaluates one granular polynomial for coefficients, and x
  * NOTE: each thread is different value for coefficient, when entering the function
@@ -454,9 +458,7 @@ __device__ inline double evaluate_polynomials_shuffle(const int address,
         // NOTE: shared memorybank conflict should not occur, as every thread in the 8 thread group access
         //       the same address, thus resulting in broadcast.
         //coefficients[i] = c[__shfl(address, i, 8) + remainder];
-         res  = evaluate_polynomials_unit_shuffle(
-                                    c[__shfl(address, i, 8) + remainder],
-                                    __shfl(x, i, 8));
+         res  = evaluate_polynomials_unit_shuffle( c[__shfl(address, i, 8) + remainder], __shfl(x, i, 8));
         if (remainder == 0) result[base_address + i] = res;
     }
    
@@ -467,7 +469,7 @@ __device__ inline double evaluate_polynomials_shuffle(const int address,
     //return evaluate_polynomials_unit_register(coefficients, x, nlip);
 }
 #endif
-//#endif
+
 
 /*
  * Get the thread-id within block.
@@ -502,7 +504,7 @@ double evaluate_polynomials_shared(const int address, const double* __restrict__
     id = base_address * 16 + remainder;
     int faddress = 2 * address;*/
 
-#if (__CUDA_ARCH__ >= 350)
+#if (__CUDA_ARCH__ >= 350) && (__CUDA_ARCH__ < 700)
     // read the coefficients in the shared memory, 8 threads 
     // neighbouring each other are reading the global memory
     // coefficients for one thread at the time, starting from 0
@@ -546,6 +548,21 @@ double evaluate_polynomials_shared(const int address, const double* __restrict__
     fcoefficients[id+208] = fc[__shfl(faddress, 13, 16)  + remainder];
     fcoefficients[id+224] = fc[__shfl(faddress, 14, 16)  + remainder];
     fcoefficients[id+240] = fc[__shfl(faddress, 15, 16)  + remainder];*/
+
+#elif __CUDA_ARCH__ >= 700
+    
+    int address_7 = __shfl_sync(FULL_MASK, address, 7, 8);
+    
+    if (remainder < 7) {
+        coefficients[id]        = ldg<double>(&c[__shfl_sync(FULL_MASK, address, 0, 8)  + remainder]);
+        coefficients[id+7]      = ldg<double>(&c[__shfl_sync(FULL_MASK, address, 1, 8)  + remainder]);
+        coefficients[id+7*2]    = ldg<double>(&c[__shfl_sync(FULL_MASK, address, 2, 8)  + remainder]);
+        coefficients[id+7*3]    = ldg<double>(&c[__shfl_sync(FULL_MASK, address, 3, 8)  + remainder]);
+        coefficients[id+7*4]    = ldg<double>(&c[__shfl_sync(FULL_MASK, address, 4, 8)  + remainder]);
+        coefficients[id+7*5]    = ldg<double>(&c[__shfl_sync(FULL_MASK, address, 5, 8)  + remainder]);
+        coefficients[id+7*6]    = ldg<double>(&c[__shfl_sync(FULL_MASK, address, 6, 8)  + remainder]);
+        coefficients[id+7*7]    = ldg<double>(&c[address_7  + remainder]);
+    }
     
 #else
     // store the addresses to the shared memory
@@ -1352,7 +1369,11 @@ __device__ inline double  Bubbles_evaluate_point(
         a =  ( 2.0*(double)l-1.0) * rsqrt( 1.0*(double)((l-1)*(l+1)) );
         b =  (l > 2) ? sqrt( (double)((l-2)*(l)) /  (double)((l-1)*(l+1)) ) : 0.0;
         for (l = 2; l <= lmax; l++) {
+#if (__CUDA_ARCH__ >= 350) && (__CUDA_ARCH__ < 700)
             current =  __shfl(a, l) * z*prev1 * one_per_r - __shfl(b, l) * prev2;
+#elif __CUDA_ARCH__ >= 700
+            current =  __shfl_sync(FULL_MASK, a, l) * z*prev1 * one_per_r - __shfl_sync(FULL_MASK, b, l) * prev2;
+#endif
             result += current * evaluate_polynomials_shared<NLIP>(address2, cf, r) ;
             prev2 = prev1;
             prev1 = current;
@@ -1373,7 +1394,11 @@ __device__ inline double  Bubbles_evaluate_point(
         a =  ( 2.0*(double)l-1.0) * rsqrt( 1.0*(double)((l)*(l)) );
         b =  sqrt( (double)((l-1)*(l-1)) /  (double)((l)*(l)) );
         for (l = 2; l <= lmax; l++) {
+#if (__CUDA_ARCH__ >= 350) && (__CUDA_ARCH__ < 700)
             current =   __shfl(a, l) * z * prev1 * one_per_r -  __shfl(b, l) * prev2;
+#elif __CUDA_ARCH__ >= 700
+            current =   __shfl_sync(FULL_MASK, a, l) * z * prev1 * one_per_r -  __shfl_sync(FULL_MASK, b, l) * prev2;
+#endif
             result += current * evaluate_polynomials_shared<NLIP>(address2, cf, r);
             prev2 = prev1;
             prev1 = current; 
@@ -1392,7 +1417,11 @@ __device__ inline double  Bubbles_evaluate_point(
         a =  ( 2.0*(double)l-1.0) * rsqrt( 1.0*(double)((l+1)*(l-1)) );
         b =  (l > 2) ? sqrt( (double)((l)*(l-2)) /  (double)((l+1)*(l-1)) ) : 0.0;
         for (l = 2; l <= lmax; l++) {   
+#if (__CUDA_ARCH__ >= 350) && (__CUDA_ARCH__ < 700)
             current =  __shfl(a, l) * z*prev1 * one_per_r -  __shfl(b, l) * prev2;
+#elif __CUDA_ARCH__ >= 700
+            current =  __shfl_sync(FULL_MASK, a, l) * z*prev1 * one_per_r -  __shfl_sync(FULL_MASK, b, l) * prev2;
+#endif
             result += current * evaluate_polynomials_shared<NLIP>(address2, cf, r);
             prev2 = prev1;
             prev1 = current;
@@ -1409,8 +1438,13 @@ __device__ inline double  Bubbles_evaluate_point(
         a = sqrt((2.0*(double)l - 1.0) / (2.0*(double)l));
         for (l=2; l <= lmax; l++) {
             
+#if (__CUDA_ARCH__ >= 350) && (__CUDA_ARCH__ < 700)
             new_bottom = __shfl(a, l) * one_per_r * ( y*top + x*bottom);
             top        = __shfl(a, l) * one_per_r * ( x*top - y*bottom );
+#elif __CUDA_ARCH__ >= 700
+            new_bottom = __shfl_sync(FULL_MASK, a, l) * one_per_r * ( y*top + x*bottom);
+            top        = __shfl_sync(FULL_MASK, a, l) * one_per_r * ( x*top - y*bottom );
+#endif
                         
             // store the new bottom: l=l, m=-l (we need the old bottom in calculation of top previously, so we 
             // have to sacrifice one register temporarily)
@@ -1432,7 +1466,11 @@ __device__ inline double  Bubbles_evaluate_point(
             b =  (l2 > l+1) ? sqrt( (double)((l2-l-1)*(l2+l-1)) /  (double)((l2-l)*(l2+l)) ) : 0.0;
             for (l2 = l+1; l2 <= lmax; l2++) {
                 // evaluate spherical harmonics for l=l2, m=-l
+#if (__CUDA_ARCH__ >= 350) && (__CUDA_ARCH__ < 700)
                 current =  __shfl(a2, l2) * z*prev1 * one_per_r - __shfl(b, l2) *  prev2; 
+#elif __CUDA_ARCH__ >= 700
+                current =  __shfl_sync(FULL_MASK, a2, l2) * z*prev1 * one_per_r - __shfl_sync(FULL_MASK, b, l2) *  prev2; 
+#endif
                 
                 result += current * evaluate_polynomials_shared<NLIP>(address2, cf, r);
                 prev2 = prev1;
@@ -1452,7 +1490,12 @@ __device__ inline double  Bubbles_evaluate_point(
             b =  (l2 > l+1) ? sqrt( (double)((l2+l-1)*(l2-l-1)) /  (double)((l2+l)*(l2-l)) ) : 0.0;
             for (l2 = l+1; l2 <= lmax; l2++) {
                 // evaluate spherical harmonics for l=l2, m=l
+#if (__CUDA_ARCH__ >= 350) && (__CUDA_ARCH__ < 700)
                 current =  __shfl(a2, l2) * z*prev1 * one_per_r - __shfl(b, l2) * prev2;
+#elif __CUDA_ARCH__ >= 700
+                current =  __shfl_sync(FULL_MASK, a2, l2) * z*prev1 * one_per_r - __shfl_sync(FULL_MASK, b, l2) * prev2;
+#endif
+
                 // the latter term will go to zero, if l2 <= l+1
                 result += current * evaluate_polynomials_shared<NLIP>(address2, cf, r);
                 
@@ -2582,6 +2625,8 @@ void Bubble::download(int lmax) {
         }
     }
 }
+
+
 
 /*
  * Adds together the f-values of 'this' and input bubble 'bubble'
@@ -3747,7 +3792,7 @@ extern "C" double *bubbles_init_page_locked_f_cuda(int lmax, int shape){
     //allocated += 1;
     double * result_f;
     check_errors(__FILE__, __LINE__);
-    cudaHostAlloc((void **)&result_f, 
+    cudaHostAlloc((void **)&result_f,
                   sizeof(double) * (lmax+1) * (lmax+1) * shape,
                   cudaHostAllocPortable);
     check_errors(__FILE__, __LINE__);

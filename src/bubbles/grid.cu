@@ -35,7 +35,7 @@
 
 __host__ inline void check_grid_errors(const char *filename, const int line_number) {
 #ifdef DEBUG_CUDA
-    cudaThreadSynchronize();
+    cudaDeviceSynchronize();
     cudaError_t error = cudaGetLastError();
     if(error != cudaSuccess)
     {

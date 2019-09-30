@@ -32,9 +32,11 @@
 #define X_ 0
 #define Y_ 1
 #define Z_ 2
+
 #define NLIP 7
 #define BLOCK_SIZE 256
 
+#define FULL_MASK 0xffffffff
 
 extern __shared__ double shared_memory[];
 
@@ -120,6 +122,7 @@ double evaluate_coefficients(double *polynomials, const double* __restrict__ c, 
 
     // TODO: make this more generic
     int addresses[EVALUATE_BLOCK_SIZE];
+#if (__CUDA_ARCH__ >= 350) && (__CUDA_ARCH__ < 700)
     addresses[0] =__shfl(address, 0, EVALUATE_BLOCK_SIZE)  + thread_rank;
     addresses[1] =__shfl(address, 1, EVALUATE_BLOCK_SIZE)  + thread_rank;
     addresses[2] =__shfl(address, 2, EVALUATE_BLOCK_SIZE)  + thread_rank;
@@ -128,6 +131,16 @@ double evaluate_coefficients(double *polynomials, const double* __restrict__ c, 
     addresses[5] =__shfl(address, 5, EVALUATE_BLOCK_SIZE)  + thread_rank;
     addresses[6] =__shfl(address, 6, EVALUATE_BLOCK_SIZE)  + thread_rank;
     addresses[7] =__shfl(address, 7, EVALUATE_BLOCK_SIZE)  + thread_rank;
+#elif __CUDA_ARCH__ >= 700
+    addresses[0] =__shfl_sync(FULL_MASK, address, 0, EVALUATE_BLOCK_SIZE)  + thread_rank;
+    addresses[1] =__shfl_sync(FULL_MASK, address, 1, EVALUATE_BLOCK_SIZE)  + thread_rank;
+    addresses[2] =__shfl_sync(FULL_MASK, address, 2, EVALUATE_BLOCK_SIZE)  + thread_rank;
+    addresses[3] =__shfl_sync(FULL_MASK, address, 3, EVALUATE_BLOCK_SIZE)  + thread_rank;
+    addresses[4] =__shfl_sync(FULL_MASK, address, 4, EVALUATE_BLOCK_SIZE)  + thread_rank;
+    addresses[5] =__shfl_sync(FULL_MASK, address, 5, EVALUATE_BLOCK_SIZE)  + thread_rank;
+    addresses[6] =__shfl_sync(FULL_MASK, address, 6, EVALUATE_BLOCK_SIZE)  + thread_rank;
+    addresses[7] =__shfl_sync(FULL_MASK, address, 7, EVALUATE_BLOCK_SIZE)  + thread_rank;
+#endif
 
     int reg = thread_rank;
     if (thread_rank < nlip) {
@@ -160,6 +173,7 @@ double evaluate_coefficients(double *polynomials, const double* __restrict__ c, 
 
     reg = thread_rank;
     double result =  temp_results[0]                                      * polynomials[reg];
+#if (__CUDA_ARCH__ >= 350) && (__CUDA_ARCH__ < 700)
     reg = ((reg == EVALUATE_BLOCK_SIZE-1) ? 0 : reg + 1);
     result += __shfl(temp_results[1], thread_rank+1, EVALUATE_BLOCK_SIZE) * polynomials[reg];
     reg = ((reg == EVALUATE_BLOCK_SIZE-1) ? 0 : reg + 1);
@@ -174,6 +188,22 @@ double evaluate_coefficients(double *polynomials, const double* __restrict__ c, 
     result += __shfl(temp_results[6], thread_rank+6, EVALUATE_BLOCK_SIZE) * polynomials[reg];
     reg = ((reg == EVALUATE_BLOCK_SIZE-1) ? 0 : reg + 1);
     result += __shfl(temp_results[7], thread_rank+7, EVALUATE_BLOCK_SIZE) * polynomials[reg];
+#elif __CUDA_ARCH__ >= 700
+    reg = ((reg == EVALUATE_BLOCK_SIZE-1) ? 0 : reg + 1);
+    result += __shfl_sync(FULL_MASK, temp_results[1], thread_rank+1, EVALUATE_BLOCK_SIZE) * polynomials[reg];
+    reg = ((reg == EVALUATE_BLOCK_SIZE-1) ? 0 : reg + 1);
+    result += __shfl_sync(FULL_MASK, temp_results[2], thread_rank+2, EVALUATE_BLOCK_SIZE) * polynomials[reg];
+    reg = ((reg == EVALUATE_BLOCK_SIZE-1) ? 0 : reg + 1);
+    result += __shfl_sync(FULL_MASK, temp_results[3], thread_rank+3, EVALUATE_BLOCK_SIZE) * polynomials[reg];
+    reg = ((reg == EVALUATE_BLOCK_SIZE-1) ? 0 : reg + 1);
+    result += __shfl_sync(FULL_MASK, temp_results[4], thread_rank+4, EVALUATE_BLOCK_SIZE) * polynomials[reg];
+    reg = ((reg == EVALUATE_BLOCK_SIZE-1) ? 0 : reg + 1);
+    result += __shfl_sync(FULL_MASK, temp_results[5], thread_rank+5, EVALUATE_BLOCK_SIZE) * polynomials[reg];
+    reg = ((reg == EVALUATE_BLOCK_SIZE-1) ? 0 : reg + 1);
+    result += __shfl_sync(FULL_MASK, temp_results[6], thread_rank+6, EVALUATE_BLOCK_SIZE) * polynomials[reg];
+    reg = ((reg == EVALUATE_BLOCK_SIZE-1) ? 0 : reg + 1);
+    result += __shfl_sync(FULL_MASK, temp_results[7], thread_rank+7, EVALUATE_BLOCK_SIZE) * polynomials[reg];
+#endif
 
     return result;
 }
@@ -1341,7 +1371,7 @@ __device__ inline void BubblesEvaluator_evaluate_radial_gradients(
  **************************************************************/
 __host__ inline void check_eval_errors(const char *filename, const int line_number) {
 //#ifdef DEBUG_CUDA
-    cudaThreadSynchronize();
+    cudaDeviceSynchronize();
 //#endif
 
     cudaError_t error = cudaGetLastError();

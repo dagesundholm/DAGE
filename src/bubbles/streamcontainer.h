@@ -74,7 +74,7 @@ __host__ inline void handleLastError(cudaError_t error, const char *filename, co
 
 
 __host__ inline void check_errors_and_lock(const char *filename, const int line_number) {
-    cudaThreadSynchronize();
+    cudaDeviceSynchronize();
 
     cudaError_t error = cudaGetLastError();
     handleLastError(error, filename, line_number);
@@ -85,7 +85,7 @@ __host__ inline void check_errors_and_lock(const char *filename, const int line_
 
 __host__ inline void check_errors(const char *filename, const int line_number) {
 #ifdef DEBUG_CUDA
-    cudaThreadSynchronize();
+    cudaDeviceSynchronize();
 #endif
 
     cudaError_t error = cudaGetLastError();

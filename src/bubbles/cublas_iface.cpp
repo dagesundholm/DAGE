@@ -99,7 +99,7 @@ cublasEnv_t *cublasEnv;
 int number_of_devices;
 
 inline void check_cublas_errors(const char *filename, const int line_number) {
-    /*cudaThreadSynchronize();
+    /*cudaDeviceSynchronize();
     cudaError_t error = cudaGetLastError();
     if(error != cudaSuccess)
     {

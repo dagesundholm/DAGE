@@ -42,6 +42,7 @@ module Core_class
     use Action_class
     use Bubbles_class
     use SCFEnergetics_class
+    use GPU_info
 #ifdef HAVE_MPI
     use mpi
 #endif
@@ -97,6 +98,12 @@ contains
         logical                  :: action_success, success, initialized
 #ifdef BUBBLES_REVISION_NUMBER
         print *, "Bubbles library revision number: ", BUBBLES_REVISION_NUMBER
+        flush(6)
+#endif
+
+#ifdef HAVE_CUDA
+        call gpu_print_info_short()
+        ! call gpu_print_info_long()
 #endif
         
 #ifdef HAVE_MPI

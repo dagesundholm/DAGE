@@ -40,7 +40,7 @@
 
 __host__ inline void check_bessels_errors(const char *filename, const int line_number) {
 #ifdef CUDA_DEBUG
-    cudaThreadSynchronize();
+    cudaDeviceSynchronize();
     cudaError_t error = cudaGetLastError();
     if(error != cudaSuccess)
     {

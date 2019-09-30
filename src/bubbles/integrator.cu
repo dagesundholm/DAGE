@@ -34,6 +34,7 @@
 #define Y_ 1
 #define Z_ 2
 
+#define FULL_MASK 0xffffffff
 
 // double precision atomic add function
 __device__ double atomicAddD(double* address, double val)
@@ -143,7 +144,7 @@ __device__ inline void getXYZ3D__(int *x, int *y, int *z) {
 
 template <unsigned int blockSize> 
 __device__  void contractBlock(const int threadId, double &value, double *shared_data) {
-#if (__CUDA_ARCH__ >= 350) 
+#if (__CUDA_ARCH__ >= 350) && (__CUDA_ARCH__ < 700)
     
     // sum the results warp-wise
     value += __shfl_down(value, 1);
@@ -170,6 +171,35 @@ __device__  void contractBlock(const int threadId, double &value, double *shared
         if (blockSize >= 128)  value += __shfl_down(value, 4);
         if (blockSize >= 256)  value += __shfl_down(value, 8);
         if (blockSize >= 512)  value += __shfl_down(value, 16);
+    }
+    
+#elif __CUDA_ARCH__ >= 700
+    
+    // sum the results warp-wise
+    value += __shfl_down_sync(FULL_MASK, value, 1);
+    value += __shfl_down_sync(FULL_MASK, value, 2);
+    value += __shfl_down_sync(FULL_MASK, value, 4);
+    value += __shfl_down_sync(FULL_MASK, value, 8);
+    value += __shfl_down_sync(FULL_MASK, value, 16);
+    
+    if (threadId < 32) {
+        shared_data[threadId] = 0.0;
+    }
+    __syncthreads();
+    
+    if (threadId % 32 == 0) {
+        shared_data[threadId / 32] = value;
+    }
+    __syncthreads();
+    
+    // sum the warp results together at the first warp
+    if (threadId < 32 ) {
+        value = shared_data[threadId];
+        if (blockSize >= 32)   value += __shfl_down_sync(FULL_MASK, value, 1);
+        if (blockSize >= 64)   value += __shfl_down_sync(FULL_MASK, value, 2);
+        if (blockSize >= 128)  value += __shfl_down_sync(FULL_MASK, value, 4);
+        if (blockSize >= 256)  value += __shfl_down_sync(FULL_MASK, value, 8);
+        if (blockSize >= 512)  value += __shfl_down_sync(FULL_MASK, value, 16);
     }
     
 #else
@@ -1769,7 +1799,7 @@ void Integrator3D::integrateSingleDevice(double *device_cube, const size_t devic
                       device);
         check_errors(__FILE__, __LINE__);
         
-        cudaThreadSynchronize();
+        cudaDeviceSynchronize();
         slice_offset += slice_count;
         device_cube = &device_cube[device_pitch * device_memory_shape_y * slice_count / sizeof(double)] ;
 

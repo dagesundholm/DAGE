@@ -713,7 +713,7 @@ __global__ void RealSphericalHarmonics_evaluate_grid_kernel_fast(Grid3D *grid,
 
 __host__ inline void check_cuda_errors(const char *filename, const int line_number) {
 #ifdef DEBUG_CUDA 
-    cudaThreadSynchronize();
+    cudaDeviceSynchronize();
 #endif
     cudaError_t error = cudaGetLastError();
     if(error != cudaSuccess)

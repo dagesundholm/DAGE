@@ -431,7 +431,7 @@ extern "C" void streamcontainer_destroy(StreamContainer *streamContainer) {
 
 extern "C" void check_cuda_errors_from_fortran_(bool lock) {
     if (lock) {
-        cudaThreadSynchronize();
+        cudaDeviceSynchronize();
     }
 
     cudaError_t error = cudaGetLastError();

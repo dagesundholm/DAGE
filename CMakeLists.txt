@@ -144,10 +144,14 @@ if (ENABLE_CUDA)
             set(F2PY_LIBS "${F2PY_LIBS} -lnvToolsExt")
             add_definitions(-DHAVE_NVTX)
         endif()
-        set(CUDA_NVCC_ARCH "60;37"
+        set(CUDA_NVCC_ARCH "37;60;70"
             CACHE STRING
-            "List of CUDA Compute capability (35, 37, 60 for 3.5, 3.7, 6.0, respectively)"
+            "List of CUDA Compute capability (37 and 70 for 3.7 and 7.0, respectively)"
             )
+        # set(CUDA_NVCC_ARCH "35;37;60"
+        #     CACHE STRING
+        #     "List of CUDA Compute capability (35, 37, 60 for 3.5, 3.7, 6.0, respectively)"
+        #     )
         foreach (ARCH ${CUDA_NVCC_ARCH})
             set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS}
                         "-gencode arch=compute_${ARCH},code=sm_${ARCH}"
