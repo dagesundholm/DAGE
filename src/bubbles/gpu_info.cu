@@ -20,7 +20,7 @@ void print_device_props_short()
         cudaDeviceProp props;
         cudaGetDeviceProperties(&props, i);
         printf("  | %d: %s\n", i, props.name);
-        printf("  | arch version: %d.%d\n", props.major, props.minor);
+        printf("  | arch version / compute capability: %d.%d\n", props.major, props.minor);
         printf("  | Global memory: %d MB\n", props.totalGlobalMem / mb);
     }
 }
@@ -39,15 +39,19 @@ void print_device_props_complete()
         cudaDeviceProp props;
         cudaGetDeviceProperties(&props, i);
         printf("  | %d: %s\n", i, props.name);
-        printf("  | Arch version: %d.%d\n", props.major, props.minor);
-        printf("  | Global memory: %d MB\n", props.totalGlobalMem / mb);
-        printf("  | Shared memory: %d KB\n", props.sharedMemPerBlock / kb);
-        printf("  | Constant memory: %d KB\n", props.totalConstMem / kb);
-        printf("  | Block registers: %d\n", props.regsPerBlock);
-        printf("  | Warp size: %d\n", props.warpSize );
-        printf("  | Threads per block: %d\n", props.maxThreadsPerBlock );
-        printf("  | Max block dimensions: %d, %d, %d\n", props.maxThreadsDim[0], props.maxThreadsDim[1], props.maxThreadsDim[2] );
-        printf("  | Max grid dimensions: %d, %d, %d\n", props.maxGridSize[0], props.maxGridSize[1], props.maxGridSize[2] );
+        printf("  | UUID: %s\n", props.uuid);
+        printf("  | arch version / compute capability: %d.%d\n", props.major, props.minor);
+        printf("  | global memory: %d MB\n", props.totalGlobalMem / mb);
+        printf("  | shared memory: %d KB\n", props.sharedMemPerBlock / kb);
+        printf("  | constant memory: %d KB\n", props.totalConstMem / kb);
+        printf("  | 32b-registers per block: %d\n", props.regsPerBlock);
+        printf("  | warp size: %d\n", props.warpSize );
+        printf("  | max pitch: %d KB\n", props.memPitch / kb );
+        printf("  | threads per block: %d\n", props.maxThreadsPerBlock );
+        printf("  | max block dimensions: %d, %d, %d\n", props.maxThreadsDim[0], props.maxThreadsDim[1], props.maxThreadsDim[2] );
+        printf("  | max grid dimensions: %d, %d, %d\n", props.maxGridSize[0], props.maxGridSize[1], props.maxGridSize[2] );
+        printf("  | clock rate: %d\n", props.clockRate);
+
     }
 }
 

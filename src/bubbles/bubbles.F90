@@ -336,7 +336,7 @@ module bubbles_class
     end interface
     
     interface
-        subroutine bubbles_destroy_cuda(bubbles) bind(C)
+        subroutine Bubbles_destroy_cuda(bubbles) bind(C)
             use ISO_C_BINDING
             type(C_PTR), value    :: bubbles
         end subroutine
@@ -1414,7 +1414,7 @@ contains
         integer                       :: i
         
         if (allocated(self%cuda_interface)) then
-            call bubbles_destroy_cuda(self%cuda_interface)
+            call Bubbles_destroy_cuda(self%cuda_interface)
             deallocate(self%cuda_interface)
         end if
     end subroutine

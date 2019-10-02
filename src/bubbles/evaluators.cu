@@ -131,7 +131,7 @@ double evaluate_coefficients(double *polynomials, const double* __restrict__ c, 
     addresses[5] =__shfl(address, 5, EVALUATE_BLOCK_SIZE)  + thread_rank;
     addresses[6] =__shfl(address, 6, EVALUATE_BLOCK_SIZE)  + thread_rank;
     addresses[7] =__shfl(address, 7, EVALUATE_BLOCK_SIZE)  + thread_rank;
-#elif __CUDA_ARCH__ >= 700
+#elif (__CUDA_ARCH__ >= 700)
     addresses[0] =__shfl_sync(FULL_MASK, address, 0, EVALUATE_BLOCK_SIZE)  + thread_rank;
     addresses[1] =__shfl_sync(FULL_MASK, address, 1, EVALUATE_BLOCK_SIZE)  + thread_rank;
     addresses[2] =__shfl_sync(FULL_MASK, address, 2, EVALUATE_BLOCK_SIZE)  + thread_rank;
@@ -188,7 +188,7 @@ double evaluate_coefficients(double *polynomials, const double* __restrict__ c, 
     result += __shfl(temp_results[6], thread_rank+6, EVALUATE_BLOCK_SIZE) * polynomials[reg];
     reg = ((reg == EVALUATE_BLOCK_SIZE-1) ? 0 : reg + 1);
     result += __shfl(temp_results[7], thread_rank+7, EVALUATE_BLOCK_SIZE) * polynomials[reg];
-#elif __CUDA_ARCH__ >= 700
+#elif (__CUDA_ARCH__ >= 700)
     reg = ((reg == EVALUATE_BLOCK_SIZE-1) ? 0 : reg + 1);
     result += __shfl_sync(FULL_MASK, temp_results[1], thread_rank+1, EVALUATE_BLOCK_SIZE) * polynomials[reg];
     reg = ((reg == EVALUATE_BLOCK_SIZE-1) ? 0 : reg + 1);

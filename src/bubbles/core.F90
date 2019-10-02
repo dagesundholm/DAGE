@@ -42,7 +42,6 @@ module Core_class
     use Action_class
     use Bubbles_class
     use SCFEnergetics_class
-    use GPU_info
 #ifdef HAVE_MPI
     use mpi
 #endif
@@ -50,6 +49,7 @@ module Core_class
     use omp_lib
 #endif
 #ifdef HAVE_CUDA
+    use GPU_info
     use cuda_m
 #endif
     implicit none
@@ -103,7 +103,7 @@ contains
 
 #ifdef HAVE_CUDA
         call gpu_print_info_short()
-        ! call gpu_print_info_long()
+        call gpu_print_info_long()
 #endif
         
 #ifdef HAVE_MPI
