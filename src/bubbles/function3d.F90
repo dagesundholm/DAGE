@@ -2719,7 +2719,7 @@ contains
             bubshape=self%bubbles%gr(ibub)%p%get_shape()
             total=total+bubshape
             write(line,'(&
-            &      i8,                  i20)'),ibub,bubshape
+            &      i8,                  i20)') ibub, bubshape
             info=append(info, line)
         end do
         total=total*(lmax+1)**2

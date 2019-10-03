@@ -39,7 +39,6 @@ void print_device_props_complete()
         cudaDeviceProp props;
         cudaGetDeviceProperties(&props, i);
         printf("  | %d: %s\n", i, props.name);
-        printf("  | UUID: %s\n", props.uuid);
         printf("  | arch version / compute capability: %d.%d\n", props.major, props.minor);
         printf("  | global memory: %d MB\n", props.totalGlobalMem / mb);
         printf("  | shared memory: %d KB\n", props.sharedMemPerBlock / kb);

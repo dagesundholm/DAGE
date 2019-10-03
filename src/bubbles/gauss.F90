@@ -407,10 +407,11 @@ contains
     ! the points -1, 1, and the n-2 roots of the first derivative of the n-1st
     ! Legendre Polynomial
     pure function gauss_lobatto_grid(n, left, right) result(tp)
+        implicit none
         integer(INT32),  intent(in) :: n           ! # of Gauss-Lobatto Points
         real(REAL64),    intent(in) :: left, right
         real(REAL64)                :: tp(n) ! The points tp
-        integer(INT32)              :: i
+
 
         select case(n)
             ! mathematica: dlp5 = D[LegendreP[5, x], x]
@@ -432,7 +433,6 @@ contains
                tp(6) =  dsqrt((15.d0 + 2*dsqrt(15.d0))/33.d0)
                tp(7) =  1.d0
 
-
             case default
     !            write(*,*) 'order not implemented'
     !            flush(6)
@@ -441,8 +441,8 @@ contains
 
         ! scale to intervall
         tp=0.5d0*( (right+left) + (right-left)*tp)
-
     end function
+
 
     ! currently unused
     pure function chebychev_grid(n,left,right) result(tp)

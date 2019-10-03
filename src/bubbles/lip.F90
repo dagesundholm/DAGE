@@ -119,7 +119,7 @@ contains
         integer, intent(in) :: nlip, gridtype
         type(LIPBasis)      :: new
         real(REAL64)        :: first, last
-        real(REAL64)        :: glgrid(nlip)
+        real(REAL64)        :: glgrid(nlip+1)
 
         select case (gridtype)
             case (1, 2) ! equidistant or Gauss-Lobatto

@@ -51,11 +51,14 @@ On taito/gpu the following works:
  * modules: 1) cuda/8.0.61   2) cudnn/7.0-cuda8   3) cuda-env/8 (g)   4) python-env/intelpython2.7   5) gcc/5.4.0   6) openmpi/2.1.2 (g)   7) mkl/11.3.2
    cuda 7.5 is phased out on taito.  gfortran-4.x causes problems with libxc
  * compile libxc with --enable-shared (static is default) and the same compiler version
- * cmake options: -DENABLE_CUDA=TRUE -DCUDA_TOOLKIT_ROOT_DIR=/appl/opt/cuda/8.0.61 -DCMAKE_INSTALL_PREFIX=~/bin -DENABLE_DFT=TRUE
+ * cmake options: -DENABLE_CUDA=TRUE -DCUDA_TOOLKIT_ROOT_DIR=/appl/opt/cuda/8.0.61 -DCMAKE_INSTALL_PREFIX=~/bin -DENABLE_DFT=TRUE -DCMAKE_BUILD_TYPE=DEBUG
  * ccmake option: userdefined options: -lmkl_gf_lp64 -lmkl_sequential -lmkl_core -lpthread -lm -lmkl_avx2 -lmkl_def
    as a results one uses MKL even though the current FindBLAS/FindLAPACK
    is broken
  * make; make install, the obvious.
 
+On Kale  the following works:
+------------------------------
+  modules CUDA/10.1.105  Python/2.7.15-intel-2018b
 
 
