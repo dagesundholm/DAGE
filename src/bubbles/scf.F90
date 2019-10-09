@@ -247,12 +247,12 @@ contains
 
             write(*, '("-----------------------------------------------------------------------")')
             write(*, '("in power method")') ! remove lnw
-            write(*, '("Iteration ",i4," completed")'),     self%iteration_count
-            write(*, '("Total energy:      ", f24.16,"")'), self%scf_energetics%total_energy(self%iteration_count)
-            write(*, '("Electronic energy: ", f24.16,"")'),   self%scf_energetics%total_energy(self%iteration_count) &
+            write(*, '("Iteration ",i4," completed")')     self%iteration_count
+            write(*, '("Total energy:      ", f24.16,"")') self%scf_energetics%total_energy(self%iteration_count)
+            write(*, '("Electronic energy: ", f24.16,"")')   self%scf_energetics%total_energy(self%iteration_count) &
                                                             - self%scf_energetics%nuclear_repulsion_energy 
-            write(*, '("Nuclear repulsion: ", f24.16,"")'), self%scf_energetics%nuclear_repulsion_energy 
-            write(*, '("Energy change:     ", f24.16,"")'),  energy_change
+            write(*, '("Nuclear repulsion: ", f24.16,"")') self%scf_energetics%nuclear_repulsion_energy 
+            write(*, '("Energy change:     ", f24.16,"")')  energy_change
             write(*, '("-----------------------------------------------------------------------")')
             
 ! flush(6)
@@ -269,7 +269,7 @@ contains
                                                           "scf_energetics", self%iteration_count)
                 exit
             else if (self%iteration_count >= self%max_iterations) then
-                write(*, '("Power method exceeded the maximum number of iterations: ", i4)'), self%max_iterations
+                write(*, '("Power method exceeded the maximum number of iterations: ", i4)') self%max_iterations
                 call bigben%stop_and_print()
                 ! Store the result orbitals. Note: the subroutine contains 
                 ! the check whether we are actually doing the storing.
@@ -294,7 +294,7 @@ contains
                     
                     call self%scf_energetics%write_energetics(self%action_object%output_folder, &
                                                               "scf_energetics", self%iteration_count)
-                    write(*, *), "Performing intermediate orbital storage"
+                    write(*, *) "Performing intermediate orbital storage"
                     ! Store the result orbitals. Note: the subroutine contains 
                     ! the check whether we are actually doing the storing.
                     call self%scf_cycle%store_orbitals(self%action_object%output_folder, &

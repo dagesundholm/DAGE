@@ -261,11 +261,11 @@ contains
             end if  
             write(*, '("-----------------------------------------------------------------------")')
             write(*, '("in diis")')
-            write(*, '("Iteration ",i4," completed")'), iteration_number
-            write(*, '("Total energy:      ", f24.16,"")'), self%scf_cycle%energy + self%nuc_rep_energy
-            write(*, '("Electronic energy: ", f24.16,"")'), self%scf_cycle%energy
-            write(*, '("Nuclear repulsion: ", f24.16,"")'), self%nuc_rep_energy
-            write(*, '("Energy change:     ", f24.16,"")'),  self%scf_cycle%energy - energy
+            write(*, '("Iteration ",i4," completed")') iteration_number
+            write(*, '("Total energy:      ", f24.16,"")') self%scf_cycle%energy + self%nuc_rep_energy
+            write(*, '("Electronic energy: ", f24.16,"")') self%scf_cycle%energy
+            write(*, '("Nuclear repulsion: ", f24.16,"")') self%nuc_rep_energy
+            write(*, '("Energy change:     ", f24.16,"")')  self%scf_cycle%energy - energy
             write(*, '("-----------------------------------------------------------------------")')
             energy = self%scf_cycle%energy
             iteration_number = iteration_number + 1
