@@ -1,2 +1,2 @@
 
-from getkw import *
+from .getkw import *

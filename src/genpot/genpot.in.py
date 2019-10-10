@@ -23,8 +23,8 @@
 #!@PYTHON_EXECUTABLE@
 # -*- coding: latin-1 -*-
 #
-# Written by Jonas Juselius <jonas.juselius@chem.uit.no> 
-# University of Tromsø, 2006
+# Written by Jonas Juselius <jonas.juselius@chem.uit.no>
+# University of Tromsoe, 2006
 #
 # vim:syntax=python
 
@@ -134,7 +134,7 @@ def main():
     start.add_sect(integral)
     start.add_sect(potential)
 #     start.add_sect(dens)
-    
+
     if args.infile is not None:
         input=getkw.GetkwParser(start)
         inkw=input.parseFile(args.infile)
@@ -168,7 +168,7 @@ def main():
 #     args.infile='GENPOT.' + str(os.getpid())
     args.infile='GENPOT'
     fd=open(args.infile,'w')
-    print >> fd, inkw
+    print(inkw, file=fd)
     fd.close()
 #     os.system('genpot.x < ' + args.infile)
     os.system('@CMAKE_INSTALL_PREFIX@/bin/@GENPOT_EXECUTABLE@')

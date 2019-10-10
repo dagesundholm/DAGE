@@ -25,7 +25,7 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-import fem1d,bubblify_adf
+from . import fem1d,bubblify_adf
 
 f=open("c2h2_aa.xyz")
 f.readline()

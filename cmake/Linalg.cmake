@@ -63,7 +63,7 @@ if(NOT MATH_FOUND)
 			${LAPACK_LIBRARIES}
 			)
 		set(MATH_FOUND TRUE)
-		set(F2PY_LIBS "${F2PY_LIBS} -llapack -lblas")
+		set(F2PY_LIBS ${F2PY_LIBS} "-llapack" "-lblas")
 	endif()
 endif()
 

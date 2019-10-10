@@ -69,7 +69,7 @@ def fortran_interface_test(fortran_test_id):
     test_results = {}
     
     # perform the calculations in the test file
-    print "filename", fortran_interface_tests[fortran_test_id]["filename"]
+    print("filename", fortran_interface_tests[fortran_test_id]["filename"])
     input_xml = InputXML(filename = fortran_interface_tests[fortran_test_id]["filename"])
     kwargs = input_xml.prepare()
     dage.dage_fortran.python_interface.run(**kwargs)
@@ -151,16 +151,16 @@ def fortran_interface_test(fortran_test_id):
     
     # print out the results
     if test_result:
-        print "{} succeeded!".format(fortran_interface_tests[fortran_test_id]['name'])
+        print("{} succeeded!".format(fortran_interface_tests[fortran_test_id]['name']))
     else:
-        print "{} failed!".format(fortran_interface_tests[fortran_test_id]['name'])
+        print("{} failed!".format(fortran_interface_tests[fortran_test_id]['name']))
         for folder in test_results:
             for test_id in test_results[folder]:
                 if not test_results[folder][test_id]:
-                    print "{} failed for folder '{}'. Reason: {}" \
+                    print("{} failed for folder '{}'. Reason: {}" \
                         .format(fortran_interface_subtests[test_id]['name'], \
                                 folder, \
-                                fortran_interface_subtests[test_id]['fail_message'])
+                                fortran_interface_subtests[test_id]['fail_message']))
     return test_result
 
 def run_fortran_interface_tests():
@@ -168,17 +168,17 @@ def run_fortran_interface_tests():
         try:
             fortran_interface_test(test_id)
         except InvalidTestFileException as e:
-            print str(e)
+            print(str(e))
             
 def run_tests(test_name):
     #try:
     source_dir      = os.path.join(os.path.dirname(os.path.realpath(__file__)), "integration_test_files/")
     destination_dir = os.path.join(os.getcwd(), "integration_test_files/")
     if os.path.exists(destination_dir):
-        print "integration_test_files folder already exists! This could cause false negative results,"\
-              +"if the tests have been altered after the creation of the folder."
+        print("integration_test_files folder already exists! This could cause false negative results,"\
+              +"if the tests have been altered after the creation of the folder.")
     else:
-        print "copying tests from {} to {}".format(source_dir, destination_dir)
+        print("copying tests from {} to {}".format(source_dir, destination_dir))
         shutil.copytree(source_dir, destination_dir)
     #except:
     #    print "Failed to copy the integration test files to current directory. "+\
@@ -190,7 +190,7 @@ def run_tests(test_name):
         try:
             fortran_interface_test(test_name)
         except InvalidTestFileException as e:
-            print str(e)
+            print(str(e))
     
     
 #except:

@@ -29,11 +29,11 @@ if __name__ == "__main__":
     from dage.integration_test import run_tests, fortran_interface_tests
     
     error_message = "Give the input file name or command as an input. Valid commands are 'integration_test'"
-    for key in fortran_interface_tests.keys():
+    for key in list(fortran_interface_tests.keys()):
         error_message += ", {}".format(key)
     
     if len(sys.argv) <= 1:
-        print error_message
+        print(error_message)
     else:
         if sys.argv[1].endswith(".xml"):
             inp = InputXML(filename = sys.argv[1])
@@ -41,7 +41,7 @@ if __name__ == "__main__":
             if len(sys.argv) == 2 or sys.argv[2] != "test":
                 import dage.dage_fortran
                 dage.dage_fortran.python_interface.run(**kwargs)
-        elif sys.argv[1] == "integration_test" or sys.argv[1] in fortran_interface_tests.keys():
+        elif sys.argv[1] == "integration_test" or sys.argv[1] in list(fortran_interface_tests.keys()):
             run_tests(sys.argv[1])
         else:
-            print error_message
+            print(error_message)

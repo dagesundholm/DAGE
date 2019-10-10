@@ -57,8 +57,11 @@ On taito/gpu the following works:
    is broken
  * make; make install, the obvious.
 
-On Kale  the following works:
+On Kale the following works:
 ------------------------------
-  modules CUDA/10.1.105  Python/2.7.15-intel-2018b
+ * modules CUDA/10.1.105  Python/2.7.15-intel-2018b
 
-
+On puhti: 
+--------------------
+ * -lmkl_gf_lp64;-lmkl_sequential;-lmkl_core;-lpthread;-lm;-lmkl_avx2;-lmkl_def
+ * 1) gcc/8.3.0   2) cuda/10.1.168   3) intel-mkl/2019.0.4   4) python-env/2019.3   5) cmake/3.9.6

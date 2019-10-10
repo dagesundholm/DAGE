@@ -26,7 +26,7 @@ import os
 import sys
 import xml.etree.ElementTree as ET
 import numpy, ast
-from generate_objects import SettingsGenerator
+from .generate_objects import SettingsGenerator
 from collections import OrderedDict
 
 class InputProgrammingError(Exception):
@@ -52,7 +52,7 @@ class InputXML(object):
                 self.tree = ET.parse(filename)
                 self.root = self.tree.getroot()
             else:
-                print "Path for definition file: '{}' does not exist".format(filename)
+                print("Path for definition file: '{}' does not exist".format(filename))
         else:
             self.root = None
         
@@ -153,7 +153,7 @@ class InputXML(object):
                 try:
                     self.root      = self.retrieve_path(path_text, self.directory)
                     self.directory = self.form_new_directory_path(path_text, self.directory)
-                except Exception, e:
+                except Exception as e:
                     sys.exit(str(e))
             
             # check if current tag has an attribute or child with
@@ -168,7 +168,7 @@ class InputXML(object):
                 try:
                     self.extends_roots.append(self.retrieve_path(path_text, directory))
                     self.extends_directories.append(self.form_new_directory_path(path_text, directory))
-                except Exception, e:
+                except Exception as e:
                     sys.exit(str(e))
                 # prepare for the next loop by getting the next extends path and corresponding directory
                 directory = self.extends_directories[-1]
@@ -245,7 +245,7 @@ class InputXML(object):
                             break
                             
                     if not definition_found:
-                        print "Warning: Found unknown tag with name '{}'. Ignoring.".format(tag.tag)
+                        print("Warning: Found unknown tag with name '{}'. Ignoring.".format(tag.tag))
                         continue
                     else:
                         child = InputXML(parent_object = self, definition = definition, input_object = tag, directory = directory)
@@ -292,7 +292,7 @@ class InputXML(object):
                 if parameter_definition.attrib['name'] == 'name':
                     self.name = self.parameter_values['name']
             else:
-                print "PARAMETER is not valid", parameter_definition.attrib['name']
+                print("PARAMETER is not valid", parameter_definition.attrib['name'])
                 
         # if the object has extends_root, then parse the children from it
         # and store them to 'self'
@@ -372,7 +372,7 @@ class InputXML(object):
                             parameter_definitions[argument_key] = self.parameter_definitions[parameter_name]
                 else: 
                     if argument_key in argument_values:
-                        print "Warning: Found two (or more) arguments for the same parameter: {}".format(argument_key)
+                        print("Warning: Found two (or more) arguments for the same parameter: {}".format(argument_key))
                     else:
                         argument_values[argument_key] = self.parameter_values[parameter_name]
                         parameter_definitions[argument_key] = self.parameter_definitions[parameter_name]
@@ -385,13 +385,14 @@ class InputXML(object):
          
         # if we are at the root, convert the values with type list to numpy arrays
         if self.parent_object is None:
-            for argument_key in argument_values:
+            for argument_key in list(argument_values):
                 # the string lists need some special attention:
                 if parameter_definitions[argument_key].attrib['type'].startswith('string') and type(argument_values[argument_key]) == list:
                     temp = numpy.empty((256, len(argument_values[argument_key])+1), dtype="c")
                     for j, value in enumerate(argument_values[argument_key]):
                         temp[:, j] = "{0:{width}}".format(argument_values[argument_key][j], width=256)
                     argument_values[argument_key] = numpy.array(temp, dtype="c").T
+                    print(argument_values[argument_key])
                 elif type(argument_values[argument_key]) == list:
                     temp_array = numpy.array(argument_values[argument_key], order='F').T
                     shape = temp_array.shape
@@ -411,6 +412,7 @@ class InputXML(object):
                         new_array[:shape[0]] = temp_array[:]
                     
                     argument_values[argument_key] = new_array
+                    print(argument_values[argument_key])
                 elif argument_values[argument_key] is None:
                     del argument_values[argument_key]
                 
@@ -421,17 +423,17 @@ class InputXML(object):
         if 'global_index_counter' in child.definition.attrib:
             success = self.add_counter_value(child.definition.attrib['global_index_counter'])
             if not success:
-                print "Warning: Adding counter {} failed. Counter not found.".format(child.definition.attrib['global_index_counter'])
+                print("Warning: Adding counter {} failed. Counter not found.".format(child.definition.attrib['global_index_counter']))
             else:
                 child.id = self.get_counter_value(child.definition.attrib['global_index_counter'])
             if 'local_index_counter' in child.definition.attrib:
                 success = self.add_counter_value(child.definition.attrib['local_index_counter'])
                 if not success:
-                    print "Warning: Adding counter {} failed. Counter not found.".format(child.definition.attrib['local_index_counter'])
+                    print("Warning: Adding counter {} failed. Counter not found.".format(child.definition.attrib['local_index_counter']))
             if 'counters' in child.definition.attrib:
                 success = self.add_counter_value(child.definition.attrib['counters'])
                 if not success:
-                    print "Warning: Adding counter {} failed. Counter not found.".format(child.definition.attrib['counters'])
+                    print("Warning: Adding counter {} failed. Counter not found.".format(child.definition.attrib['counters']))
     
     def add_counter_value(self, counter_name):
         """
@@ -896,7 +898,7 @@ class StructureXML(InputXML):
 
 if __name__ == "__main__":
     if len(sys.argv) <= 1:
-        print "Give the input file name as an input."
+        print("Give the input file name as an input.")
     else:
         inp = InputXML(filename = sys.argv[1], definition_filename = os.path.dirname(os.path.realpath(__file__))+"/input_parameters.xml")
         import dage_fortran
