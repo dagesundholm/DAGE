@@ -25,11 +25,11 @@
 set(F2PY_LIBS   "")
 set(F2PY_INCLUDE_DIRS   "")
 
-cmake_minimum_required(VERSION 2.6)
+cmake_minimum_required(VERSION 3.12)
 project(BUBBLES) # Enables C/C++ support
 enable_language(Fortran)
 # find_package(PythonInterp 2.7 REQUIRED)
-find_package(PythonInterp 3.7 REQUIRED)
+find_package(Python3 3.7 REQUIRED)
 
 
 # Define bubbles specific CMake modules in the folder `cmake'

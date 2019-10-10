@@ -60,7 +60,7 @@ message("-- f90 flags: ${CMAKE_Fortran_FLAGS}")
 message("-- binary dir: ${PROJECT_BINARY_DIR}")
 # get_filename_component(PYTHON_NAME ${PYTHON_EXECUTABLE} NAME)
 # add_custom_target(dage_py ALL DEPENDS dage_py)
-get_filename_component(PYTHON_NAME ${PYTHON_EXECUTABLE} NAME)
+get_filename_component(PYTHON_NAME ${Python3_EXECUTABLE} NAME)
 add_custom_command(OUTPUT ${PROJECT_BINARY_DIR}/dage_fortran.so
     COMMAND f2py 
         -I${CMAKE_Fortran_MODULE_DIRECTORY}
