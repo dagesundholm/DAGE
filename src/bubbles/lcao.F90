@@ -664,8 +664,8 @@ contains
                                                 restricted)
         end if
         
-        
     end subroutine
+
     
     !> Reads the basis functions as Function3D objects.
     subroutine Basis_make_basis_functions(self, molec, mould, basis_functions)

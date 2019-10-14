@@ -169,6 +169,7 @@ if (ENABLE_CUDA)
         >> Remember to set CUDA_HOST_COMPILER to the correct version
         (e.g. gcc <= 4.6 for CUDA 5.0)")
         if (DEBUG_CUDA)
+            set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} -g -G) # which implies -lineinfo
             add_definitions(-DDEBUG_CUDA)
         endif()
     endif()

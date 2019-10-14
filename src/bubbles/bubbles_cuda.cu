@@ -495,14 +495,10 @@ double evaluate_polynomials_shared(const int address, const double* __restrict__
     double *coefficients = &shared_memory[0];
     //const float *fc = (const float *)c;
     int threadId = getThreadId();
-    
-    int remainder =  threadId%8;
-    int base_address = 8*(threadId/8);
-    int id = base_address * 7 + remainder;
-    /*int remainder =  threadId%16;
-    base_address = 16*(threadId/16);
-    id = base_address * 16 + remainder;
-    int faddress = 2 * address;*/
+
+    const int remainder =  threadId%8;
+    const int base_address = 8*(threadId/8);
+    const int id = base_address * 7 + remainder;
 
 #if (__CUDA_ARCH__ >= 350) && (__CUDA_ARCH__ < 700)
     // read the coefficients in the shared memory, 8 threads 
@@ -512,7 +508,7 @@ double evaluate_polynomials_shared(const int address, const double* __restrict__
     
     int address_7 = __shfl(address, 7, 8);
     
-    if (remainder < 7) {
+    if (remainder < 7) { // every eighth lane is idle
         coefficients[id]        = ldg<double>(&c[__shfl(address, 0, 8)  + remainder]);
         coefficients[id+7]      = ldg<double>(&c[__shfl(address, 1, 8)  + remainder]);
         coefficients[id+7*2]    = ldg<double>(&c[__shfl(address, 2, 8)  + remainder]);
@@ -551,17 +547,18 @@ double evaluate_polynomials_shared(const int address, const double* __restrict__
 
 #elif __CUDA_ARCH__ >= 700
     
+    // printf("activemask: %u\n", __activemask());
     int address_7 = __shfl_sync(FULL_MASK, address, 7, 8);
-    
-    if (remainder < 7) {
-        coefficients[id]        = ldg<double>(&c[__shfl_sync(FULL_MASK, address, 0, 8)  + remainder]);
-        coefficients[id+7]      = ldg<double>(&c[__shfl_sync(FULL_MASK, address, 1, 8)  + remainder]);
-        coefficients[id+7*2]    = ldg<double>(&c[__shfl_sync(FULL_MASK, address, 2, 8)  + remainder]);
-        coefficients[id+7*3]    = ldg<double>(&c[__shfl_sync(FULL_MASK, address, 3, 8)  + remainder]);
-        coefficients[id+7*4]    = ldg<double>(&c[__shfl_sync(FULL_MASK, address, 4, 8)  + remainder]);
-        coefficients[id+7*5]    = ldg<double>(&c[__shfl_sync(FULL_MASK, address, 5, 8)  + remainder]);
-        coefficients[id+7*6]    = ldg<double>(&c[__shfl_sync(FULL_MASK, address, 6, 8)  + remainder]);
-        coefficients[id+7*7]    = ldg<double>(&c[address_7  + remainder]);
+    if (remainder < 7) { // every eighth lane is idle and therefore removed from the mask
+        // printf("activemask: %u\n", __activemask());
+        coefficients[id]      = ldg<double>(&c[__shfl_sync(0b01111111011111110111111101111111, address, 0, 8) + remainder]);
+        coefficients[id+7]    = ldg<double>(&c[__shfl_sync(0b01111111011111110111111101111111, address, 1, 8) + remainder]);
+        coefficients[id+7*2]  = ldg<double>(&c[__shfl_sync(0b01111111011111110111111101111111, address, 2, 8) + remainder]);
+        coefficients[id+7*3]  = ldg<double>(&c[__shfl_sync(0b01111111011111110111111101111111, address, 3, 8) + remainder]);
+        coefficients[id+7*4]  = ldg<double>(&c[__shfl_sync(0b01111111011111110111111101111111, address, 4, 8) + remainder]);
+        coefficients[id+7*5]  = ldg<double>(&c[__shfl_sync(0b01111111011111110111111101111111, address, 5, 8) + remainder]);
+        coefficients[id+7*6]  = ldg<double>(&c[__shfl_sync(0b01111111011111110111111101111111, address, 6, 8) + remainder]);
+        coefficients[id+7*7]  = ldg<double>(&c[ address_7 + remainder]);
     }
     
 #else
@@ -598,12 +595,10 @@ double evaluate_polynomials_shared(const int address, const double* __restrict__
         result *= x;
         result += coeff[4];
     }
-    
     if (nlip > 5) {
         result *= x;
         result += coeff[5];
     }
-    
     if (nlip > 6) {
         result *= x;
         result += coeff[6];
@@ -1303,11 +1298,10 @@ __device__ inline void Bubbles_evaluate_gradient_point(
 
 
 /* 
- * Evaluates value of single bubble at a point. This is very similar with the
+ * Evaluates value of single bubble at a point. This is very similar to the
  * SolidHarmonics simple evaluation, but the results are multiplied with the
  * polynomial evaluations
  */
-
 __device__ inline double  Bubbles_evaluate_point(
                                          // x-coordinate relative to the center of the bubble
                                          const double &x,
@@ -1341,16 +1335,15 @@ __device__ inline double  Bubbles_evaluate_point(
     const int ncell_nlip = ncell * 8;
     int l, l2; 
     double top, bottom, new_bottom, prev1, prev2, current, a, b, a2;
-    const double one_per_r = 1.0 / distance;;
+    const double one_per_r = 1.0 / distance;
     l = 0;
     // set value for l=0, m=0
-    //printf("x: %f, y: %f, z: %f, nlip: %d, ncell: %d, l: 0, address: %d, cf: %ld, r: %f\n", x, y, z, nlip, ncell, 0, lm_address, cf, r);
-    //printf("shared_memory address: %ld\n");
-    //printf("shared memory first value: %f", shared_memory[0]);
+    // printf("x: %f, y: %f, z: %f, nlip: %d, ncell: %d, l: 0, lmax: %d, address: %d, cf: %ld, r: %f\n", x, y, z, nlip, ncell, 0, lmax, lm_address, cf, r);
+    // printf("shared_memory address: %ld\n", );
+    // printf("shared memory first value: %f", shared_memory[0]);
     result = evaluate_polynomials_shared<NLIP>(lm_address, cf, r);
-    
-    
-    
+
+
     if (lmax >= 1) { 
         // set value for l=1, m=-1
         result += y * evaluate_polynomials_shared<NLIP>(address+ncell_nlip, cf, r) * one_per_r;
@@ -1389,15 +1382,16 @@ __device__ inline double  Bubbles_evaluate_point(
         // the starting address has 1 item before from the l=0, 3 from l=1, and 2 from l=2
         address2 = address + ncell_nlip * 6;
         
-        
-        l = threadIdx.x % 32;
+        l = threadIdx.x % 32; // lane within warp
         a =  ( 2.0*(double)l-1.0) * rsqrt( 1.0*(double)((l)*(l)) );
         b =  sqrt( (double)((l-1)*(l-1)) /  (double)((l)*(l)) );
+        // printf("l: %d, lmax:%d, a: %f, b: %f, z: %f, prev1: %f, one_per_r: %f, prev2: %f\n", l, lmax, a, b, z, prev1, one_per_r, prev2);
         for (l = 2; l <= lmax; l++) {
 #if (__CUDA_ARCH__ >= 350) && (__CUDA_ARCH__ < 700)
             current =   __shfl(a, l) * z * prev1 * one_per_r -  __shfl(b, l) * prev2;
 #elif __CUDA_ARCH__ >= 700
-            current =   __shfl_sync(FULL_MASK, a, l) * z * prev1 * one_per_r -  __shfl_sync(FULL_MASK, b, l) * prev2;
+            // printf("lane: %d, l: %d, a: %f, b:%f\n", threadIdx.x % 32, l, a, b);
+            current = __shfl_sync(FULL_MASK, a, l) * z * prev1 * one_per_r - __shfl_sync(FULL_MASK, b, l) * prev2;
 #endif
             result += current * evaluate_polynomials_shared<NLIP>(address2, cf, r);
             prev2 = prev1;
@@ -1515,7 +1509,6 @@ __device__ inline double  Bubbles_evaluate_point(
     // earlier in this function, NOTE: should never happen, thus 
     // commented away
     //if (k != 0 && distance > 1e-12) {
-    
     
     
     if (distance < 1e-14) {
@@ -1641,7 +1634,7 @@ Bubbles_evaluate_grid(const Bubble* __restrict__ bubble,
     int icell;
     double relative_position_x, relative_position_y, relative_position_z, distance;
                 
-    //printf("X: %f, cell_spacing: %f, ncell: %d", distance, bubble->cell_spacing, ncell);
+    // printf("X: %f, cell_spacing: %f, ncell: %d", distance, bubble->cell_spacing, ncell);
     // Check that the point is within the block 
     if (x < shape_x && y < shape_y && z+slice_offset < shape_z && z < slice_count) {
         // calculate relative position to the zero-point and distance to it 
@@ -1724,7 +1717,6 @@ Bubbles_evaluate_grid(const Bubble* __restrict__ bubble,
         }
     }
     
-    
     if (x < shape_x && y < shape_y && z+slice_offset < shape_z && z < slice_count && icell < ncell) {
         /*if (x == 0 && y == 0) {
             printf("%d: [x, y, z], id : [%d, %d, %d], %d, icell: %d, in_cell_position:%f, first_bubble-value:%e, distance:%f, coord: [%f, %f, %f] old-value: %e, value: %e, multiplier: %f\n", slice_offset, x, y, z+slice_offset, id, icell, in_cell_position, bubble->cf[icell*8], distance, relative_position_x, relative_position_y, relative_position_z, cube[id], value, multiplier);
@@ -1735,7 +1727,6 @@ Bubbles_evaluate_grid(const Bubble* __restrict__ bubble,
         if (evaluate_gradients_z) gradient_cube_z[id] += multiplier * gradient[Z_];
     }
     return;
-
 }
 
 
@@ -3595,6 +3586,8 @@ void Function3DMultiplier::multiply(Bubbles *f1_bubbles, Bubbles *f2_bubbles, Bu
                     bubble = f1_bubbles->getBubbleWithLocalOrderNumber(i);
                     // wait that the bubble is uploaded to the device before starting
                     if (stream == 0) bubble->waitBubbleUploaded(device);
+// printf("before offending kernel\n");
+// fflush(stdout);
                     
                     Bubbles_evaluate_grid_pitched 
                         <<< grid, block, INJECT_BLOCK_SIZE * sizeof(double) * 7, 
@@ -3618,6 +3611,8 @@ void Function3DMultiplier::multiply(Bubbles *f1_bubbles, Bubbles *f2_bubbles, Bu
                                         1.0);
                                         
                     check_errors(__FILE__, __LINE__);
+// printf("after offending kernel\n");
+// fflush(stdout);
                 }
 
                 check_errors(__FILE__, __LINE__);
