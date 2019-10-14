@@ -192,7 +192,7 @@ contains
         !> t-log value 
         !f2py real(8),        intent(in), dimension(number_of_settings+1), depend(number_of_settings), optional :: quad_tlog
         real(8),        intent(in), optional :: quad_tlog(number_of_settings+1)
-        !> Is the used coulomb operator based on Grid Based Fast Multipole Method 
+        !> Is the used Coulomb operator based on Grid Based Fast Multipole Method 
         !! 
         !f2py logical,        intent(in), dimension(number_of_settings+1), depend(number_of_settings), optional :: c3d_gbfmm
         logical,        intent(in), optional :: c3d_gbfmm(number_of_settings+1)
@@ -201,7 +201,7 @@ contains
         !! evaluation. 
         !f2py integer,        intent(in), dimension(number_of_settings+1), depend(number_of_settings), optional :: c3d_farfield_potential_input_lmax
         integer,        intent(in), optional :: c3d_farfield_potential_input_lmax(number_of_settings+1)
-        !> Is the used helmholtz operator based on Grid Based Fast Multipole Method 
+        !> Is the used Helmholtz operator based on Grid Based Fast Multipole Method 
         !! 
         !f2py logical,        intent(in), dimension(number_of_settings+1), depend(number_of_settings), optional :: h3d_gbfmm
         logical,        intent(in), optional :: h3d_gbfmm(number_of_settings+1)
@@ -281,7 +281,8 @@ contains
         !> lmax for exc, vxc 
         !f2py integer,        intent(in), dimension(number_of_settings+1), depend(number_of_settings), optional :: dft_xc_lmax
         integer,        intent(in), optional :: dft_xc_lmax(number_of_settings+1)
-        !> finite difference order for GGA evaluation 
+        !> finite difference order for GGA evaluation, 9 is hardly any improvement 
+        !! 
         !f2py integer,        intent(in), dimension(number_of_settings+1), depend(number_of_settings), optional :: dft_fin_diff_order
         integer,        intent(in), optional :: dft_fin_diff_order(number_of_settings+1)
         !> Determines if the electron density and its gradient are (re-)evaluated 

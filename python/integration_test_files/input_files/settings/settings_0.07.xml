@@ -5,7 +5,7 @@
         <cube_grid_spacing>0.07</cube_grid_spacing>
         <bubble_lmax>3</bubble_lmax>
         <cube_cutoff_radius>7.00</cube_cutoff_radius>
-        <bubbles_center_offset>2.5, 2.5, -2.2</bubbles_center_offset>
+<!--        <bubbles_center_offset>2.5, 2.5, -2.2</bubbles_center_offset>    -->
     </function3d_settings>
     <coulomb3d_settings gbfmm="false" />
     <helmholtz3d_settings gbfmm="false" />

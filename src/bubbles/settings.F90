@@ -79,7 +79,7 @@ module Settings_class
 
     !> Type containing settings related to the Coulomb operator 
     type :: Coulomb3DSettings 
-        !> Is the used coulomb operator based on Grid Based Fast Multipole Method 
+        !> Is the used Coulomb operator based on Grid Based Fast Multipole Method 
         !! 
         logical              :: gbfmm = .TRUE.
         !> Maximum angular momentum quantum number l value for the multipole evaluation. 
@@ -90,17 +90,17 @@ module Settings_class
 
     !> Type containing settings related to the Helmholtz operator 
     type :: Helmholtz3DSettings 
-        !> Is the used helmholtz operator based on Grid Based Fast Multipole Method 
+        !> Is the used Helmholtz operator based on Grid Based Fast Multipole Method 
         !! 
         logical              :: gbfmm = .TRUE.
         !> Maximum angular momentum quantum number l value for the multipole evaluation. 
         !! Increasing this number will increase the accuracy of the farfield potential 
         !! evaluation. 
-        integer                   :: farfield_potential_input_lmax = 22
+        integer                   :: farfield_potential_input_lmax = 17
         !> Maximum angular momentum quantum number l value for the potential evaluation. 
         !! Increasing this number will increase the accuracy of the farfield potential 
         !! evaluation. 
-        integer                   :: farfield_potential_lmax = 22
+        integer                   :: farfield_potential_lmax = 17
         !> If the evaluation of farfield potential will be made using with no multipole 
         !! to local expansion conversions. Using this setting will increase the execution 
         !! time. Should be used only for debugging purposes. 
@@ -169,7 +169,8 @@ module Settings_class
         integer                   :: xc_update_method = 0
         !> lmax for exc, vxc 
         integer                   :: xc_lmax = 0
-        !> finite difference order for GGA evaluation 
+        !> finite difference order for GGA evaluation, 9 is hardly any improvement 
+        !! 
         integer                   :: fin_diff_order = 7
         !> Determines if the electron density and its gradient are (re-)evaluated 
         !! from molecular orbitals. Using this setting makes the calculation more 

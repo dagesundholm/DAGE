@@ -49,7 +49,7 @@ void print_device_props_complete()
         printf("  | threads per block: %d\n", props.maxThreadsPerBlock );
         printf("  | max block dimensions: %d, %d, %d\n", props.maxThreadsDim[0], props.maxThreadsDim[1], props.maxThreadsDim[2] );
         printf("  | max grid dimensions: %d, %d, %d\n", props.maxGridSize[0], props.maxGridSize[1], props.maxGridSize[2] );
-        printf("  | clock rate: %d\n", props.clockRate);
+        printf("  | clock rate: %d Hz\n", props.clockRate);
 
     }
 }

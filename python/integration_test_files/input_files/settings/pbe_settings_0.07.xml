@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
 <settings name="pbe_settings_0.07" extends_path="settings_0.07.xml">
     <scf_settings method="dft" update_weight="1.0" type="helmholtz" />
-    <dft_settings correlation_type="130" exchange_type="101" /> 
+    <dft_settings correlation_type="130" exchange_type="101" fin_diff_order="9" /> 
 </settings>
