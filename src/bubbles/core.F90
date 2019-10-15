@@ -75,8 +75,8 @@ module Core_class
         procedure, private :: validate_settings_id  => Core_validate_settings_id
         procedure, private :: validate_basis_set_id => Core_validate_basis_set_id
         procedure, private :: validate_structure_id => Core_validate_structure_id
-        procedure, public  :: run => Core_run
-        procedure, private :: input_output_test           => Core_input_output_test
+        procedure, public  :: run                   => Core_run
+        procedure, private :: input_output_test     => Core_input_output_test
         procedure, private :: optimize_electron_structure => Core_optimize_electron_structure
     end type
 
@@ -154,25 +154,36 @@ contains
         success = .TRUE.
         do iaction = 1, size(self%actions)
             !call check_memory_status_cuda()
+write(*,*) 'action', iaction
+flush(6)
 
-            ! check that the structure in in action is valid
+            ! check that the structure in action is valid
             action_success = self%validate_structure_id(self%actions(iaction)%structure_id)
             if (action_success) then
+write(*,*) 'a'
                 ! get the structure pointer
                 struct => self%structures(self%actions(iaction)%structure_id)
+write(*,*) 'b'
 
                 ! validate that the settings id for action is valid
                 action_success = self%validate_settings_id(self%actions(iaction)%settings_id)
+write(*,*) 'c'
                 
                 ! validate that the basis set id for action is valid
                 action_success = self%validate_basis_set_id(struct%basis_set_id)
+write(*,*) 'd'
             end if
 
+write(*,*) 'action', iaction
+flush(6)
 
             ! if the scf_energetics of action exists copy it to a local variable
             if (action_success .and. self%actions(iaction)%scf_energetics_id /= 0) then
                 scf_energetics = self%scf_energetics(self%actions(iaction)%scf_energetics_id)
             end if
+
+write(*,*) 'action', iaction
+flush(6)
 
             ! perform the desired action
             if (action_success .and. self%actions(iaction)%name == ACTION_OPTIMIZE_ELECTRON_STRUCTURE) then
@@ -270,33 +281,48 @@ contains
         print '("       Optimizing electron structure of ", a )', trim(struct%name)
         print '("----------------------------------------------------------")'
         bigben = Chrono("Optimize Electron Structure", iproc)
+flush(6)
         
         ! get the cube grid and the bubble grids
+write(*,*) 'get cube grid'
+flush(6)
         call self%get_cube_grid(action_, struct, settings, cubegrid, orbital_parallel_info, electron_density_parallel_info)
+write(*,*) 'get bub grid'
+flush(6)
         call self%get_bubble_grids(action_, struct, settings, bubble_grids)
         
-                                       
+                                      
+write(*,*)'get orbs'
+flush(6)
         ! create the orbitals
         call self%get_orbitals(action_, struct, settings, orbital_parallel_info, &
                                electron_density_parallel_info, bubble_grids, &
                                basis_set, orbitals_a, orbitals_b, electron_density)
                                
         
+write(*,*)'init core eval'
+flush(6)
         ! init the core evaluator
         core_evaluator = CoreEvaluator(orbitals_a(1))
 
+write(*,*)'init ops'
+flush(6)
         ! init the coulomb, laplacian, and helmholtz operators along with the gaussian quadrature
         call self%init_operators(settings, cubegrid, orbital_parallel_info, &
                                  electron_density_parallel_info, &
                                  orbitals_a(1), quadrature, &
                                  coulomb_operator, laplacian_operator, helmholtz_operator)
 
+write(*,*)'init scf'
+flush(6)
         ! init the correct SCF cycle
         call SCFCycle_init(settings, struct, basis_set, orbitals_a, orbitals_b, electron_density, &
                            laplacian_operator, coulomb_operator, helmholtz_operator, &
                            core_evaluator, scf_cycle)
 
         
+write(*,*)'calc nuc pot'
+flush(6)
         ! calculate the nuclear repulsion enrgy
         if (abs(scf_energetics%nuclear_repulsion_energy) < 1d-5) then
             scf_energetics%nuclear_repulsion_energy= &
@@ -304,9 +330,13 @@ contains
                                         orbitals_a(1)%bubbles%get_global_centers())
         end if
 
+write(*,*)'init scf opt'
+flush(6)
         ! init the SCFOptimizer to 'scf_optimizer'
         call SCFOptimizer_init(settings, action_, scf_cycle, scf_energetics, scf_optimizer)
         
+write(*,*)'scf opt'
+flush(6)
         ! --- PERFORM CALCULATION --- !
         ! do the optimization
         call start_memory_follower()
@@ -499,6 +529,8 @@ contains
         if (action_%resume .and. file_exists(action_%output_folder, "cubegrid.g3d")) then
             cubegrid = Grid3D(action_%output_folder, "cubegrid.g3d")
         else
+write(*,*) 'before make cube grid'
+flush(6)
             cubegrid = struct%make_cubegrid(step      = settings%function3d_settings%cube_grid_spacing, &
                                             radius    = settings%function3d_settings%cube_cutoff_radius, &
                                             nlip      = settings%function3d_settings%cube_nlip, &
@@ -516,14 +548,19 @@ contains
 
     
         ! create the parallelization infos
+write(*,*) 'before make parallel'
+flush(6)
         call make_parallelization_info(orbital_parallel_info, &
                                        cubegrid = cubegrid,&
                                        gbfmm = settings%coulomb3d_settings%gbfmm, &
                                        is_potential_input = .FALSE.)
+write(*,*) 'before make parallel'
+flush(6)
         call make_parallelization_info(electron_density_parallel_info, &
                                        cubegrid = cubegrid, &
                                        gbfmm = settings%coulomb3d_settings%gbfmm, &
                                        is_potential_input = .TRUE.)
+write(*,*) 'end Core_get_cube_grid'
     end subroutine
     
     
@@ -814,6 +851,8 @@ contains
                 end select
             end if
 #ifdef HAVE_CUDA
+write(*,*) 'coulomb op, cuda init' 
+flush(6)
             call coulomb_operator%cuda_init()
 #endif
                 
@@ -836,6 +875,8 @@ contains
                 end select
             end if
 #ifdef HAVE_CUDA
+write(*,*) 'laplacian op, cuda init' 
+flush(6)
             call laplacian_operator%cuda_init()
 #endif
         end if
@@ -866,6 +907,8 @@ contains
             end if
             
 #ifdef HAVE_CUDA
+write(*,*) 'helmholtz op, cuda init' 
+flush(6)
             call helmholtz_operator%cuda_init_child_operator()
 #endif
         end if
@@ -954,20 +997,23 @@ contains
             if (settings%scf_settings%restricted) then
                 if(any(struct%external_electric_field /= 0.0d0)) then
                     call RHFCycle_with_EEF_init(orbitals_a, electron_density, &
-                        nocc(1), nocc(2), struct%number_of_virtual_orbitals,&
+                        nocc(1), nocc(2), struct%number_of_virtual_orbitals, &
                         laplacian_operator, coulomb_operator, helmholtz_operator, &
                         core_evaluator, struct%external_electric_field, scf_cycle)
                 else
                     if (settings%scf_settings%type == SCF_TYPE_HELMHOLTZ) then
-                        if (struct%multiplicity > 1) then
-                            call ROHFCycle_init(orbitals_a, electron_density, nocc(1), nocc(2), struct%number_of_virtual_orbitals,&
-                                laplacian_operator, coulomb_operator, helmholtz_operator, &
-                                core_evaluator, scf_cycle, settings%hf_settings%rohf_a, &
-                                settings%hf_settings%rohf_b, settings%hf_settings%rohf_f)
-                        else
+                        if (struct%multiplicity == 1) then
                             call RHFCycle_init(orbitals_a, electron_density, nocc(1), nocc(2), struct%number_of_virtual_orbitals,&
                                 laplacian_operator, coulomb_operator, helmholtz_operator, &
                                 core_evaluator, scf_cycle)
+                        else
+                            write(*,*) 'restricted open shell HF is not implemented'
+                            flush(6)
+                            call abort()
+                            ! call ROHFCycle_init(orbitals_a, electron_density, nocc(1), nocc(2), struct%number_of_virtual_orbitals,&
+                            !     laplacian_operator, coulomb_operator, helmholtz_operator, &
+                            !     core_evaluator, scf_cycle, settings%hf_settings%rohf_a, &
+                            !     settings%hf_settings%rohf_b, settings%hf_settings%rohf_f)
                         end if
                     else
                         ! get molecular orbital coefficients with spin 0: alpha
@@ -984,20 +1030,26 @@ contains
                     laplacian_operator, coulomb_operator, helmholtz_operator, scf_cycle)
                 ! TODO: set the unrestricted hartree fock stuff here
             end if
-        else if (settings%scf_settings%method == 2) then
+        else if (settings%scf_settings%method == SCF_METHOD_DFT) then
 
 #ifdef HAVE_DFT
             ! check if we are doing a restricted calculation
             if (settings%scf_settings%restricted) then
                 if (settings%scf_settings%type == SCF_TYPE_HELMHOLTZ) then
-                    call RDFTCycle_init(orbitals_a, electron_density, &
-                        nocc(1), nocc(2), struct%number_of_virtual_orbitals,&
-                        settings%dft_settings%exchange_type, settings%dft_settings%correlation_type, &
-                        settings%dft_settings%xc_update_method, &
-                        settings%dft_settings%xc_lmax, laplacian_operator, coulomb_operator, &
-                        helmholtz_operator, core_evaluator, scf_cycle, &
-                        settings%dft_settings%orbitals_density_evaluation, &
-                        settings%dft_settings%fin_diff_order)
+                    if (struct%multiplicity == 1) then
+                        call RDFTCycle_init(orbitals_a, electron_density, &
+                            nocc(1), nocc(2), struct%number_of_virtual_orbitals,&
+                            settings%dft_settings%exchange_type, settings%dft_settings%correlation_type, &
+                            settings%dft_settings%xc_update_method, &
+                            settings%dft_settings%xc_lmax, laplacian_operator, coulomb_operator, &
+                            helmholtz_operator, core_evaluator, scf_cycle, &
+                            settings%dft_settings%orbitals_density_evaluation, &
+                            settings%dft_settings%fin_diff_order)
+                    else 
+                        write(*,*) 'restricted open shell DFT is not implemented'
+                        flush(6)
+                        call abort()
+                    endif
                 else
                     ! get molecular orbital coefficients with spin 0: alpha
                     mocoeffs_a = struct%get_orbital_coefficients(basis_set, 0)
@@ -1013,6 +1065,10 @@ contains
                         settings%dft_settings%fin_diff_order)
                     deallocate(mocoeffs_a)
                 end if
+            else
+                write(*,*) 'unrestricted DFT is not implemented'
+                flush(6)
+                call abort()
             end if
 #else
             print *, "ERROR: DFT is not compiled in this version. Please recompile with option 'ENABLE_DFT' on to use DFT."
@@ -1021,6 +1077,7 @@ contains
 
 
         end if
+write(*,*) 'end SCFCycle_init'
     end subroutine
 
 !--------------------------------------------------------------------------------------------!
@@ -1164,5 +1221,7 @@ contains
         end if
         
     end subroutine
-    
+
+
 end module
+
