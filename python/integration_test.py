@@ -42,6 +42,14 @@ fortran_interface_tests = {"io_test":\
             {"name": "SCF Test", \
              "fail_message": "Optimizing electron structure resulted in a unexpected result.",\
              "filename": "{}/integration_test_files/input_files/scf_test_input.xml".format(os.getcwd())},
+         "scf_gga_test":\
+            {"name": "SCF Test", \
+             "fail_message": "Optimizing electron structure resulted in a unexpected result.",\
+             "filename": "{}/integration_test_files/input_files/scf_gga_test_input.xml".format(os.getcwd())},
+         "scf_atoms_test":\
+            {"name": "SCF Test", \
+             "fail_message": "Optimizing electron structure resulted in a unexpected result.",\
+             "filename": "{}/integration_test_files/input_files/scf_atoms_test_input.xml".format(os.getcwd())},
          "scf_test2":\
             {"name": "SCF Test 2", \
              "fail_message": "Optimizing electron structure resulted in a unexpected result.",\

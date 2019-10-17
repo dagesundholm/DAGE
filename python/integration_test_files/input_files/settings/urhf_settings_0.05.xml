@@ -1,0 +1,4 @@
+<?xml version="1.0"?>
+<settings name="urhf_settings_0.05" extends_path="settings_0.05.xml">
+    <scf_settings method="hartree-fock" update_weight="1.0" restricted="false" type="helmholtz" />
+</settings>

@@ -187,11 +187,11 @@ class SettingsGenerator(object):
             lines.append("    type :: {} ".format(main_class_name))
             lines.extend(main_type_lines)
             lines.append("    end type")
-             
+
         return lines
-    
-    
-    
+
+
+
     def generate_input_type(self, definition_tag_name, template):
         """ 
             Generates Fortran90 source code lines for an input type.
@@ -236,11 +236,9 @@ class SettingsGenerator(object):
               
              
              
-        return lines        
-    
-    
-    
-    
+        return lines
+
+
     def get_all_interface_parameter_lines(self):
         
         tags = [self.root]
@@ -272,6 +270,7 @@ class SettingsGenerator(object):
         
         return lines
             
+
     def get_interface_header_lines(self):
         
         lines = []

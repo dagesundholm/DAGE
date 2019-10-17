@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+<structure name="Hep" number_of_virtual_orbitals="4" basis_set_name="cc-pVDZ" multiplicity="doublet" system_charge="1.0" >
+    <atom atom_type="2" nuclear_charge="2.0" coordinates="0.0, 0.0, 0.0"/>
+    <molecular_orbital orbital_coefficients="1.0"/>
+</structure>
