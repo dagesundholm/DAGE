@@ -2282,6 +2282,7 @@ write(*,*) 'end SCFCycle_calculate_one_electron_mats'
     
     end function
 
+
     !> Print the current orbital energies and possibly the components 
     !! affecting to the energy.
     subroutine SCFCycle_print_orbital_energies(self, print_components)
@@ -2331,6 +2332,7 @@ write(*,*) 'kin,pot,eval', self%kinetic_matrix(1, 1), self%nuclear_electron_matr
         end if
     end subroutine
 
+
 !--------------------------------------------------------------------!
 !        Helmholtz SCF Cycle  function implementations               !
 !--------------------------------------------------------------------! 
@@ -2347,6 +2349,8 @@ write(*,*) 'kin,pot,eval', self%kinetic_matrix(1, 1), self%nuclear_electron_matr
         !> The result electron density
         type(Function3D),                   intent(inout) :: electron_density
         integer                                           :: iorbital
+write(*,*) 'begin HelmholtzSCFCycle_calculate_electron_density_worker'
+
 
         if (allocated(self%temp)) then
             call self%temp%destroy()
@@ -2388,7 +2392,7 @@ write(*,*) 'kin,pot,eval', self%kinetic_matrix(1, 1), self%nuclear_electron_matr
             deallocate(self%temp2)
         end if 
         call electron_density%communicate_cube(reversed_order = .TRUE.)
-        
+
 write(*,*) 'end HelmholtzSCFCycle_calculate_electron_density_worker'
     end subroutine 
 

@@ -169,7 +169,7 @@ module Function3D_class
         procedure :: product_in_place_REAL64 => Function3D_product_in_place_REAL64
         procedure :: print_out_cube_at_point => Function3D_print_out_cube_at_point
         procedure :: print_out_centers => Function3D_print_out_centers
-        procedure :: print_function => Function3D_print_function  ! debug only, can be removed 
+        procedure :: print_function => Function3D_print_function  ! debug only, can be removed (lnw) 
 
         ! Binary operators
         procedure, private :: Function3D_add
@@ -1122,7 +1122,8 @@ contains
 #endif
 #ifdef HAVE_NVTX   
         call start_nvtx_timing("Function3D multiply. ")   
-#endif    
+#endif
+
         call bigben%split("Function3D product")
         dot_product_process = .FALSE.
         if (present(part_of_dot_product)) dot_product_process = part_of_dot_product
@@ -1156,6 +1157,7 @@ contains
                 deallocate(new%taylor_series_bubbles)
             end if
         end if
+
         ! Bubbles multiplication algorithm
         ! Designed for producing an approximation of the energy density
         if (f2%bubbles%get_nbub_global() > 0 .or. self%bubbles%get_nbub_global() > 0) then
@@ -1228,7 +1230,7 @@ contains
             ! NOTE: we are passing the shape of the original array 
             call Function3DMultiplier_upload_cubes_cuda(self%parallelization_info%function3d_multiplier, &
                      self%cube, cube_offset, self%grid%get_shape(), self%bubbles%get_lmax(), &
-                     f_cube_pointer,  cube_offset, self%grid%get_shape(), f2%bubbles%get_lmax())
+                     f_cube_pointer, cube_offset, self%grid%get_shape(), f2%bubbles%get_lmax())
             call bigben%stop()
             call bigben%split("Cuda multiply")
 
@@ -1303,6 +1305,7 @@ contains
         call stop_nvtx_timing()
 #endif
         call bigben%stop()
+
     end subroutine
 
 
@@ -1341,6 +1344,7 @@ contains
         real(REAL64), allocatable      :: bubbles_contaminants(:, :), cube_contaminants(:, :)
         integer                        :: maximum_l, taylor_order_
         logical                        :: ignore_cube_, ignore_bubbles_, non_overlapping_
+
 #ifdef HAVE_CUDA_PROFILING
         call start_nvtx_timing("Get Taylor Series Bubbles")
 #endif
@@ -1406,7 +1410,7 @@ contains
 #ifdef HAVE_CUDA_PROFILING
         call stop_nvtx_timing()
 #endif
-        
+
     end function
 
     subroutine Function3D_multiply_bubbles(self, f2, result_bubbles)
@@ -1447,6 +1451,7 @@ contains
                     taylor_pointer1 => taylor_series_bubbles1
                 end if
             end if
+
 #ifdef HAVE_CUDA_PROFILING
             call stop_nvtx_timing()
 #endif
@@ -2301,15 +2306,14 @@ contains
             end do
         end if
     end subroutine
-    
+
+
     subroutine Function3D_print_out_centers(self, dx, dy, dz)
         class(Function3D), intent(in)  :: self
         integer, optional, intent(in)  :: dx, dy, dz
         integer                        :: i
         real(REAL64)                   :: center(3)
 
-        
-    
         do i = 1, self%bubbles%get_nbub()
             center = self%bubbles%get_centers(i)
             call self%print_out_cube_at_point(center, dx, dy, dz)
@@ -2324,37 +2328,44 @@ contains
         real(REAL64)                   :: center(3)
 
 
-        write(*,*) 'corners 111', self%cube(1, 1, 1), &
+        write(*,*) '  | corners 111', self%cube(1, 1, 1), &
                                   self%cube(1+1, 1+1, 1+1)
-        write(*,*) 'corners z11', self%cube(self%grid%axis(X_)%get_shape(), 1, 1), &
+        write(*,*) '  | corners z11', self%cube(self%grid%axis(X_)%get_shape(), 1, 1), &
                                   self%cube(self%grid%axis(X_)%get_shape()-1, 1+1, 1+1)
-        write(*,*) 'corners 1z1', self%cube(1, self%grid%axis(Y_)%get_shape(), 1), &
+        write(*,*) '  | corners 1z1', self%cube(1, self%grid%axis(Y_)%get_shape(), 1), &
                                   self%cube(1+1, self%grid%axis(Y_)%get_shape()-1, 1+1)
-        write(*,*) 'corners 11z', self%cube(1, 1, self%grid%axis(Z_)%get_shape()), &
+        write(*,*) '  | corners 11z', self%cube(1, 1, self%grid%axis(Z_)%get_shape()), &
                                   self%cube(1+1, 1+1, self%grid%axis(Z_)%get_shape()-1)
-        write(*,*) 'corners zz1', self%cube(self%grid%axis(X_)%get_shape(), self%grid%axis(Y_)%get_shape(), 1), &
+        write(*,*) '  | corners zz1', self%cube(self%grid%axis(X_)%get_shape(), self%grid%axis(Y_)%get_shape(), 1), &
                                   self%cube(self%grid%axis(X_)%get_shape()-1, self%grid%axis(Y_)%get_shape()-1, 1+1)
-        write(*,*) 'corners z1z', self%cube(self%grid%axis(X_)%get_shape(), 1, self%grid%axis(Z_)%get_shape()), &
+        write(*,*) '  | corners z1z', self%cube(self%grid%axis(X_)%get_shape(), 1, self%grid%axis(Z_)%get_shape()), &
                                   self%cube(self%grid%axis(X_)%get_shape()-1, 1+1, self%grid%axis(Z_)%get_shape()-1)
-        write(*,*) 'corners 1zz', self%cube(1, self%grid%axis(Y_)%get_shape(), self%grid%axis(Z_)%get_shape()), &
+        write(*,*) '  | corners 1zz', self%cube(1, self%grid%axis(Y_)%get_shape(), self%grid%axis(Z_)%get_shape()), &
                                   self%cube(1+1, self%grid%axis(Y_)%get_shape()-1, self%grid%axis(Z_)%get_shape()-1)
-        write(*,*) 'corners zzz', self%cube(self%grid%axis(X_)%get_shape(), &
+        write(*,*) '  | corners zzz', self%cube(self%grid%axis(X_)%get_shape(), &
                                             self%grid%axis(Y_)%get_shape(), self%grid%axis(Z_)%get_shape()), &
                                   self%cube(self%grid%axis(X_)%get_shape()-1, &
                                             self%grid%axis(Y_)%get_shape()-1, self%grid%axis(Z_)%get_shape()-1)
-        write(*,*) 'centre value', self%cube(self%grid%axis(X_)%get_shape()/2 + 1, &
+        write(*,*) '  | centre value', self%cube(self%grid%axis(X_)%get_shape()/2 + 1, &
                                             self%grid%axis(Y_)%get_shape()/2 + 1, self%grid%axis(Z_)%get_shape()/2 + 1)
 
-   !      do i = 1, self%bubbles%get_nbub()
-   !          center = self%bubbles%get_centers(i)
-   !          write(*,*) 'center', center
-   !          call self%print_out_cube_at_point(center)
-   !      end do
+        do i = 1, self%bubbles%get_nbub()
+            center = self%bubbles%get_centers(i)
+            write(*,*) '  | center', center
+            ! call self%print_out_cube_at_point(center)
 
-   !      write(*,*) 'l=0', self%bubbles%bf(1)%p(:,1)
-   !      write(*,*) 'l=1', self%bubbles%bf(1)%p(:,2)
-   !      write(*,*) 'l=1', self%bubbles%bf(1)%p(:,3)
-   !      write(*,*) 'l=1', self%bubbles%bf(1)%p(:,4)
+            write(*,*) '  | l=0', self%bubbles%bf(i)%p(1:5,1)
+            write(*,*) '  | l=1', self%bubbles%bf(i)%p(1:5,2)
+   !          write(*,*) 'l=1', self%bubbles%bf(1)%p(:,3)
+   !          write(*,*) 'l=1', self%bubbles%bf(1)%p(:,4)
+        end do
+        
+        if(allocated(self%taylor_series_bubbles)) then 
+            do i = 1, self%taylor_series_bubbles%get_nbub()
+                write(*,*) '  | t l=0', self%taylor_series_bubbles%bf(i)%p(1:5,1)
+                write(*,*) '  | t l=1', self%taylor_series_bubbles%bf(i)%p(1:5,2)
+            end do
+        endif
 
     end subroutine
 
@@ -3011,7 +3022,6 @@ contains
             result_cube(:, :, :) = result_cube(:, :, :) + bubbles_result_cube(:, :, :)
             deallocate(bubbles_result_cube)
         end if
-write(*,*) 'end Function3DEvaluator_evaluate_grid'
     end subroutine
 
     subroutine Function3DEvaluator_evaluate_divergence_points(self, input_function_x,  &
@@ -3034,6 +3044,7 @@ write(*,*) 'end Function3DEvaluator_evaluate_grid'
         call divergence_points%add_in_place(divergence_bubbles_points)
         call divergence_bubbles_points%destroy()
     end subroutine
+
 
     subroutine Function3DEvaluator_evaluate_divergence_as_Function3D(self, &
                                                              input_function_x,  &
@@ -3179,7 +3190,6 @@ write(*,*) 'end Function3DEvaluator_evaluate_grid'
 #endif                      
 
 #ifdef HAVE_CUDA
-
         call self%set_output_points(output_points)
 
         ! NOTE: downloading from cuda cube is asynchronous, thus the synchronization is required
@@ -3300,8 +3310,6 @@ write(*,*) 'end Function3DEvaluator_evaluate_grid'
 #endif                      
 
 #ifdef HAVE_CUDA
-        
-        
         call self%set_input_cube(input_function_cube, input_grid)
         call self%set_output_points(output_points)
         call CUDASync_all()
@@ -3484,6 +3492,7 @@ write(*,*) 'end Function3DEvaluator_evaluate_grid'
         
 #endif
     end subroutine
+
 
     subroutine CubeEvaluator_evaluate_divergence_grid(self, input_function_cube_x, &
                                   input_function_cube_y, input_function_cube_z, &
@@ -3804,8 +3813,6 @@ write(*,*) 'end Function3DEvaluator_evaluate_grid'
         integer                           :: dims(X_:Z_, IN_:OUT_) ! (3, 2) array
 #endif
 
-write(*,*) 'func'
-call func%print_function()
 
         ! get the cube which is operated on, in case no limits are specified
         ! the entire cube is operated on
@@ -3836,9 +3843,9 @@ call func%print_function()
             call self%input_cuda_cube%upload()
             call CUDASync_all()
 
-            ! dims: number of grid points per each axis 
+            ! dims: number of grid points per each axis
             dims=self%get_dims()
-            
+
             ! create temporary cubes residing only at GPU
             tmp1 = CUDACube([dims(X_,OUT_),dims(Y_,IN_),dims(Z_,IN_)])
             tmp2 = CUDACube([dims(X_,OUT_),dims(Y_,OUT_),dims(Z_,IN_)])
@@ -3850,8 +3857,8 @@ call func%print_function()
 
             call tmp1%destroy()
             call tmp2%destroy()
-            
             call CUDASync_all()
+
             ! and download the output data
             call self%output_cuda_cube%download()
             call CUDASync_all()
@@ -3865,8 +3872,6 @@ call func%print_function()
             new%cube = temp_cube
             deallocate(temp_cube)
         end if
-write(*,*) 'new'
-call new%print_function()
 #else
         temp_cube = self%transform_cube(cube)
         new%cube = temp_cube
@@ -4347,7 +4352,7 @@ call new%print_function()
 #ifdef HAVE_CUDA
 
     subroutine Operator3D_transform_cuda_cube(self, cubein, cubeout, cuda_blas, &
-                                                            cuda_fx, cuda_fy, cuda_fz, tmp1, tmp2)
+                                              cuda_fx, cuda_fy, cuda_fz, tmp1, tmp2)
         class(Operator3D),  intent(in), target  :: self
         type(CUDACube),   intent(in)      :: cubein
         type(CUDACube),   intent(inout)   :: cubeout
@@ -4415,7 +4420,13 @@ call new%print_function()
                     end do
                     
                 end do
-                !call CUDAsync(ip)
+
+                ! the following line should be removed/replaced by something less extreme.
+                ! However, at the moment it is required, otherwise jobs like
+                ! H-atom/URHF/varying cube sizes fail in an indeterministic way.  (lnw, 201908)
+                ! call CUDAsync(ip)
+                call CudaSync_all()
+
             end do
         else ! otherwise, use the batched dgemm
             allocate(waited_events(number_of_devices))
@@ -4468,7 +4479,6 @@ call new%print_function()
         !end if
     end subroutine
 #endif
-
     
 
 end module

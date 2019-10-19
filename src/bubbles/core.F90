@@ -101,8 +101,10 @@ contains
         flush(6)
 #endif
 
+        initialized = .false.
+ 
 #ifdef HAVE_CUDA
-        call gpu_print_info_short()
+        ! call gpu_print_info_short()
         call gpu_print_info_long()
 #endif
         
@@ -160,30 +162,21 @@ flush(6)
             ! check that the structure in action is valid
             action_success = self%validate_structure_id(self%actions(iaction)%structure_id)
             if (action_success) then
-write(*,*) 'a'
                 ! get the structure pointer
                 struct => self%structures(self%actions(iaction)%structure_id)
-write(*,*) 'b'
 
                 ! validate that the settings id for action is valid
                 action_success = self%validate_settings_id(self%actions(iaction)%settings_id)
-write(*,*) 'c'
                 
                 ! validate that the basis set id for action is valid
                 action_success = self%validate_basis_set_id(struct%basis_set_id)
-write(*,*) 'd'
             end if
 
-write(*,*) 'action', iaction
-flush(6)
 
             ! if the scf_energetics of action exists copy it to a local variable
             if (action_success .and. self%actions(iaction)%scf_energetics_id /= 0) then
                 scf_energetics = self%scf_energetics(self%actions(iaction)%scf_energetics_id)
             end if
-
-write(*,*) 'action', iaction
-flush(6)
 
             ! perform the desired action
             if (action_success .and. self%actions(iaction)%name == ACTION_OPTIMIZE_ELECTRON_STRUCTURE) then
@@ -227,6 +220,8 @@ flush(6)
         !call mpi_finalize(ierr)
 #endif
 #endif
+write(*,*) 'end Core_run'
+flush(6)
     end function
 
 !--------------------------------------------------------------------------------------------!
@@ -290,6 +285,8 @@ flush(6)
 write(*,*) 'get bub grid'
 flush(6)
         call self%get_bubble_grids(action_, struct, settings, bubble_grids)
+write(*,*) 'after bubble grids'
+flush(6)
         
                                       
 write(*,*)'get orbs'
@@ -298,12 +295,16 @@ flush(6)
         call self%get_orbitals(action_, struct, settings, orbital_parallel_info, &
                                electron_density_parallel_info, bubble_grids, &
                                basis_set, orbitals_a, orbitals_b, electron_density)
+write(*,*) 'after get orb'
+flush(6)
                                
         
 write(*,*)'init core eval'
 flush(6)
         ! init the core evaluator
         core_evaluator = CoreEvaluator(orbitals_a(1))
+write(*,*) 'after get coreeval'
+flush(6)
 
 write(*,*)'init ops'
 flush(6)
@@ -312,6 +313,8 @@ flush(6)
                                  electron_density_parallel_info, &
                                  orbitals_a(1), quadrature, &
                                  coulomb_operator, laplacian_operator, helmholtz_operator)
+write(*,*) 'after init op'
+flush(6)
 
 write(*,*)'init scf'
 flush(6)
@@ -319,6 +322,8 @@ flush(6)
         call SCFCycle_init(settings, struct, basis_set, orbitals_a, orbitals_b, electron_density, &
                            laplacian_operator, coulomb_operator, helmholtz_operator, &
                            core_evaluator, scf_cycle)
+write(*,*) 'after scf init'
+flush(6)
 
         
 write(*,*)'calc nuc pot'
@@ -524,13 +529,13 @@ flush(6)
         class(ParallelInfo),       intent(inout), allocatable :: orbital_parallel_info
         !> The output parallelinfo object used in electron density initialization
         class(ParallelInfo),       intent(inout), allocatable :: electron_density_parallel_info
+write(*,*) 'begin Core_get_cube_grid'
+flush(6)
         
         ! get the grid3d of the cube from file or by initing from parameters
         if (action_%resume .and. file_exists(action_%output_folder, "cubegrid.g3d")) then
             cubegrid = Grid3D(action_%output_folder, "cubegrid.g3d")
         else
-write(*,*) 'before make cube grid'
-flush(6)
             cubegrid = struct%make_cubegrid(step      = settings%function3d_settings%cube_grid_spacing, &
                                             radius    = settings%function3d_settings%cube_cutoff_radius, &
                                             nlip      = settings%function3d_settings%cube_nlip, &
@@ -548,19 +553,16 @@ flush(6)
 
     
         ! create the parallelization infos
-write(*,*) 'before make parallel'
-flush(6)
         call make_parallelization_info(orbital_parallel_info, &
                                        cubegrid = cubegrid,&
                                        gbfmm = settings%coulomb3d_settings%gbfmm, &
                                        is_potential_input = .FALSE.)
-write(*,*) 'before make parallel'
-flush(6)
         call make_parallelization_info(electron_density_parallel_info, &
                                        cubegrid = cubegrid, &
                                        gbfmm = settings%coulomb3d_settings%gbfmm, &
                                        is_potential_input = .TRUE.)
 write(*,*) 'end Core_get_cube_grid'
+flush(6)
     end subroutine
     
     

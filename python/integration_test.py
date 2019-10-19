@@ -40,29 +40,29 @@ fortran_interface_tests = {"io_test":\
              "filename": "{}/integration_test_files/input_files/io_test_input.xml".format(os.getcwd())},
          "scf_test":\
             {"name": "SCF Test", \
-             "fail_message": "Optimizing electron structure resulted in a unexpected result.",\
+             "fail_message": "Optimizing electron structure resulted in an unexpected result.",\
              "filename": "{}/integration_test_files/input_files/scf_test_input.xml".format(os.getcwd())},
          "scf_gga_test":\
             {"name": "SCF Test", \
-             "fail_message": "Optimizing electron structure resulted in a unexpected result.",\
+             "fail_message": "Optimizing electron structure resulted in an unexpected result.",\
              "filename": "{}/integration_test_files/input_files/scf_gga_test_input.xml".format(os.getcwd())},
          "scf_atoms_test":\
             {"name": "SCF Test", \
-             "fail_message": "Optimizing electron structure resulted in a unexpected result.",\
+             "fail_message": "Optimizing electron structure resulted in an unexpected result.",\
              "filename": "{}/integration_test_files/input_files/scf_atoms_test_input.xml".format(os.getcwd())},
          "scf_test2":\
             {"name": "SCF Test 2", \
-             "fail_message": "Optimizing electron structure resulted in a unexpected result.",\
+             "fail_message": "Optimizing electron structure resulted in an unexpected result.",\
              "filename": "{}/integration_test_files/input_files/scf_test2_input.xml".format(os.getcwd())}, 
          "ci_test":\
             {"name": "CI Test 2", \
-             "fail_message": "Optimizing electron structure resulted in a unexpected result.",\
+             "fail_message": "Optimizing electron structure resulted in an unexpected result.",\
              "filename": "{}/integration_test_files/input_files/ci_test_input.xml".format(os.getcwd())}}
 
 fortran_interface_subtests = {\
        "structure_test": \
            {"name": "Structure test",\
-            "fail_message": "Output structure was not equal with the comparison structure."},\
+            "fail_message": "Output structure was not equal to the comparison structure."},\
        "energetics_test": \
            {"name": "Energetics test",\
             "fail_message": "Output energetics were not equal with the comparison energetics."}}

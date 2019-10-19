@@ -236,11 +236,12 @@ contains
                 ! store the energetics to history
                 call self%store_energetics()
                 current_energy = self%scf_cycle%energy
+write(*,*) 'current energy', current_energy
             else
                 current_energy = self%scf_energetics%total_energy(self%iteration_count)
                 self%scf_cycle%energy = current_energy - self%scf_energetics%nuclear_repulsion_energy
             end if
-            
+
             energy_change = current_energy - previous_energy
             self%error = abs(energy_change)
             previous_energy = current_energy
@@ -250,18 +251,18 @@ contains
             write(*, '("Iteration ",i4," completed")')     self%iteration_count
             write(*, '("Total energy:      ", f24.16,"")') self%scf_energetics%total_energy(self%iteration_count)
             write(*, '("Electronic energy: ", f24.16,"")')   self%scf_energetics%total_energy(self%iteration_count) &
-                                                            - self%scf_energetics%nuclear_repulsion_energy 
-            write(*, '("Nuclear repulsion: ", f24.16,"")') self%scf_energetics%nuclear_repulsion_energy 
+                                                            - self%scf_energetics%nuclear_repulsion_energy
+            write(*, '("Nuclear repulsion: ", f24.16,"")') self%scf_energetics%nuclear_repulsion_energy
             write(*, '("Energy change:     ", f24.16,"")')  energy_change
             write(*, '("-----------------------------------------------------------------------")')
-            
+
 ! flush(6)
 ! call abort()
 
             if (self%is_converged()) then
                 write(*, '("Power method converged after", i4, " iterations.")') self%iteration_count
                 call bigben%stop_and_print()
-                ! Store the result orbitals. Note: the subroutine contains 
+                ! Store the result orbitals. Note: the subroutine contains
                 ! the check whether we are actually doing the storing.
                 call self%scf_cycle%store_orbitals(self%action_object%output_folder, &
                                               self%action_object%store_result_functions)

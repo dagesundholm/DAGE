@@ -101,10 +101,14 @@ contains
     function CudaObject_get_cuda_interface(self) result(cuda_interface)
         class(CudaObject), intent(inout) :: self
         type(C_PTR)                      :: cuda_interface
+! write(*,*)'begin CudaObject_get_cuda_interface'
+! flush(6)
         if (.not. allocated(self%cuda_interface)) then
             call self%cuda_init()
         end if
         cuda_interface = self%cuda_interface
+! write(*,*)'end CudaObject_get_cuda_interface'
+! flush(6)
     end function 
 
     subroutine CudaObject_dereference_cuda_interface(self)

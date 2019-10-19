@@ -392,7 +392,7 @@ class InputXML(object):
                     for j, value in enumerate(argument_values[argument_key]):
                         temp[:, j] = "{0:{width}}".format(argument_values[argument_key][j], width=256)
                     argument_values[argument_key] = numpy.array(temp, dtype="c").T
-                    print(argument_values[argument_key])
+                    # print(str(argument_values[argument_key]))
                 elif type(argument_values[argument_key]) == list:
                     temp_array = numpy.array(argument_values[argument_key], order='F').T
                     shape = temp_array.shape
@@ -412,7 +412,7 @@ class InputXML(object):
                         new_array[:shape[0]] = temp_array[:]
                     
                     argument_values[argument_key] = new_array
-                    print(argument_values[argument_key])
+                    # print(str(argument_values[argument_key]))
                 elif argument_values[argument_key] is None:
                     del argument_values[argument_key]
                 

@@ -1232,8 +1232,8 @@ contains
         do i = 1, self%nbub
             c_pointer = Bubbles_init_page_locked_f_cuda(self%lmax, self%gr(i)%p%get_shape())
             call c_f_pointer(c_pointer, self%bf(i)%p, [self%gr(i)%p%get_shape(), self%numf])
+            self%bf(i)%p = 0.d0
         end do
-        
 #else
         allocate(self%bf_data(self%nbub))
         allocate(self%bf(self%nbub))
@@ -1456,8 +1456,8 @@ contains
         real(REAL64) :: coeff
 
         real(REAL64), allocatable :: one_per_kappa_factorial(:)
-
         type(Cart2SphIter) :: c2s
+
         call bigben%split("Make taylor")
         ! Initialize 1/|kappa|!
         allocate(one_per_kappa_factorial(0:tmax))
@@ -3583,7 +3583,7 @@ contains
         !> The off-diagonal taylor series  part of input 'bubbles2' object 
         type(Bubbles), optional, target,   intent(in)  :: taylor_series_bubbles2
         integer(INT32)                          :: l1, m1, l2, m2, ms, i, n1, n2, bubs1_i, bubs2_i, &
-                                                   sz, ibub, order_number, order_number2, lmax
+                                                   sz, ibub, order_number, order_number1, order_number2, lmax
         integer(INT32), pointer                 :: order_numbers(:)
         real(REAL64),   pointer                 :: bf1(:, :), bf2(:, :), tbf1(:, :), tbf2(:, :), rbf(:, :) 
         real(REAL64),   pointer                 :: coefficients(:)
@@ -3636,8 +3636,8 @@ contains
             do order_number = 1, result_bubbles%get_nbub()
                 ibub = result_bubbles%get_ibub(order_number)
                 if (bubbles1%contains_ibub(ibub)) then
-                    order_number2 = bubbles1%get_order_number(ibub)
-                    bf1 => bubbles1%bf(order_number2)%p
+                    order_number1 = bubbles1%get_order_number(ibub)
+                    bf1 => bubbles1%bf(order_number1)%p
                 else 
                     call C_F_POINTER(C_NULL_PTR, bf1, [0, 0]) 
                 end if
@@ -3649,8 +3649,8 @@ contains
                     call C_F_POINTER(C_NULL_PTR, bf2, [0, 0])
                 end if
                 
-                order_number2 = taylor_series_bubbles1%get_order_number(ibub)
-                tbf1 => taylor_series_bubbles1%bf(order_number2)%p
+                order_number1 = taylor_series_bubbles1%get_order_number(ibub)
+                tbf1 => taylor_series_bubbles1%bf(order_number1)%p
                 order_number2 = taylor_series_bubbles2%get_order_number(ibub)
                 tbf2 => taylor_series_bubbles2%bf(order_number2)%p
                 rbf  => result_bubbles%bf(order_number)%p
@@ -3672,8 +3672,8 @@ contains
                 ibub = result_bubbles%get_ibub(order_number)
 
                 ! set the pointers
-                order_number2 = bubbles1%get_order_number(ibub)
-                bf1 => bubbles1%bf(order_number2)%p
+                order_number1 = bubbles1%get_order_number(ibub)
+                bf1 => bubbles1%bf(order_number1)%p
                 order_number2 = bubbles2%get_order_number(ibub)
                 bf2 => bubbles2%bf(order_number2)%p
                 rbf  => result_bubbles%bf(order_number)%p
@@ -3684,7 +3684,7 @@ contains
                             bubbles1%get_lmax(), bubbles2%get_lmax(), 0, 0)
             end do
         end if
- 
+
         call CUDASync_all()
 
          ! download the result to cpu

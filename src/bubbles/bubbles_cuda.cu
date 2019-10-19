@@ -1412,9 +1412,9 @@ __device__ inline double  Bubbles_evaluate_point(
         b =  (l > 2) ? sqrt( (double)((l)*(l-2)) /  (double)((l+1)*(l-1)) ) : 0.0;
         for (l = 2; l <= lmax; l++) {   
 #if (__CUDA_ARCH__ >= 350) && (__CUDA_ARCH__ < 700)
-            current =  __shfl(a, l) * z*prev1 * one_per_r -  __shfl(b, l) * prev2;
+            current =  __shfl(a, l) * z * prev1 * one_per_r -  __shfl(b, l) * prev2;
 #elif __CUDA_ARCH__ >= 700
-            current =  __shfl_sync(FULL_MASK, a, l) * z*prev1 * one_per_r -  __shfl_sync(FULL_MASK, b, l) * prev2;
+            current =  __shfl_sync(FULL_MASK, a, l) * z * prev1 * one_per_r -  __shfl_sync(FULL_MASK, b, l) * prev2;
 #endif
             result += current * evaluate_polynomials_shared<NLIP>(address2, cf, r);
             prev2 = prev1;
@@ -1461,9 +1461,9 @@ __device__ inline double  Bubbles_evaluate_point(
             for (l2 = l+1; l2 <= lmax; l2++) {
                 // evaluate spherical harmonics for l=l2, m=-l
 #if (__CUDA_ARCH__ >= 350) && (__CUDA_ARCH__ < 700)
-                current =  __shfl(a2, l2) * z*prev1 * one_per_r - __shfl(b, l2) *  prev2; 
+                current =  __shfl(a2, l2) * z * prev1 * one_per_r - __shfl(b, l2) *  prev2; 
 #elif __CUDA_ARCH__ >= 700
-                current =  __shfl_sync(FULL_MASK, a2, l2) * z*prev1 * one_per_r - __shfl_sync(FULL_MASK, b, l2) *  prev2; 
+                current =  __shfl_sync(FULL_MASK, a2, l2) * z * prev1 * one_per_r - __shfl_sync(FULL_MASK, b, l2) *  prev2; 
 #endif
                 
                 result += current * evaluate_polynomials_shared<NLIP>(address2, cf, r);
@@ -1485,9 +1485,9 @@ __device__ inline double  Bubbles_evaluate_point(
             for (l2 = l+1; l2 <= lmax; l2++) {
                 // evaluate spherical harmonics for l=l2, m=l
 #if (__CUDA_ARCH__ >= 350) && (__CUDA_ARCH__ < 700)
-                current =  __shfl(a2, l2) * z*prev1 * one_per_r - __shfl(b, l2) * prev2;
+                current =  __shfl(a2, l2) * z * prev1 * one_per_r - __shfl(b, l2) * prev2;
 #elif __CUDA_ARCH__ >= 700
-                current =  __shfl_sync(FULL_MASK, a2, l2) * z*prev1 * one_per_r - __shfl_sync(FULL_MASK, b, l2) * prev2;
+                current =  __shfl_sync(FULL_MASK, a2, l2) * z * prev1 * one_per_r - __shfl_sync(FULL_MASK, b, l2) * prev2;
 #endif
 
                 // the latter term will go to zero, if l2 <= l+1
@@ -3586,8 +3586,6 @@ void Function3DMultiplier::multiply(Bubbles *f1_bubbles, Bubbles *f2_bubbles, Bu
                     bubble = f1_bubbles->getBubbleWithLocalOrderNumber(i);
                     // wait that the bubble is uploaded to the device before starting
                     if (stream == 0) bubble->waitBubbleUploaded(device);
-// printf("before offending kernel\n");
-// fflush(stdout);
                     
                     Bubbles_evaluate_grid_pitched 
                         <<< grid, block, INJECT_BLOCK_SIZE * sizeof(double) * 7, 
