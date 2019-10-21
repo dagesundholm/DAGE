@@ -682,7 +682,7 @@ __device__ inline double Bubbles_evaluate_point_lmin(
                                          const int &lmax,
                                          // number of cells
                                          const int &ncell,
-                                         // number of lagrange integration polyniomials per 
+                                         // number of lagrange integration polynomials per 
                                          // cell, i.e., the number of grid points per cell
                                          const int &nlip,
                                          // position inside the cell
@@ -702,7 +702,7 @@ __device__ inline double Bubbles_evaluate_point_lmin(
     int l, m, l2; 
     double top = 0.0, bottom = 0.0, new_bottom = 0.0, prev1 = 0.0, prev2 = 0.0, current = 0.0;
     double multiplier = 0.0, multiplier2 = 0.0, one_per_r = 1.0 / distance;
-    double r2 = x*x+y*y+z*z;
+    double r2 = x*x + y*y + z*z;
     l = 0;
     // set value for l=0, m=0
     if (lmin == 0) {
@@ -905,7 +905,7 @@ __device__ inline void Bubbles_evaluate_gradient_point(
                                          const int &lmax,
                                          // number of cells
                                          const int &ncell,
-                                         // number of lagrange integration polyniomials per 
+                                         // number of lagrange integration polynomials per
                                          // cell, i.e., the number of grid points per cell
                                          const int &nlip,
                                          // position inside the cell
@@ -930,7 +930,7 @@ __device__ inline void Bubbles_evaluate_gradient_point(
     const int ncell_nlip = ncell * 8;
     int l, l2; 
     double top, bottom, new_bottom, prev1, prev2, current, current_gradient[3], prev1_gradient[3], prev2_gradient[3], bottom_gradient[3], new_bottom_gradient, top_gradient[3];
-    double one_per_r = 1.0 / distance;;
+    double one_per_r = 1.0 / distance;
     double one_per_r_gradient[3] = {(-x) * one_per_r * one_per_r,
                                     (-y) * one_per_r * one_per_r,
                                     (-z) * one_per_r * one_per_r};
@@ -938,11 +938,11 @@ __device__ inline void Bubbles_evaluate_gradient_point(
     
     // set value for l=0, m=0
     
-    double radial_value, radial_derivative;
-    radial_derivative = evaluate_polynomials_shared<NLIP-1>(lm_address, df, r);
-    if (evaluate_gradients_x) result[X_] =  radial_derivative * x;// * one_per_r;
-    if (evaluate_gradients_y) result[Y_] =  radial_derivative * y;// * one_per_r;
-    if (evaluate_gradients_z) result[Z_] =  radial_derivative * z;// * one_per_r;
+    double radial_value;
+    double radial_derivative = evaluate_polynomials_shared<NLIP-1>(lm_address, df, r);
+    if (evaluate_gradients_x) result[X_] =  radial_derivative * x; // * one_per_r;
+    if (evaluate_gradients_y) result[Y_] =  radial_derivative * y; // * one_per_r;
+    if (evaluate_gradients_z) result[Z_] =  radial_derivative * z; // * one_per_r;
     
     if (distance >= 0.0 && distance < 1e-12) {
         one_per_r = 0.0;
@@ -959,7 +959,7 @@ __device__ inline void Bubbles_evaluate_gradient_point(
         if (evaluate_gradients_y) one_per_r_gradient[Y_] = 0.0;
         if (evaluate_gradients_z) one_per_r_gradient[Z_] = 0.0;
     }*/
-    if (lmax >= 1) {    
+    if (lmax >= 1) {
         // set all values where m=-1
         prev1 = y * one_per_r;
         if (evaluate_gradients_x) prev1_gradient[X_] = one_per_r_gradient[X_] * y;
@@ -1276,7 +1276,7 @@ __device__ inline void Bubbles_evaluate_gradient_point(
     result[Z_] *= one_per_r;
     // multiply the result with r^k, if k is not 0
     // the distance is not too close to 0.0 as this is checked
-    // earlier in this function, NOTE: should never happen, thus 
+    // earlier in this function, NOTE: should never happen, thus
     // commented away
     //if (k != 0 && distance > 1e-12) {
     
@@ -1315,7 +1315,7 @@ __device__ inline double  Bubbles_evaluate_point(
                                          const int &lmax,
                                          // number of cells
                                          const int &ncell,
-                                         // number of lagrange integration polyniomials per 
+                                         // number of lagrange integration polynomials per
                                          // cell, i.e., the number of grid points per cell
                                          const int &nlip,
                                          // position inside the cell
@@ -1364,7 +1364,7 @@ __device__ inline double  Bubbles_evaluate_point(
         for (l = 2; l <= lmax; l++) {
 #if (__CUDA_ARCH__ >= 350) && (__CUDA_ARCH__ < 700)
             current =  __shfl(a, l) * z*prev1 * one_per_r - __shfl(b, l) * prev2;
-#elif __CUDA_ARCH__ >= 700
+#elif (__CUDA_ARCH__ >= 700)
             current =  __shfl_sync(FULL_MASK, a, l) * z*prev1 * one_per_r - __shfl_sync(FULL_MASK, b, l) * prev2;
 #endif
             result += current * evaluate_polynomials_shared<NLIP>(address2, cf, r) ;

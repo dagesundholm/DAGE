@@ -447,12 +447,11 @@ module XC_class
 
         ! the 2*l+1 belongs inside the loop, but we are doing it here because we can
         forall (l = 1 : lmax_)
-        
-             spherical_harmonics_points(:, l*l+1:(l+1) * (l+1)) = & 
-                 spherical_harmonics_points(:, l*l+1:(l+1) * (l+1)) * (2*l+1)
-             spherical_harmonics_gradients(:, l*l+1:(l+1) * (l+1), :) = &
-                 spherical_harmonics_gradients(:, l*l+1:(l+1) * (l+1), :) * (2*l+1)
-         end forall
+            spherical_harmonics_points(:, l*l+1:(l+1) * (l+1)) = & 
+                spherical_harmonics_points(:, l*l+1:(l+1) * (l+1)) * (2*l+1)
+            spherical_harmonics_gradients(:, l*l+1:(l+1) * (l+1), :) = &
+                spherical_harmonics_gradients(:, l*l+1:(l+1) * (l+1), :) * (2*l+1)
+        end forall
 
         
         call result_bubbles%set_k(-1)
@@ -2012,20 +2011,17 @@ write(*,*) 'begin XC_eval'
         call divergence_f3d%init_copy(density, lmax = density%bubbles%get_lmax())
         !call self%reevaluate_electron_density(density, temp)
         
-        
         evaluate_gradients = &
             xc_f90_info_family(self%exchange_info_pointer) == XC_FAMILY_GGA .or.  &
             xc_f90_info_family(self%exchange_info_pointer) == XC_FAMILY_HYB_GGA .or. &
             xc_f90_info_family(self%correlation_info_pointer) == XC_FAMILY_GGA .or.  &
             xc_f90_info_family(self%correlation_info_pointer) == XC_FAMILY_HYB_GGA
         
-        
         !> cube.
         exc_cube => energy_per_particle%get_cube()
         vxc_cube => potential%get_cube()
         exc_cube = 0.0d0
         vxc_cube = 0.0d0
-        
         
         !call self%core_evaluator%evaluate_core_electron_density(occupied_orbitals, core_density)
         !call self%core_evaluator%init_core_functions(core_density, density)
@@ -2043,12 +2039,16 @@ write(*,*) 'begin XC_eval'
         evaluator => self%grid_points_evaluator 
     
         call self%evaluate_cube(evaluator, evaluate_gradients, density, &
-                                density%grid, exc_cube, vxc_cube, potential_contracted_gradients_x%cube, &
-                                potential_contracted_gradients_y%cube, potential_contracted_gradients_z%cube, &
-                                derivative_x = derivative_x, derivative_y = derivative_y, derivative_z = derivative_z,&
+                                density%grid, exc_cube, vxc_cube, &
+                                potential_contracted_gradients_x%cube, &
+                                potential_contracted_gradients_y%cube, &
+                                potential_contracted_gradients_z%cube, &
+                                derivative_x = derivative_x, &
+                                derivative_y = derivative_y, &
+                                derivative_z = derivative_z, &
                                 energy_density = energy_density%cube, occupied_orbitals = occupied_orbitals &
                                 )
-                                
+
         nullify(evaluator)
         call self%evaluate_bubbles(evaluate_gradients, density, &
                                    energy_per_particle%bubbles, &

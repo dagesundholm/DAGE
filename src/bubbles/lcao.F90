@@ -45,7 +45,7 @@ module LCAO_m
     public :: mocoeffs_read
     public :: assignment(=)
 
-        
+
     type :: Basis
         !> Determines if the basis set is of slater type (=1) or of gaussian type  (=2) or of bubbles type (=3)
         integer              :: basis_set_type
@@ -77,7 +77,7 @@ module LCAO_m
         procedure            :: make_lcao_mos => Basis_make_lcao_mos
         procedure            :: make_basis_functions     => Basis_make_basis_functions
         procedure            :: make_basis_functions_gto => Basis_make_basis_functions_gto
-        procedure            :: evaluate_radial_function => Basis_evaluate_radial_function 
+        procedure            :: evaluate_radial_function => Basis_evaluate_radial_function
         procedure, private   :: init_basis_functions         => Basis_init_basis_functions
         procedure, private   :: get_total_number_of_basis_functions &
                                                          => Basis_get_total_number_of_basis_functions
@@ -101,7 +101,7 @@ module LCAO_m
         integer, allocatable      :: number_of_basis_functions(:)
         !> Nuclear positions
         real(REAL64), allocatable :: coordinates(:,:)
-        !> Molecular orbital coefficients 
+        !> Molecular orbital coefficients
         real(REAL64), allocatable :: orbital_coefficients(:, :)
         !> Molecular orbital spins: 0: a, 1: b
         integer,      allocatable :: orbital_spin(:)
@@ -143,10 +143,11 @@ module LCAO_m
         module procedure :: Structure_init_read
     end interface
 contains
+
+
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !%    Basis                                                               %
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
     function Basis_evaluate_radial_function(self, ishell, isubshell, r) result(radial_function)
         class(Basis), intent(in)  :: self
         integer,      intent(in)  :: ishell
@@ -540,28 +541,30 @@ contains
         real(REAL64), pointer         :: cell_scales(:)
 
         integer                       :: iatom, i
-       
+
+! functionality to shift the whole structure such that atoms have maximum
+! distance from the cell boundaries
         global_grid => parallelization_info%get_global_grid()
         do iatom = 1, self%get_natoms()
             bubble_grid_pointers(iatom)%p => bubble_grids(iatom)
-            center_modulos(:, iatom) = &
-                global_grid%coordinates_to_grid_point_coordinates(self%coordinates(:, iatom))
+            center_modulos(:, iatom) = global_grid%coordinates_to_grid_point_coordinates(self%coordinates(:, iatom))
             center_modulos(:, iatom) = modulo(center_modulos(:, iatom), 1.0d0)
         end do
+! automatic shift
+#if 0
         do i = X_, Z_
             !print *, i, 1.0d0 - maxval(center_modulos(i, :)),  minval(center_modulos(i, :))
             adjust(i) = &
                 max((1.0d0 - maxval(center_modulos(i, :)) - minval(center_modulos(i, :))) / 2.0d0, &
-                             maxval(center_modulos(i, :)  - minval(center_modulos(i, :))) / 2.0d0)
+                    (        maxval(center_modulos(i, :)) - minval(center_modulos(i, :))) / 2.0d0)
             !if (abs(maxval(center_modulos(i, :)) - minval(center_modulos(i, :))) < 0.10d0) then
             !    adjust(i) = adjust(i) - 0.15d0
             !end if
         end do
-        !adjust(X_) = 2.5d0
-        !adjust(Y_) = 2.5d0!1.5d0
-        !adjust(Z_) = -2.20d0!1.2d0 ! adjust(Z_) + 2.0d0
+! user input shift
+#else
         adjust = bubbles_center_offset
-        !adjust = 0.0d0
+#endif
 
         centers = self%coordinates
         cell_scales => global_grid%axis(X_)%get_cell_scales()
@@ -571,9 +574,8 @@ contains
         cell_scales => global_grid%axis(Z_)%get_cell_scales()
         centers(Z_, :) = centers(Z_, :) + adjust(Z_) * cell_scales(1)
      
-        
         bubs=Bubbles(&
-            lmax    = lmax,&
+            lmax    = lmax, &
             centers = centers, &
             global_centers = centers, &
             grids   = bubble_grid_pointers, &
@@ -598,8 +600,8 @@ contains
         
         n_electrons = nint(sum(self%nuclear_charge)) - self%system_charge
         modulus = mod(n_electrons, 2)
-        nocc(1) = n_electrons / 2 + modulus ! at least signly occupied
-        nocc(2) = n_electrons / 2 ! double occupied
+        nocc(1) = n_electrons / 2 + modulus ! at least singly occupied
+        nocc(2) = n_electrons / 2 ! doubly occupied
 
         ! if no input multiplicity is given, select the singlet or doublet
         ! multiplicity taking into account the number of extra electrons

@@ -321,9 +321,9 @@ module Function3D_class
         procedure  :: operate_on                 => Operator3D_operate_on_Function3D
         procedure, private  :: operator_bubbles  => Operator3D_operator_bubbles
         procedure, private  :: operator_cube     => Operator3D_operator_cube
-        procedure  :: get_dims                   => operator3D_get_dims
-        procedure  :: get_result_type            => operator3D_get_result_type
-        procedure  :: destroy                    => operator3D_destroy
+        procedure  :: get_dims                   => Operator3D_get_dims
+        procedure  :: get_result_type            => Operator3D_get_result_type
+        procedure  :: destroy                    => Operator3D_destroy
         procedure  :: set_transformation_weights => Operator3D_set_transformation_weights 
         procedure :: transform_cube              => Operator3D_transform_cube
         procedure(bubble_operator),    deferred  :: transform_bubbles 
@@ -374,18 +374,18 @@ module Function3D_class
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
     interface assignment(=)
-        module procedure :: function3d_assign_real64
+        module procedure :: Function3D_assign_real64
         module procedure :: Function3D_assign_Function3D
 !        module procedure :: Function3D_assign_poly
     end interface
 
     interface operator(*)
-        module procedure :: function3d_times_real64
+        module procedure :: Function3D_times_real64
         module procedure :: REAL64_times_Function3D_poly
     end interface
 
     interface operator(/)
-        module procedure :: function3d_divided_by_real64
+        module procedure :: Function3D_divided_by_real64
     end interface
 
    interface operator(.dot.)
@@ -393,9 +393,9 @@ module Function3D_class
    end interface 
 
     interface Function3D
-        module procedure :: function3d_init_copy
-        module procedure :: function3d_init_explicit
-        module procedure :: function3d_init_file
+        module procedure :: Function3D_init_copy
+        module procedure :: Function3D_init_explicit
+        module procedure :: Function3D_init_file
     end interface
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -483,8 +483,8 @@ contains
         else
             self%type = orig%type
         end if
-
     end subroutine
+
 
     !> Copy the content (bubbles and cube from 'input_function' to 'self')
     subroutine Function3D_copy_content(self, input_function)
@@ -548,10 +548,10 @@ contains
         class(ParallelInfo), optional, intent(in)    :: parallelization_info
         integer,          optional, intent(in)       :: lmax
 
-        type(Function3D)                 :: new
+        type(Function3D)                             :: new
         call new%init_copy(orig, copy_content, label, type, parallelization_info, lmax)
-
     end function
+
 
     subroutine Function3D_init_cube(self)
         class(Function3D), target, intent(inout) :: self
@@ -1123,7 +1123,6 @@ contains
 #ifdef HAVE_NVTX   
         call start_nvtx_timing("Function3D multiply. ")   
 #endif
-
         call bigben%split("Function3D product")
         dot_product_process = .FALSE.
         if (present(part_of_dot_product)) dot_product_process = part_of_dot_product
@@ -1305,7 +1304,6 @@ contains
         call stop_nvtx_timing()
 #endif
         call bigben%stop()
-
     end subroutine
 
 
@@ -1413,6 +1411,7 @@ contains
 
     end function
 
+
     subroutine Function3D_multiply_bubbles(self, f2, result_bubbles)
         class(Function3D), intent(in), target   :: self
         class(Function3D), intent(in), target   :: f2
@@ -1451,7 +1450,6 @@ contains
                     taylor_pointer1 => taylor_series_bubbles1
                 end if
             end if
-
 #ifdef HAVE_CUDA_PROFILING
             call stop_nvtx_timing()
 #endif
@@ -1528,7 +1526,7 @@ contains
         call temp%destroy()
         !call bigben%stop()
     end function
-  
+
 
     !> Returns the value of the function at requested points.
     function Function3D_evaluate(self, points, add_bubbles) result(res)
@@ -1557,13 +1555,13 @@ contains
         temp = interpol%eval(self%cube,points)
         call interpol%destroy()
 
-        ! add the cotribution from bubbles
+        ! add the contribution from bubbles
         if( add_bubbs .and. self%bubbles%get_nbub_global()>0) then
             res = temp(:, 1) + self%bubbles%eval(points)
         else
             res = temp(:, 1)
         end if
-       
+
         return
     end function
 
@@ -1573,7 +1571,7 @@ contains
         class(Function3D),intent(in), target :: self
         !> Maximum order in the Taylor expansions
         integer(INT32)                       :: tmax
-        !> Limits in the area of the projected cube 
+        !> Limits in the area of the projected cube
         real(REAL64), intent(in), optional   :: cube_limits(2, 3)
         !> The bubbles used in getting the centers where the contaminants are evaluated
         !! If not given, the bubbles of self, are used
@@ -1980,7 +1978,7 @@ contains
         res(3,:) = cube_dv(:,3)
         res(4,:) = cube_dv(:,2)
 
-        ! add the cotribution from bubbles
+        ! add the contribution from bubbles
         if( add_bubbs .and. self%bubbles%get_nbub_global()>0) then
             allocate(bubble_dv_x(size(points,dim=2)))
             allocate(bubble_dv_y(size(points,dim=2)))
@@ -2808,7 +2806,7 @@ contains
             ! evaluate the gradients of bubbles as bubbles
             call self%bubbles_evaluator%evaluate_gradients_as_bubbles &
                     (input_function%bubbles, bubbles_derivative_x, bubbles_derivative_y, bubbles_derivative_z)
-                    
+
             ! and set the result gradient bubbles to the result objects
             derivative_x%bubbles = Bubbles(bubbles_derivative_x, copy_content = .TRUE.)
             derivative_y%bubbles = Bubbles(bubbles_derivative_y, copy_content = .TRUE.)
@@ -2818,7 +2816,7 @@ contains
             call bubbles_derivative_z%destroy()
         end if
 
-        
+
         if (.not. ignore_cube_) then
             allocate(temp_cube(input_function%grid%axis(X_)%get_shape(), &
                                input_function%grid%axis(Y_)%get_shape(), &
@@ -2828,7 +2826,7 @@ contains
                                                    finite_diff_order=finite_diff_order)
             deallocate(temp_cube)
         end if  
-        
+
     end subroutine
 
 
@@ -3246,6 +3244,7 @@ contains
         end if
 #endif
     end subroutine
+
 
     subroutine CubeEvaluator_set_input_cube(self, input_function_cube, input_grid)
         !> evaluator object
@@ -4208,6 +4207,7 @@ contains
             self%cuda_inited = .TRUE.
         end if
     end subroutine
+
 
     subroutine Operator3D_cuda_destroy(self)
         class(Operator3D), intent(inout) :: self
