@@ -1673,6 +1673,8 @@ write(*,*) 'begin XC_evaluate_cube'
         ! clean up
         deallocate(potential_density, energy_per_particle_)
         call bigben%stop()
+
+write(*,*) 'end XC_evaluate_cube'
     end subroutine
 
     subroutine smoothen_bubbles(bubbls)

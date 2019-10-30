@@ -136,140 +136,168 @@ __device__ inline void getXYZCoordinates(int *x, int *y, int *z, int shape_x, in
     *z = (blockId / blocks_per_slice)  * blockDim.z  + threadIdx.z;
 }
 
+
 __device__ inline void getXYZ3D__(int *x, int *y, int *z) {
     *x = blockIdx.x * blockDim.x + threadIdx.x;
     *y = blockIdx.y * blockDim.y + threadIdx.y;
     *z = blockIdx.z * blockDim.z + threadIdx.z;
 }
 
+
+// for CUDA_ARCH < 350, this function requires at least blocksize * sizeof(double)
+// bytes of 'shared_data' and requires that all threads of the block enter this
+// routine
+// for 350 <= CUDA_ARCH < 700, this function requires at least max(32,
+// blocksize/32+1) * sizeof(double) bytes of 'shared_data' and requires that
+// all threads of the block enter this routine
+// for 700 <= CUDA_ARCH, this function requires at least max(32,
+// blocksize/32+1) * sizeof(double) bytes of 'shared_data' and requires that
+// all threads of the block enter this routine (possibly with value = 0.0)
 template <unsigned int blockSize> 
-__device__  void contractBlock(const int threadId, double &value, double *shared_data) {
+__device__  void contractBlock(const int locThreadId, double &value, double *shared_data) {
+// printf("begin contractBlock, bs: %u\n", blockSize);
 #if (__CUDA_ARCH__ >= 350) && (__CUDA_ARCH__ < 700)
-    
     // sum the results warp-wise
     value += __shfl_down(value, 1);
     value += __shfl_down(value, 2);
     value += __shfl_down(value, 4);
     value += __shfl_down(value, 8);
     value += __shfl_down(value, 16);
-    
-    if (threadId < 32) {
-        shared_data[threadId] = 0.0;
+
+    if (locThreadId < 32) {
+        shared_data[locThreadId] = 0.0;
     }
     __syncthreads();
-    
-    if (threadId % 32 == 0) {
-        shared_data[threadId / 32] = value;
+
+    if (locThreadId % 32 == 0) {
+        shared_data[locThreadId / 32] = value;
     }
     __syncthreads();
-    
+
     // sum the warp results together at the first warp
-    if (threadId < 32 ) {
-        value = shared_data[threadId];
+    if (locThreadId < 32 ) {
+        value = shared_data[locThreadId];
         if (blockSize >= 32)   value += __shfl_down(value, 1);
         if (blockSize >= 64)   value += __shfl_down(value, 2);
         if (blockSize >= 128)  value += __shfl_down(value, 4);
         if (blockSize >= 256)  value += __shfl_down(value, 8);
         if (blockSize >= 512)  value += __shfl_down(value, 16);
     }
-    
+
 #elif __CUDA_ARCH__ >= 700
-    
+
+// printf("tID: %d, tIDx: %d, active mask: %u\n",  locThreadId, threadIdx.x, __ballot_sync(FULL_MASK, true));
     // sum the results warp-wise
+    // const unsigned int mask = __ballot_sync(FULL_MASK, true);
+#if 1
     value += __shfl_down_sync(FULL_MASK, value, 1);
     value += __shfl_down_sync(FULL_MASK, value, 2);
     value += __shfl_down_sync(FULL_MASK, value, 4);
     value += __shfl_down_sync(FULL_MASK, value, 8);
     value += __shfl_down_sync(FULL_MASK, value, 16);
-    
-    if (threadId < 32) {
-        shared_data[threadId] = 0.0;
+#endif
+
+#if 1
+    if (locThreadId < 32) {
+        shared_data[locThreadId] = 0.0;
     }
+#endif
+#if 1
     __syncthreads();
-    
-    if (threadId % 32 == 0) {
-        shared_data[threadId / 32] = value;
+#endif
+// zero 32 vals in SM
+
+#if 1
+    if (locThreadId % 32 == 0) {
+        shared_data[locThreadId / 32] = value;
     }
+#endif
+#if 1
     __syncthreads();
-    
+// write to SM the value in the beginning of each warp
+#endif
+
+#if 1
     // sum the warp results together at the first warp
-    if (threadId < 32 ) {
-        value = shared_data[threadId];
+    if (locThreadId < 32 ) {
+        value = shared_data[locThreadId];
         if (blockSize >= 32)   value += __shfl_down_sync(FULL_MASK, value, 1);
         if (blockSize >= 64)   value += __shfl_down_sync(FULL_MASK, value, 2);
         if (blockSize >= 128)  value += __shfl_down_sync(FULL_MASK, value, 4);
         if (blockSize >= 256)  value += __shfl_down_sync(FULL_MASK, value, 8);
         if (blockSize >= 512)  value += __shfl_down_sync(FULL_MASK, value, 16);
     }
+#endif
     
 #else
-     shared_data[threadId] = value;
+     shared_data[locThreadId] = value;
      
     // reduce in shared memory
     if (blockSize >= 512) {
-        if (threadId < 256) {
-             shared_data[threadId] += shared_data[threadId + 256];
+        if (locThreadId < 256) {
+             shared_data[locThreadId] += shared_data[locThreadId + 256];
         }
         __syncthreads();
     }
      
     if (blockSize >= 256) {
-        if (threadId < 128) {
-            shared_data[threadId] += shared_data[threadId + 128];
+        if (locThreadId < 128) {
+            shared_data[locThreadId] += shared_data[locThreadId + 128];
         }
         __syncthreads();
     }
      
     if (blockSize >= 128) {
-        if (threadId < 64) {
-            shared_data[threadId] += shared_data[threadId + 64];
+        if (locThreadId < 64) {
+            shared_data[locThreadId] += shared_data[locThreadId + 64];
         }
         __syncthreads();
     }
     
     if (blockSize >= 64) {
-        if (threadId < 32) {
-            shared_data[threadId] += shared_data[threadId + 32];
+        if (locThreadId < 32) {
+            shared_data[locThreadId] += shared_data[locThreadId + 32];
         }
         __syncthreads();
     }
     
     if (blockSize >= 32) {
-        if (threadId < 16) {
-            shared_data[threadId] += shared_data[threadId + 16];
+        if (locThreadId < 16) {
+            shared_data[locThreadId] += shared_data[locThreadId + 16];
         }
         __syncthreads();
     }
     
     if (blockSize >= 16) {
-        if (threadId < 8) {
-            shared_data[threadId] += shared_data[threadId + 8];
+        if (locThreadId < 8) {
+            shared_data[locThreadId] += shared_data[locThreadId + 8];
         }
        // __syncthreads();
     }
     
     if (blockSize >= 8) {
-        if (threadId < 4) {
-            shared_data[threadId] += shared_data[threadId + 4];
+        if (locThreadId < 4) {
+            shared_data[locThreadId] += shared_data[locThreadId + 4];
         }
         //__syncthreads();
     }
     
     if (blockSize >= 4) {
-        if (threadId < 2) {
-            shared_data[threadId] += shared_data[threadId + 2];
+        if (locThreadId < 2) {
+            shared_data[locThreadId] += shared_data[locThreadId + 2];
         }
         //__syncthreads();
     }
     
     if (blockSize >= 2) {
-        if (threadId == 0) {
-            shared_data[threadId] += shared_data[threadId + 1];
+        if (locThreadId == 0) {
+            shared_data[locThreadId] += shared_data[locThreadId + 1];
             // write the result of the block to the output_data
             value = shared_data[0];
         }
     }
 #endif
+// printf("end contractBlock\n");
 }
 
 
@@ -316,6 +344,7 @@ __global__ void reduce3d(Grid3D *grid,
                          const int slice_offset,
                          double *output
                         ) {
+// printf("begin reduce3d\n");
     
     // get the x, y & z coordinates of the first point
     int x, y, z, blockId = blockIdx.x;
@@ -324,19 +353,19 @@ __global__ void reduce3d(Grid3D *grid,
     int vector = input_pitch / sizeof(double);
     
     // get the id of the point (We are using only the first )
-    const int threadId = getLocalThreadId();
+    const int locThreadId = getLocalThreadId();
     int id;
 #if (__CUDA_ARCH__ >= 350) 
-    __shared__ double shared_data[blockSize / 32 + 1];
+    // __shared__ double shared_data[blockSize / 32 + 1];
+    __shared__ double shared_data[32]; // because shfl needs at least 32, and (blocksize / 32) + 1 is never larger than 32, lnw
 #else
     __shared__ double shared_data[blockSize];
 #endif 
     
-    
     double value = 0.0;
     getXYZCoordinates(&x, &y, &z, input_shape_x, input_shape_y, blockId);
     while (z < input_shape_z) {
-        if (x < input_shape_x && y < input_shape_y && z < input_shape_z) {
+        if (x < input_shape_x && y < input_shape_y /* && z < input_shape_z */) {
             id = getMemoryId(x, y, z, vector, input_memory_shape_y);
             value += input[id] * grid->axis[X_]->integrals[x]
                                * grid->axis[Y_]->integrals[y]
@@ -347,14 +376,16 @@ __global__ void reduce3d(Grid3D *grid,
     }
     
     // contract the block
-    contractBlock<blockSize>(threadId, value, shared_data);
+    contractBlock<blockSize>(locThreadId, value, shared_data);
     
     // and finally set the value to the output array
-    if (threadId == 0) {
+    if (locThreadId == 0) {
         output[blockIdx.x] = value;
     }
   
+// printf("end reduce3d\n");
 }
+
 
 template <unsigned int blockSize>
 __global__ void reduce(double *input_data,
@@ -366,10 +397,11 @@ __global__ void reduce(double *input_data,
     
     // get the id of the point (We are using only the first )
     unsigned const int threadId = threadIdx.x;
-    unsigned int original_id=threadId + blockIdx.x * (blockSize*2);
+    unsigned int original_id = threadId + blockIdx.x * (blockSize*2);
     unsigned const int gridSize = blockSize * 2 * gridDim.x;
 #if (__CUDA_ARCH__ >= 350) 
-    __shared__ double shared_data[blockSize / 32 + 1];
+    // __shared__ double shared_data[blockSize / 32 + 1];
+    __shared__ double shared_data[32]; // because shfl needs at least 32, and (blocksize / 32) + 1 is never larger than 32, lnw
 #else
     __shared__ double shared_data[blockSize];
 #endif
@@ -378,7 +410,6 @@ __global__ void reduce(double *input_data,
         double value = 0.0;
         unsigned int id = original_id;
         while (id < size) {
-            
             value += input_data[id + dimension * maximum_block_count];
             if ((id + blockSize) < size) {
                 value +=  input_data[id + dimension * maximum_block_count + blockSize];
@@ -392,8 +423,8 @@ __global__ void reduce(double *input_data,
             output_data[blockIdx.x + dimension * maximum_block_count] = value;
         }
     }
-
 }
+
 
 ///////////////////////////////////////////////////////////
 //  GBFMMHelmholtz3DMultipoleEvaluator Implementation    //
@@ -448,19 +479,18 @@ __device__ inline double FirstModSphBessel_evaluate_small(const double z, const 
     return reslt;
 }
 
+
 __device__ inline void FirstModSphBessel_evaluate_recursion(const double z, 
-                                                       const double scaling_factor,
-                                                       const int lmax, 
-                                                       const int min_stored_l,
-                                                       const int max_stored_l,
-                                                       const double last,
-                                                       const double second_last,
-                                                       double *result
-                                                      ) {
+                                                            const double scaling_factor,
+                                                            const int lmax, 
+                                                            const int min_stored_l,
+                                                            const int max_stored_l,
+                                                            const double last,
+                                                            const double second_last,
+                                                            double *result
+                                                           ) {
     // evaluate the results
     double previous, second_previous, current;
-    
-    
     
     if (max_stored_l == lmax) {
         result[max_stored_l-min_stored_l] = last;
@@ -493,6 +523,7 @@ __device__ inline void FirstModSphBessel_evaluate_recursion(const double z,
 }
 
 
+// this function is required to get all threads of a block, because contractBlock does.
 template <unsigned int blockSize> 
 __device__ void GBFMMHelmholtz3DMultipoleEvaluator_evaluateMultipoleMomentsBlock(
                                               const double x,
@@ -504,204 +535,272 @@ __device__ void GBFMMHelmholtz3DMultipoleEvaluator_evaluateMultipoleMomentsBlock
                                               double* result,
                                               const double cube_value,
                                               const int result_x_shape,
-                                              const int threadId, 
-                                              double* shared_data) {
+                                              const int locThreadId, 
+                                              double* shared_data,
+                                              bool do_work) {
 #define STORED_BESSELS 5
-    const double kappa_r = kappa*r;
-    double bessel_lmax =    FirstModSphBessel_evaluate_small(kappa_r, lmax, 1.0);
-    double bessel_lmax_m1 = FirstModSphBessel_evaluate_small(kappa_r, lmax-1, 1.0);    
-    int lm_address =0, address2 = 0;
+    double kappa_r;
+    double bessel_lmax;
+    double bessel_lmax_m1;  
+    int lm_address = 0, address2 = 0;
     int l, m, l2; 
-    double top = 0.0, bottom = 0.0, new_bottom = 0.0, prev1 = 0.0, prev2 = 0.0, current = 0.0, one_per_r = 1.0 / r;
+    double top = 0.0, bottom = 0.0, new_bottom = 0.0, prev1 = 0.0, prev2 = 0.0, current = 0.0, one_per_r;
     double bessel_values[STORED_BESSELS];
-    if (r < 1e-12) one_per_r = 0.0;
-    
-    // set value for l=0, m=0
-    FirstModSphBessel_evaluate_recursion(kappa_r, 1.0, lmax, 0, 1, bessel_lmax, bessel_lmax_m1, bessel_values);
-    double value = 1.0 * cube_value * bessel_values[0];
-    contractBlock<blockSize>(threadId, value, shared_data);
-    if (threadId == 0) result[lm_address] += value;
+    double value = 0.0;
+    if(do_work){
+        kappa_r = kappa*r;
+        bessel_lmax =    FirstModSphBessel_evaluate_small(kappa_r, lmax, 1.0);
+        bessel_lmax_m1 = FirstModSphBessel_evaluate_small(kappa_r, lmax-1, 1.0);    
+        one_per_r = 1.0 / r;
+        if (r < 1e-12) one_per_r = 0.0;
+        
+        // set value for l=0, m=0
+        FirstModSphBessel_evaluate_recursion(kappa_r, 1.0, lmax, 0, 1, bessel_lmax, bessel_lmax_m1, bessel_values);
+        value = 1.0 * cube_value * bessel_values[0];
+    }
+// printf("GBFMMHelmholtz3DMultipoleEvaluator_evaluateMultipoleMomentsBlock, before contractBlock, tID: %d\n", locThreadId);
+    contractBlock<blockSize>(locThreadId, value, shared_data);
+    if (do_work)
+    if (locThreadId == 0) result[lm_address] += value;
     
     // set value for l=1, m=-1
-    lm_address += result_x_shape;
-    value = y * one_per_r * cube_value * bessel_values[1];
-    contractBlock<blockSize>(threadId, value, shared_data);
-    if (threadId == 0) result[lm_address] += value;
-    
+    if(do_work){
+        lm_address += result_x_shape;
+        value = y * one_per_r * cube_value * bessel_values[1];
+    }
+//printf("GBFMMHelmholtz3DMultipoleEvaluator_evaluateMultipoleMomentsBlock, before contractBlock, tID: %d\n", locThreadId);
+    contractBlock<blockSize>(locThreadId, value, shared_data);
+    if (do_work)
+    if (locThreadId == 0) result[lm_address] += value;
     
     // set value for l=1, m=0
-    lm_address += result_x_shape;
-    value = z * one_per_r * cube_value * bessel_values[1];
-    contractBlock<blockSize>(threadId, value, shared_data);
-    if (threadId == 0) result[lm_address] += value;
+    if(do_work){
+        lm_address += result_x_shape;
+        value = z * one_per_r * cube_value * bessel_values[1];
+    }
+// printf("GBFMMHelmholtz3DMultipoleEvaluator_evaluateMultipoleMomentsBlock c, before contractBlock, tID: %d\n", locThreadId);
+    contractBlock<blockSize>(locThreadId, value, shared_data);
+    if (do_work)
+    if (locThreadId == 0) result[lm_address] += value;
     
     // set value for l=1, m=1
-    lm_address += result_x_shape;
-    value = x * one_per_r * cube_value * bessel_values[1];
-    contractBlock<blockSize>(threadId, value, shared_data);
-    if (threadId == 0) result[lm_address] += value;
+    if(do_work){
+        lm_address += result_x_shape;
+        value = x * one_per_r * cube_value * bessel_values[1];
+    }
+// printf("GBFMMHelmholtz3DMultipoleEvaluator_evaluateMultipoleMomentsBlock d, before contractBlock, tID: %d\n", locThreadId);
+    contractBlock<blockSize>(locThreadId, value, shared_data);
+    if (do_work)
+    if (locThreadId == 0) result[lm_address] += value;
     
     // set all values where m=-1
-    m = -1;
-    prev1 = y * one_per_r;
-    // the starting address has 1 item before from the l=0, 3 from l=1, and 1 from l=2
-    address2 = 5 * result_x_shape;
+    if(do_work){
+        m = -1;
+        prev1 = y * one_per_r;
+        // the starting address has 1 item before from the l=0, 3 from l=1, and 1 from l=2
+        address2 = 5 * result_x_shape;
+    }
     for (int min_l = 2; min_l <= lmax; min_l += STORED_BESSELS) {
         int max_l = min(lmax, min_l+STORED_BESSELS-1);
-        FirstModSphBessel_evaluate_recursion(kappa_r, 1.0, lmax,
-                                             min_l, max_l,
-                                             bessel_lmax, bessel_lmax_m1, bessel_values);
-        for (l = min_l; l <= max_l; l++) {
-            current =   ( 2.0*(double)l-1.0) / sqrt( 1.0*(double)((l+m)*(l-m)) ) * z*prev1 * one_per_r;
-            if (l > 2) {
-                current -=  sqrt( (double)((l+m-1)*(l-m-1)) /  (double)((l+m)*(l-m)) ) * prev2;
-            }
-            prev2 = prev1;
-            prev1 = current;
-            value = current * cube_value * bessel_values[l-min_l];
-            contractBlock<blockSize>(threadId, value, shared_data);
-            if (threadId == 0) result[address2] += value;
-            
-            // add the address2 to get to the next item with m=0 
-            address2 += (2*l+2) * result_x_shape;
-        }
-    }
-    
-    
-    
-    
-    // set all values where m=0
-    prev1 = z * one_per_r;
-    prev2 = 1.0;
-    m = 0;
-    // the starting address has 1 item before from the l=0, 3 from l=1, and 2 from l=2
-    address2 = 6 * result_x_shape;
-    for (int min_l = 2; min_l <= lmax; min_l += STORED_BESSELS) {
-        int max_l = min(lmax, min_l+STORED_BESSELS-1);
-        FirstModSphBessel_evaluate_recursion(kappa_r, 1.0, lmax,
-                                             min_l, max_l,
-                                             bessel_lmax, bessel_lmax_m1, bessel_values);
-        for (l = min_l; l <= max_l; l++) {
-            current =   ( 2.0*(double)l-1.0) / sqrt( 1.0*(double)((l+m)*(l-m)) ) * z * prev1 * one_per_r;
-            current -=  sqrt( (double)((l+m-1)*(l-m-1)) /  (double)((l+m)*(l-m)) ) * prev2;
-            prev2 = prev1;
-            prev1 = current;
-            value = current * cube_value * bessel_values[l-min_l];
-            contractBlock<blockSize>(threadId, value, shared_data);
-            if (threadId == 0) result[address2] += value;
-            
-            // add the address2 to get to the next item with m=0 
-            address2 += (2*l+2) * result_x_shape;
-        }
-    }
-    
-    
-    // set all values where m=1
-    prev1 = x * one_per_r;
-    m = 1;
-    // the starting address has 1 item before from the l=0, 3 from l=1, and 3 from l=2
-    address2 = 7 * result_x_shape;
-    for (int min_l = 2; min_l <= lmax; min_l += STORED_BESSELS) {
-        int max_l = min(lmax, min_l+STORED_BESSELS-1);
-        FirstModSphBessel_evaluate_recursion(kappa_r, 1.0, lmax,
-                                             min_l, max_l,
-                                             bessel_lmax, bessel_lmax_m1, bessel_values);
-        for (l = min_l; l <= max_l; l++) {
-            current =   ( 2.0*(double)l-1.0) / sqrt( 1.0*(double)((l+m)*(l-m)) ) * z * prev1 * one_per_r;
-            if (l > 2) {
-                current -=  sqrt( (double)((l+m-1)*(l-m-1)) /  (double)((l+m)*(l-m)) ) * prev2;
-            }
-            prev2 = prev1;
-            prev1 = current;
-            value = current *  cube_value * bessel_values[l-min_l];
-            contractBlock<blockSize>(threadId, value, shared_data);
-            if (threadId == 0) result[address2] += value;
-            
-            // add the address2 to get to the next item with m=0 
-            address2 += (2*l+2) * result_x_shape;
-        }
-    }
-    
-    // go through the rest of the stuff
-    bottom = y * one_per_r; // bottom refers to solid harmonics value with l=l-1 and m=-(l-1)
-    top = x * one_per_r;    // top    refers to solid harmonics value with l=l-1 and m=l-1
-    lm_address += result_x_shape;
-    for (l=2; l <= lmax; l++) {
-        
-        new_bottom = sqrt((2.0*(double)l - 1.0) / (2.0*(double)l)) * 
-                      one_per_r * ( y*top + x*bottom);
-        FirstModSphBessel_evaluate_recursion(kappa_r, 1.0, lmax, l, l,
-                                             bessel_lmax, bessel_lmax_m1, bessel_values);
-        value = new_bottom * cube_value * bessel_values[0];
-        contractBlock<blockSize>(threadId, value, shared_data);
-        if (threadId == 0) result[lm_address] += value;
-        // set the first address for the loop below
-        address2 = lm_address + (2*l+2) * result_x_shape;
-        
-        // get value for l=l, m=l. The address is 2*l items away from l=l, m=-l
-        lm_address += 2*l * result_x_shape;
-        top = sqrt((2.0*(double)l - 1.0) / (2.0*(double)l)) * 
-                      one_per_r * ( x*top-y*bottom );
-                      
-        value = top * cube_value * bessel_values[0];
-        contractBlock<blockSize>(threadId, value, shared_data);
-        if (threadId == 0) result[lm_address] += value;
-        
-        
-        // store the new bottom: l=l, m=-l (we need the old bottom in calculation of top)
-        bottom = new_bottom;
-        
-        // set all values where m=-l
-        m = -l;
-        prev1 = bottom;
-        for (int min_l = l+1; min_l <= lmax; min_l += STORED_BESSELS) {
-            int max_l = min(lmax, min_l+STORED_BESSELS-1);
+        if(do_work){
             FirstModSphBessel_evaluate_recursion(kappa_r, 1.0, lmax,
-                                                min_l, max_l,
-                                                bessel_lmax, bessel_lmax_m1, bessel_values);
-            for (l2 = min_l; l2 <= max_l; l2++) {
-                current =   ( 2.0*(double)l2-1.0) / sqrt( 1.0*(double)((l2+m)*(l2-m)) ) * z * prev1 * one_per_r;
-                if (l2 > l+1) {
-                    current -=  sqrt( (double)((l2+m-1)*(l2-m-1)) /  (double)((l2+m)*(l2-m)) ) * prev2;
+                                                 min_l, max_l,
+                                                 bessel_lmax, bessel_lmax_m1, bessel_values);
+        }
+        for (l = min_l; l <= max_l; l++) {
+            if(do_work){
+                current =   ( 2.0*(double)l-1.0) / sqrt( 1.0*(double)((l+m)*(l-m)) ) * z*prev1 * one_per_r;
+                if (l > 2) {
+                    current -=  sqrt( (double)((l+m-1)*(l-m-1)) /  (double)((l+m)*(l-m)) ) * prev2;
                 }
                 prev2 = prev1;
                 prev1 = current;
-                value = current * cube_value * bessel_values[l2-min_l];
-                contractBlock<blockSize>(threadId, value, shared_data);
-                if (threadId == 0) result[address2] += value;
-                
-                // add the address2 to get to the next item with m=l 
-                address2 += (2*l2+2) * result_x_shape;
+                value = current * cube_value * bessel_values[l-min_l];
             }
+// printf("GBFMMHelmholtz3DMultipoleEvaluator_evaluateMultipoleMomentsBlock e, before contractBlock, tID: %d\n", threadId);
+            contractBlock<blockSize>(locThreadId, value, shared_data);
+    if (do_work)
+            if (locThreadId == 0) result[address2] += value;
+            
+            // add the address2 to get to the next item with m=0 
+            if(do_work)
+                address2 += (2*l+2) * result_x_shape;
         }
-        
-        // set all values where m=l
-        m = l;
-        prev1 = top;
-        address2 = lm_address + (2*l+2) * result_x_shape;
-        for (int min_l = l+1; min_l <= lmax; min_l += STORED_BESSELS) {
-            int max_l = min(lmax, min_l+STORED_BESSELS-1);
+    }
+    
+    
+    
+    if(do_work){
+        // set all values where m=0
+        prev1 = z * one_per_r;
+        prev2 = 1.0;
+        m = 0;
+        // the starting address has 1 item before from the l=0, 3 from l=1, and 2 from l=2
+        address2 = 6 * result_x_shape;
+    }
+    for (int min_l = 2; min_l <= lmax; min_l += STORED_BESSELS) {
+        int max_l = min(lmax, min_l+STORED_BESSELS-1);
+        if(do_work){
             FirstModSphBessel_evaluate_recursion(kappa_r, 1.0, lmax,
-                                                min_l, max_l,
-                                                bessel_lmax, bessel_lmax_m1, bessel_values);
-            for (l2 = min_l; l2 <= max_l; l2++) {
-                current =   ( 2.0*(double)l2-1.0) / sqrt( 1.0*(double)((l2+m)*(l2-m)) ) * z * prev1 * one_per_r;
-                if (l2 > l+1) {
-                    current -=  sqrt( (double)((l2+m-1)*(l2-m-1)) /  (double)((l2+m)*(l2-m)) ) * prev2;
+                                                 min_l, max_l,
+                                                 bessel_lmax, bessel_lmax_m1, bessel_values);
+        }
+        for (l = min_l; l <= max_l; l++) {
+            if(do_work){
+                current =   ( 2.0*(double)l-1.0) / sqrt( 1.0*(double)((l+m)*(l-m)) ) * z * prev1 * one_per_r;
+                current -=  sqrt( (double)((l+m-1)*(l-m-1)) /  (double)((l+m)*(l-m)) ) * prev2;
+                prev2 = prev1;
+                prev1 = current;
+                value = current * cube_value * bessel_values[l-min_l];
+            }
+// printf("GBFMMHelmholtz3DMultipoleEvaluator_evaluateMultipoleMomentsBlock f, before contractBlock, tID: %d\n", threadId);
+            contractBlock<blockSize>(locThreadId, value, shared_data);
+    if (do_work)
+            if (locThreadId == 0) result[address2] += value;
+            
+            // add the address2 to get to the next item with m=0 
+            if(do_work)
+                address2 += (2*l+2) * result_x_shape;
+        }
+    }
+    
+    
+    if(do_work){
+        // set all values where m=1
+        prev1 = x * one_per_r;
+        m = 1;
+        // the starting address has 1 item before from the l=0, 3 from l=1, and 3 from l=2
+        address2 = 7 * result_x_shape;
+    }
+    for (int min_l = 2; min_l <= lmax; min_l += STORED_BESSELS) {
+        int max_l = min(lmax, min_l+STORED_BESSELS-1);
+        if(do_work){
+            FirstModSphBessel_evaluate_recursion(kappa_r, 1.0, lmax,
+                                                 min_l, max_l,
+                                                 bessel_lmax, bessel_lmax_m1, bessel_values);
+        }
+        for (l = min_l; l <= max_l; l++) {
+            if(do_work){
+                current =   ( 2.0*(double)l-1.0) / sqrt( 1.0*(double)((l+m)*(l-m)) ) * z * prev1 * one_per_r;
+                if (l > 2) {
+                    current -=  sqrt( (double)((l+m-1)*(l-m-1)) /  (double)((l+m)*(l-m)) ) * prev2;
                 }
                 prev2 = prev1;
                 prev1 = current;
-                value = current * cube_value * bessel_values[l2-min_l];
-                contractBlock<blockSize>(threadId, value, shared_data);
-                if (threadId == 0) result[address2] += value;
+                value = current *  cube_value * bessel_values[l-min_l];
+            }
+// printf("GBFMMHelmholtz3DMultipoleEvaluator_evaluateMultipoleMomentsBlock g, before contractBlock, tID: %d\n", threadId);
+            contractBlock<blockSize>(locThreadId, value, shared_data);
+            // if (do_work)
+            if (locThreadId == 0) result[address2] += value;
+            
+            // add the address2 to get to the next item with m=0 
+            if(do_work)
+                address2 += (2*l+2) * result_x_shape;
+        }
+    }
+    
+    if(do_work){
+        // go through the rest of the stuff
+        bottom = y * one_per_r; // bottom refers to solid harmonics value with l=l-1 and m=-(l-1)
+        top = x * one_per_r;    // top    refers to solid harmonics value with l=l-1 and m=l-1
+        lm_address += result_x_shape;
+    }
+    for (int l=2; l <= lmax; l++) {
+        
+        if(do_work){
+            new_bottom = sqrt((2.0*(double)l - 1.0) / (2.0*(double)l)) * 
+                          one_per_r * ( y*top + x*bottom);
+            FirstModSphBessel_evaluate_recursion(kappa_r, 1.0, lmax, l, l,
+                                                 bessel_lmax, bessel_lmax_m1, bessel_values);
+            value = new_bottom * cube_value * bessel_values[0];
+        }
+        contractBlock<blockSize>(locThreadId, value, shared_data);
+        if (locThreadId == 0) result[lm_address] += value;
+
+        if(do_work){
+            // set the first address for the loop below
+            address2 = lm_address + (2*l+2) * result_x_shape;
+            
+            // get value for l=l, m=l. The address is 2*l items away from l=l, m=-l
+            lm_address += 2*l * result_x_shape;
+            top = sqrt((2.0*(double)l - 1.0) / (2.0*(double)l)) * 
+                          one_per_r * ( x*top-y*bottom );
+                          
+            value = top * cube_value * bessel_values[0];
+        }
+        contractBlock<blockSize>(locThreadId, value, shared_data);
+        if (locThreadId == 0) result[lm_address] += value;
+        
+        if(do_work){
+            // store the new bottom: l=l, m=-l (we need the old bottom in calculation of top)
+            bottom = new_bottom;
+            
+            // set all values where m=-l
+            m = -l;
+            prev1 = bottom;
+        }
+        for (int min_l = l+1; min_l <= lmax; min_l += STORED_BESSELS) {
+            int max_l = min(lmax, min_l+STORED_BESSELS-1);
+            if(do_work){
+                FirstModSphBessel_evaluate_recursion(kappa_r, 1.0, lmax,
+                                                    min_l, max_l,
+                                                    bessel_lmax, bessel_lmax_m1, bessel_values);
+            }
+            for (l2 = min_l; l2 <= max_l; l2++) {
+                if(do_work){
+                    current =   ( 2.0*(double)l2-1.0) / sqrt( 1.0*(double)((l2+m)*(l2-m)) ) * z * prev1 * one_per_r;
+                    if (l2 > l+1) {
+                        current -=  sqrt( (double)((l2+m-1)*(l2-m-1)) /  (double)((l2+m)*(l2-m)) ) * prev2;
+                    }
+                    prev2 = prev1;
+                    prev1 = current;
+                    value = current * cube_value * bessel_values[l2-min_l];
+                }
+                contractBlock<blockSize>(locThreadId, value, shared_data);
+                if (locThreadId == 0) result[address2] += value;
                 
                 // add the address2 to get to the next item with m=l 
-                address2 += (2*l2+2) * result_x_shape;
+                if(do_work)
+                    address2 += (2*l2+2) * result_x_shape;
+            }
+        }
+        
+        if(do_work){
+            // set all values where m=l
+            m = l;
+            prev1 = top;
+            address2 = lm_address + (2*l+2) * result_x_shape;
+        }
+        for (int min_l = l+1; min_l <= lmax; min_l += STORED_BESSELS) {
+            int max_l = min(lmax, min_l+STORED_BESSELS-1);
+            if(do_work){
+                FirstModSphBessel_evaluate_recursion(kappa_r, 1.0, lmax,
+                                                    min_l, max_l,
+                                                    bessel_lmax, bessel_lmax_m1, bessel_values);
+            }
+            for (l2 = min_l; l2 <= max_l; l2++) {
+                if(do_work){
+                    current =   ( 2.0*(double)l2-1.0) / sqrt( 1.0*(double)((l2+m)*(l2-m)) ) * z * prev1 * one_per_r;
+                    if (l2 > l+1) {
+                        current -=  sqrt( (double)((l2+m-1)*(l2-m-1)) /  (double)((l2+m)*(l2-m)) ) * prev2;
+                    }
+                    prev2 = prev1;
+                    prev1 = current;
+                    value = current * cube_value * bessel_values[l2-min_l];
+                }
+                contractBlock<blockSize>(locThreadId, value, shared_data);
+                if (locThreadId == 0) result[address2] += value;
+                
+                // add the address2 to get to the next item with m=l 
+                if(do_work)
+                    address2 += (2*l2+2) * result_x_shape;
             }
         }
         
         // get next address
-        lm_address += result_x_shape;
+        if(do_work)
+            lm_address += result_x_shape;
     }
 }
 
@@ -736,56 +835,68 @@ __global__ void GBFMMHelmholtz3DMultipoleEvaluator_evaluate(
     int vector = input_pitch / sizeof(double);
     
     // get the id of the point (We are using only the first )
-    const int threadId = getLocalThreadId();
+    const int locThreadId = getLocalThreadId();
     int id;
     
     // init the shared memory to 0.0
-    int n = threadId;
+    int n = locThreadId;
     while (n < (lmax+1)*(lmax+1)) {
         shared_multipole_moments[n] = 0.0;
         n += blockDim.x * blockDim.y * blockDim.z;
     }
     
     getXYZCoordinates(&x, &y, &z, input_shape_x, input_shape_y, blockId);
+// printf("x: %d, y: %d, z:%d, {xyz}s: %d/%d/%d, bId: %d, grsz: %d\n", x, y, z, input_shape_x, input_shape_y, input_shape_z, blockId, grid_size);
+
     while (z < input_shape_z) {
-        if (x < input_shape_x && y < input_shape_y && z < input_shape_z) {
+        bool do_work = false;
+        double cube_value = 0;
+        double x_coord = 0;
+        double y_coord = 0;
+        double z_coord = 0;
+        double r = 0;
+        if (x < input_shape_x && y < input_shape_y /* && z < input_shape_z */) {
             id = getMemoryId(x, y, z, vector, input_memory_shape_y);
-            const double cube_value = cube[id]  * grid->axis[X_]->integrals[x]
-                                                * grid->axis[Y_]->integrals[y]
-                                                * grid->axis[Z_]->integrals[z+slice_offset];
-            const double x_coord = grid->axis[X_]->gridpoints[x] - center_x;
-            const double y_coord = grid->axis[Y_]->gridpoints[y] - center_y;
-            const double z_coord = grid->axis[Z_]->gridpoints[z+slice_offset] - center_z;
-            const double r = sqrt(x_coord * x_coord + y_coord * y_coord + z_coord * z_coord);
-            // call the evaluation for the block
-            GBFMMHelmholtz3DMultipoleEvaluator_evaluateMultipoleMomentsBlock<blockSize>
-                                                    (x_coord,
-                                                     y_coord,
-                                                     z_coord,
-                                                     r,
-                                                     kappa,
-                                                     lmax,
-                                                     shared_multipole_moments,
-                                                     cube_value,
-                                                     1,
-                                                     threadId,
-                                                     shared_data
-                                                    );
+            cube_value = cube[id]  * grid->axis[X_]->integrals[x]
+                                   * grid->axis[Y_]->integrals[y]
+                                   * grid->axis[Z_]->integrals[z+slice_offset];
+            x_coord = grid->axis[X_]->gridpoints[x] - center_x;
+            y_coord = grid->axis[Y_]->gridpoints[y] - center_y;
+            z_coord = grid->axis[Z_]->gridpoints[z+slice_offset] - center_z;
+            r = sqrt(x_coord * x_coord + y_coord * y_coord + z_coord * z_coord);
+            do_work = true;
         }
+        // call the evaluation for the block
+        GBFMMHelmholtz3DMultipoleEvaluator_evaluateMultipoleMomentsBlock<blockSize>
+                                                (do_work ? x_coord : 0.0,
+                                                 do_work ? y_coord : 0.0,
+                                                 do_work ? z_coord : 0.0,
+                                                 do_work ? r : 0.0,
+                                                 kappa,
+                                                 lmax,
+                                                 shared_multipole_moments,
+                                                 cube_value,
+                                                 1,
+                                                 locThreadId,
+                                                 shared_data,
+                                                 do_work
+                                                );
         // increase the block
         blockId += grid_size;
         getXYZCoordinates(&x, &y, &z, input_shape_x, input_shape_y, blockId);
     }
     __syncthreads();
+// printf("here?\n");
+
     // and finally copy the result value to the output array
-    n = threadId;
+    n = locThreadId;
     while (n < (lmax+1)*(lmax+1)) {
         device_multipole_moments[blockIdx.x + maximum_block_count * n] =
             shared_multipole_moments[n];
         n += blockDim.x * blockDim.y * blockDim.z;
     }
-  
 }
+  
 
 __host__ inline void GBFMMHelmholtz3DMultipoleEvaluator::reduce3D(
                                       double *input_data, 
@@ -800,7 +911,9 @@ __host__ inline void GBFMMHelmholtz3DMultipoleEvaluator::reduce3D(
                                       cudaStream_t *stream, 
                                       int slice_offset,
                                       int device_order_number) {
+printf("begin GBFMMHelmholtz3DMultipoleEvaluator::reduce3D\n");
     size_t sharedMemorySize = sizeof(double) * ((this->lmax+1) * (this->lmax+1) + threads_per_block); 
+printf("sharedmem: %d, lmax: %d\n", sharedMemorySize, lmax);
     dim3 grid, block;
     this->getLaunchConfiguration(&grid, &block, threads_per_block, output_size);
     check_errors(__FILE__, __LINE__);
@@ -908,6 +1021,9 @@ __host__ inline void GBFMMHelmholtz3DMultipoleEvaluator::reduce3D(
             break;
     }
     check_errors(__FILE__, __LINE__);
+//    printf("bla\n");
+//    fflush(stdout);
+//    abort();
 }
 
 
@@ -935,165 +1051,227 @@ __device__ void GBFMMCoulomb3DMultipoleEvaluator_evaluateMultipoleMomentsBlock(
                                               const double y,
                                               const double z,
                                               const int lmax,
-                                              double* result,
+                                              double* result, // size (lmax + 1)^2
                                               const double cube_value,
                                               const int result_x_shape,
-                                              const int threadId, 
-                                              double* shared_data) {
+                                              const int locThreadId, 
+                                              double* shared_data, // size threads_per_block
+                                              bool do_work) {
     
-    int lm_address =0, address2 = 0;
+    int lm_address = 0, address2 = 0;
     int l, m, l2; 
     double top = 0.0, bottom = 0.0, new_bottom = 0.0, prev1 = 0.0, prev2 = 0.0, current = 0.0;
-    double r2 = x*x+y*y+z*z;
-    // set value for l=0, m=0
-    double value = 1.0 * cube_value;
-    contractBlock<blockSize>(threadId, value, shared_data);
-    if (threadId == 0) result[lm_address] += value;
+    double r2 = 0;
+    double value = 0.0;
+    if(do_work){
+        r2 = x*x+y*y+z*z;
+        // set value for l=0, m=0
+        value = 1.0 * cube_value;
+    }
+    // printf("GBFMMCoulomb3DMultipoleEvaluator_evaluateMultipoleMomentsBlock a, before contractBlock, tID: %d\n", locThreadId);
+    contractBlock<blockSize>(locThreadId, value, shared_data);
+    if(do_work)
+        if (locThreadId == 0) result[lm_address] += value;
     
     
-    // set value for l=1, m=-1
-    lm_address += result_x_shape;
-    value = y * cube_value;
-    contractBlock<blockSize>(threadId, value, shared_data);
-    if (threadId == 0) result[lm_address] += value;
+    if(do_work){
+        // set value for l=1, m=-1
+        lm_address += result_x_shape;
+        value = y * cube_value;
+    }
+   //  printf("GBFMMCoulomb3DMultipoleEvaluator_evaluateMultipoleMomentsBlock b, before contractBlock, tID: %d\n", locThreadId);
+    contractBlock<blockSize>(locThreadId, value, shared_data);
+    if(do_work)
+        if (locThreadId == 0) result[lm_address] += value;
     // set all values where m=-1
-    m = -1;
-    prev1 = y;
-    // the starting address has 1 item before from the l=0, 3 from l=1, and 1 from l=2
-    address2 = 5 * result_x_shape;
-    for (l = 2; l <= lmax; l++) {
-        current =   ( 2.0*(double)l-1.0) / sqrt( 1.0*(double)((l+m)*(l-m)) ) * z*prev1;
-        if (l > 2) {
-            current -=  sqrt( (double)((l+m-1)*(l-m-1)) /  (double)((l+m)*(l-m)) ) * r2 * prev2;
-        }
-        prev2 = prev1;
-        prev1 = current;
-        value = current * cube_value;
-        contractBlock<blockSize>(threadId, value, shared_data);
-        if (threadId == 0) result[address2] += value;
-        
-        // add the address2 to get to the next item with m=0 
-        address2 += (2*l+2) * result_x_shape;
+
+    if(do_work){
+        m = -1;
+        prev1 = y;
+        // the starting address has 1 item before from the l=0, 3 from l=1, and 1 from l=2
+        address2 = 5 * result_x_shape;
     }
-    
-    
-    
-    // set value for l=1, m=0
-    lm_address += result_x_shape;
-    value = z * cube_value;
-    contractBlock<blockSize>(threadId, value, shared_data);
-    if (threadId == 0) result[lm_address] += value;
-    
-    // set all values where m=0
-    prev1 = z;
-    prev2 = 1.0;
-    m = 0;
-    // the starting address has 1 item before from the l=0, 3 from l=1, and 2 from l=2
-    address2 = 6 * result_x_shape;
     for (l = 2; l <= lmax; l++) {
-        current =   ( 2.0*(double)l-1.0) / sqrt( 1.0*(double)((l+m)*(l-m)) ) * z * prev1;
-        current -=  sqrt( (double)((l+m-1)*(l-m-1)) /  (double)((l+m)*(l-m)) ) * r2 * prev2;
-        prev2 = prev1;
-        prev1 = current;
-        value = current * cube_value;
-        contractBlock<blockSize>(threadId, value, shared_data);
-        if (threadId == 0) result[address2] += value;
-        
-        // add the address2 to get to the next item with m=0 
-        address2 += (2*l+2) * result_x_shape;
-    }
-    
-    // set value for l=1, m=1
-    lm_address += result_x_shape;
-    value = x * cube_value;
-    contractBlock<blockSize>(threadId, value, shared_data);
-    if (threadId == 0) result[lm_address] += value;
-    // set all values where m=1
-    prev1 = x;
-    m = 1;
-    // the starting address has 1 item before from the l=0, 3 from l=1, and 3 from l=2
-    address2 = 7 * result_x_shape;
-    for (l = 2; l <= lmax; l++) {
-        current =   ( 2.0*(double)l-1.0) / sqrt( 1.0*(double)((l+m)*(l-m)) ) * z*prev1;
-        if (l > 2) {
-            current -=  sqrt( (double)((l+m-1)*(l-m-1)) /  (double)((l+m)*(l-m)) ) * r2 * prev2;
-        }
-        prev2 = prev1;
-        prev1 = current;
-        value = current * cube_value;
-        contractBlock<blockSize>(threadId, value, shared_data);
-        if (threadId == 0) result[address2] += value;
-        
-        // add the address2 to get to the next item with m=0 
-        address2 += (2*l+2) * result_x_shape;
-    }
-    
-    // go through the rest of the stuff
-    bottom = y; // bottom refers to solid harmonics value with l=l-1 and m=-(l-1)
-    top = x;    // top    refers to solid harmonics value with l=l-1 and m=l-1
-    lm_address += result_x_shape;
-    for (l=2; l <= lmax; l++) {
-        
-        new_bottom = sqrt((2.0*(double)l - 1.0) / (2.0*(double)l)) * 
-                       ( y*top + x*bottom);
-        value = new_bottom * cube_value;
-        contractBlock<blockSize>(threadId, value, shared_data);
-        if (threadId == 0) result[lm_address] += value;
-        
-        // set all values where m=-l
-        m = -l;
-        prev1 = new_bottom;
-        address2 = lm_address + (2*l+2) * result_x_shape;
-        for (l2 = l+1; l2 <= lmax; l2++) {
-            current =   ( 2.0*(double)l2-1.0) / sqrt( 1.0*(double)((l2+m)*(l2-m)) ) * z*prev1;
-            if (l2 > l+1) {
-                current -=  sqrt( (double)((l2+m-1)*(l2-m-1)) /  (double)((l2+m)*(l2-m)) ) * r2 * prev2;
+        if(do_work){
+            current =   ( 2.0*(double)l-1.0) / sqrt( 1.0*(double)((l+m)*(l-m)) ) * z*prev1;
+            if (l > 2) {
+                current -=  sqrt( (double)((l+m-1)*(l-m-1)) /  (double)((l+m)*(l-m)) ) * r2 * prev2;
             }
             prev2 = prev1;
             prev1 = current;
             value = current * cube_value;
-            contractBlock<blockSize>(threadId, value, shared_data);
-            if (threadId == 0) result[address2] += value;
-            
-            // add the address2 to get to the next item with m=l 
-            address2 += (2*l2+2) * result_x_shape;
         }
+        // printf("GBFMMCoulomb3DMultipoleEvaluator_evaluateMultipoleMomentsBlock c, before contractBlock, tID: %d, val: %f\n", locThreadId, value);
+        contractBlock<blockSize>(locThreadId, value, shared_data);
+        if(do_work)
+            if (locThreadId == 0) result[address2] += value;
         
+        // add the address2 to get to the next item with m=0 
+        if(do_work)
+            address2 += (2*l+2) * result_x_shape;
+    }
+    
+    if(do_work){
+        // set value for l=1, m=0
+        lm_address += result_x_shape;
+        value = z * cube_value;
+    }
+    // printf("GBFMMCoulomb3DMultipoleEvaluator_evaluateMultipoleMomentsBlock d, before contractBlock, tID: %d, val: %f\n", locThreadId, value);
+    contractBlock<blockSize>(locThreadId, value, shared_data);
+    if(do_work)
+        if (locThreadId == 0) result[lm_address] += value;
+    
+    if(do_work){
+        // set all values where m=0
+        prev1 = z;
+        prev2 = 1.0;
+        m = 0;
+        // the starting address has 1 item before from the l=0, 3 from l=1, and 2 from l=2
+        address2 = 6 * result_x_shape;
+    }
+    for (l = 2; l <= lmax; l++) {
+        if(do_work){
+            current =   ( 2.0*(double)l-1.0) / sqrt( 1.0*(double)((l+m)*(l-m)) ) * z * prev1;
+            current -=  sqrt( (double)((l+m-1)*(l-m-1)) /  (double)((l+m)*(l-m)) ) * r2 * prev2;
+            prev2 = prev1;
+            prev1 = current;
+            value = current * cube_value;
+        }
+        // printf("GBFMMCoulomb3DMultipoleEvaluator_evaluateMultipoleMomentsBlock e, before contractBlock, tID: %d\n", locThreadId);
+        contractBlock<blockSize>(locThreadId, value, shared_data);
+        if(do_work)
+            if (locThreadId == 0) result[address2] += value;
         
-        // get value for l=l, m=l. The address is 2*l items away from l=l, m=-l
-        lm_address += 2*l * result_x_shape;
-        top = sqrt((2.0*(double)l - 1.0) / (2.0*(double)l)) * 
-                      ( x*top-y*bottom );
-                      
-        value = top * cube_value;
-        contractBlock<blockSize>(threadId, value, shared_data);
-        if (threadId == 0) result[lm_address] += value;
-                      
-        // set all values where m=l
-        m = l;
-        prev1 = top;
-        address2 = lm_address + (2*l+2) * result_x_shape;
-        for (l2 = l+1; l2 <= lmax; l2++) {
-            current =   ( 2.0*(double)l2-1.0) / sqrt( 1.0*(double)((l2+m)*(l2-m)) ) * z*prev1;
-            if (l2 > l+1) {
-                current -=  sqrt( (double)((l2+m-1)*(l2-m-1)) /  (double)((l2+m)*(l2-m)) ) * r2 * prev2;
+        // add the address2 to get to the next item with m=0 
+        if(do_work)
+            address2 += (2*l+2) * result_x_shape;
+    }
+    
+    if(do_work){
+        // set value for l=1, m=1
+        lm_address += result_x_shape;
+        value = x * cube_value;
+    }
+    // printf("GBFMMCoulomb3DMultipoleEvaluator_evaluateMultipoleMomentsBlock f, before contractBlock, tID: %d, val: %f\n", locThreadId, value);
+    contractBlock<blockSize>(locThreadId, value, shared_data);
+    if(do_work)
+        if (locThreadId == 0) result[lm_address] += value;
+
+    if(do_work){
+        // set all values where m=1
+        prev1 = x;
+        m = 1;
+        // the starting address has 1 item before from the l=0, 3 from l=1, and 3 from l=2
+        address2 = 7 * result_x_shape;
+    }
+    for (l = 2; l <= lmax; l++) {
+        if(do_work){
+            current =   ( 2.0*(double)l-1.0) / sqrt( 1.0*(double)((l+m)*(l-m)) ) * z*prev1;
+            if (l > 2) {
+                current -=  sqrt( (double)((l+m-1)*(l-m-1)) /  (double)((l+m)*(l-m)) ) * r2 * prev2;
             }
             prev2 = prev1;
             prev1 = current;
             value = current * cube_value;
-            contractBlock<blockSize>(threadId, value, shared_data);
-            if (threadId == 0) result[address2] += value;
-            
-            // add the address2 to get to the next item with m=l 
-            address2 += (2*l2+2) * result_x_shape;
         }
-        // store the new bottom: l=l, m=-l (we need the old bottom in calculation of top)
-        bottom = new_bottom;
+// printf("GBFMMCoulomb3DMultipoleEvaluator_evaluateMultipoleMomentsBlock g, before contractBlock, tID: %d, val: %f\n", locThreadId, value);
+        contractBlock<blockSize>(locThreadId, value, shared_data);
+        if(do_work)
+            if (locThreadId == 0) result[address2] += value;
         
-        // get next address
+        // add the address2 to get to the next item with m=0 
+        if(do_work)
+            address2 += (2*l+2) * result_x_shape;
+    }
+    
+    if(do_work){
+        // go through the rest of the stuff
+        bottom = y; // bottom refers to solid harmonics value with l=l-1 and m=-(l-1)
+        top = x;    // top    refers to solid harmonics value with l=l-1 and m=l-1
         lm_address += result_x_shape;
     }
+    for (l=2; l <= lmax; l++) {
+        
+        if(do_work){
+            new_bottom = sqrt((2.0*(double)l - 1.0) / (2.0*(double)l)) * ( y*top + x*bottom);
+            value = new_bottom * cube_value;
+        }
+// printf("GBFMMCoulomb3DMultipoleEvaluator_evaluateMultipoleMomentsBlock h, before contractBlock, tID: %d, val: %f\n", locThreadId, value);
+        contractBlock<blockSize>(locThreadId, value, shared_data);
+        if(do_work)
+            if (locThreadId == 0) result[lm_address] += value;
+            
+        if(do_work){
+            // set all values where m=-l
+            m = -l;
+            prev1 = new_bottom;
+            address2 = lm_address + (2*l+2) * result_x_shape;
+        }
+        for (l2 = l+1; l2 <= lmax; l2++) {
+            if(do_work){
+                current =   ( 2.0*(double)l2-1.0) / sqrt( 1.0*(double)((l2+m)*(l2-m)) ) * z*prev1;
+                if (l2 > l+1) {
+                    current -=  sqrt( (double)((l2+m-1)*(l2-m-1)) /  (double)((l2+m)*(l2-m)) ) * r2 * prev2;
+                }
+                prev2 = prev1;
+                prev1 = current;
+                value = current * cube_value;
+            }
+            contractBlock<blockSize>(locThreadId, value, shared_data);
+            if(do_work)
+                if (locThreadId == 0) result[address2] += value;
+            
+            // add the address2 to get to the next item with m=l 
+            if(do_work)
+                address2 += (2*l2+2) * result_x_shape;
+        }
+        
+        if(do_work){
+            // get value for l=l, m=l. The address is 2*l items away from l=l, m=-l
+            lm_address += 2*l * result_x_shape;
+            top = sqrt((2.0*(double)l - 1.0) / (2.0*(double)l)) * ( x*top-y*bottom );
+                          
+            value = top * cube_value;
+        }
+        contractBlock<blockSize>(locThreadId, value, shared_data);
+        if(do_work)
+            if (locThreadId == 0) result[lm_address] += value;
+                      
+        if(do_work){
+            // set all values where m=l
+            m = l;
+            prev1 = top;
+            address2 = lm_address + (2*l+2) * result_x_shape;
+        }
+        for (l2 = l+1; l2 <= lmax; l2++) {
+            if(do_work){
+                current =   ( 2.0*(double)l2-1.0) / sqrt( 1.0*(double)((l2+m)*(l2-m)) ) * z*prev1;
+                if (l2 > l+1) {
+                    current -=  sqrt( (double)((l2+m-1)*(l2-m-1)) /  (double)((l2+m)*(l2-m)) ) * r2 * prev2;
+                }
+                prev2 = prev1;
+                prev1 = current;
+                value = current * cube_value;
+            }
+            contractBlock<blockSize>(locThreadId, value, shared_data);
+            if(do_work)
+                if (locThreadId == 0) result[address2] += value;
+            
+            // add the address2 to get to the next item with m=l 
+            if(do_work)
+                address2 += (2*l2+2) * result_x_shape;
+        }
+        if(do_work){
+            // store the new bottom: l=l, m=-l (we need the old bottom in calculation of top)
+            bottom = new_bottom;
+            
+            // get next address
+            lm_address += result_x_shape;
+        }
+    }
 }
+
+
 
 template <unsigned int blockSize>
 __global__ void GBFMMCoulomb3DMultipoleEvaluator_evaluate(
@@ -1113,60 +1291,64 @@ __global__ void GBFMMCoulomb3DMultipoleEvaluator_evaluate(
                          const double center_y,
                          const double center_z) {
     
-    extern __shared__ double shared_multipole_moments[];
+    extern __shared__ double shared_multipole_moments[]; // implicitly sized from kernel launch parameter
     
-    // get the x, y & z coordinates of the first point
+    // get the x, y, & z coordinates of the first point
     int x, y, z, blockId = blockIdx.x;
     
     // temp variables that include the size of vector and slice in items
     int vector = input_pitch / sizeof(double);
     
     // get the id of the point (We are using only the first )
-    const int threadId = getLocalThreadId();
+    const int locThreadId = getLocalThreadId();
     int id;
     
     // init the shared memory to 0.0
-    int n = threadId;
+    int n = locThreadId;
     while (n < (lmax+1)*(lmax+1)) {
         shared_multipole_moments[n] = 0.0;
         n += blockDim.x * blockDim.y * blockDim.z;
     }
     
     getXYZCoordinates(&x, &y, &z, input_shape_x, input_shape_y, blockId);
-    while (z < input_shape_z) {
-        if (x < input_shape_x && y < input_shape_y && z < input_shape_z) {
+    // printf("x: %d, y: %d, z:%d, {xyz}s: %d/%d/%d, bId: %d, grsz: %d\n", x, y, z, input_shape_x, input_shape_y, input_shape_z, blockId, grid_size);
+    while (z < input_shape_z) { // each block has thickness 1 in z direction, so there should be overlapping blocks only in x and y direction (if at all)
+        double cube_value = 0;
+        bool do_work = false;
+        if (x < input_shape_x && y < input_shape_y  /* && z < input_shape_z */ ) {
             id = getMemoryId(x, y, z, vector, input_memory_shape_y);
-            const double cube_value = cube[id]  * grid->axis[X_]->integrals[x]
-                                                * grid->axis[Y_]->integrals[y]
-                                                * grid->axis[Z_]->integrals[z+slice_offset];
-            
-            // call the evaluation for the block
-            GBFMMCoulomb3DMultipoleEvaluator_evaluateMultipoleMomentsBlock<blockSize>
-                                                    (grid->axis[X_]->gridpoints[x] - center_x,
-                                                     grid->axis[Y_]->gridpoints[y] - center_y,
-                                                     grid->axis[Z_]->gridpoints[z+slice_offset] - center_z,
-                                                     lmax,
-                                                     shared_multipole_moments,
-                                                     cube_value,
-                                                     1,
-                                                     threadId, 
-                                                     &shared_multipole_moments[(lmax+1)*(lmax+1)]
-                                                    );
+            cube_value = cube[id] * grid->axis[X_]->integrals[x]
+                                  * grid->axis[Y_]->integrals[y]
+                                  * grid->axis[Z_]->integrals[z+slice_offset];
+            do_work = true;
         }
+        // call the evaluation for the block
+        GBFMMCoulomb3DMultipoleEvaluator_evaluateMultipoleMomentsBlock<blockSize>
+                                                (do_work ? grid->axis[X_]->gridpoints[x] - center_x : 0.0,
+                                                 do_work ? grid->axis[Y_]->gridpoints[y] - center_y : 0.0,
+                                                 do_work ? grid->axis[Z_]->gridpoints[z+slice_offset] - center_z : 0.0,
+                                                 lmax,
+                                                 do_work ? shared_multipole_moments : nullptr,
+                                                 cube_value,
+                                                 1,
+                                                 locThreadId, 
+                                                 &shared_multipole_moments[(lmax+1)*(lmax+1)],
+                                                 do_work
+                                                );
         // increase the block
         blockId += grid_size;
         getXYZCoordinates(&x, &y, &z, input_shape_x, input_shape_y, blockId);
     }
     __syncthreads();
+// printf("here?\n");
     // and finally copy the result value to the output array
-    n = threadId;
+    n = locThreadId;
     while (n < (lmax+1)*(lmax+1)) {
-        device_multipole_moments[blockIdx.x + maximum_block_count * n] =
-            shared_multipole_moments[n];
+        device_multipole_moments[blockIdx.x + maximum_block_count * n] = shared_multipole_moments[n];
         n += blockDim.x * blockDim.y * blockDim.z;
     }
-  
 }
+
 
 __host__ inline void GBFMMCoulomb3DMultipoleEvaluator::reduce3D(
                                       double *input_data, 
@@ -1181,7 +1363,7 @@ __host__ inline void GBFMMCoulomb3DMultipoleEvaluator::reduce3D(
                                       cudaStream_t *stream, 
                                       int slice_offset,
                                       int device_order_number) {
-    size_t sharedMemorySize = sizeof(double) * ((this->lmax+1) * (this->lmax+1) + threads_per_block); 
+    size_t sharedMemorySize = sizeof(double) * ((this->lmax+1) * (this->lmax+1) + threads_per_block); // with CUDA >= 350, only ((this->lmax+1) * (this->lmax+1) + 32) should be required
     dim3 grid, block;
     this->getLaunchConfiguration(&grid, &block, threads_per_block, output_size);
     switch (threads_per_block)
@@ -1277,6 +1459,7 @@ __host__ inline void GBFMMCoulomb3DMultipoleEvaluator::reduce3D(
                 this->center[X_], this->center[Y_], this->center[Z_]);
             break;
     }
+    check_errors(__FILE__, __LINE__);
 }
 
 
@@ -1488,19 +1671,19 @@ __host__ inline void Integrator3D::getLaunchConfiguration(dim3 *grid, dim3 *bloc
 }
 
 __host__  void Integrator3D::reduce3D(double *input_data, 
-                                            size_t device_pitch,
-                                            int device_y_shape, 
-                                            int shape[3],
-                                            int slice_count,
-                                            double *output_data,
-                                            unsigned int grid_size,
-                                            unsigned int output_size,
-                                            unsigned int threads_per_block,
-                                            cudaStream_t *stream,
-                                            int slice_offset,
-                                            int device_order_number
-                                           ) {
-    size_t sharedMemorySize = sizeof(double) * threads_per_block * 2; 
+                                      size_t device_pitch,
+                                      int device_y_shape, 
+                                      int shape[3],
+                                      int slice_count,
+                                      double *output_data,
+                                      unsigned int grid_size,
+                                      unsigned int output_size,
+                                      unsigned int threads_per_block,
+                                      cudaStream_t *stream,
+                                      int slice_offset,
+                                      int device_order_number
+                                      ) {
+    size_t sharedMemorySize = sizeof(double) * threads_per_block * 2;  // overkill.  max(32, threads_per_block) * sizeof(double) should be enough
     dim3 grid, block;
     this->getLaunchConfiguration(&grid, &block, threads_per_block, output_size);
     check_errors(__FILE__, __LINE__);
@@ -1571,6 +1754,7 @@ __host__  void Integrator3D::reduce3D(double *input_data,
     check_errors(__FILE__, __LINE__);
 }
 
+
 /*
  * Contract cube 
  */
@@ -1584,6 +1768,7 @@ void Integrator3D::contractCube(double *device_cube,
                                 double *device_result,
                                 int slice_offset,
                                 int device_order_number) {
+// printf("begin Integrator3D::contractCube\n");
     
     check_errors(__FILE__, __LINE__);
     double *input_data = device_cube;
@@ -1615,7 +1800,8 @@ void Integrator3D::contractCube(double *device_cube,
         threads_per_block = optimal_threads_per_block;
         block_count = 1;
     }
-    // do the 3D-reduce
+    // printf("current_size: %d, block count: %d, loops_per_thread: %d\n", current_size, block_count, loops_per_thread);
+    // do the 3D-reduce, calls either of three functions: {Integrator3D,GBFMMCoulomb,GBFMMHelmholtz}::reduce3D
     this->reduce3D(input_data,
                    device_pitch,
                    device_y_shape,
@@ -1628,7 +1814,7 @@ void Integrator3D::contractCube(double *device_cube,
                    stream,
                    slice_offset, 
                    device_order_number
-                       );
+                  );
     check_errors(__FILE__, __LINE__);
     // set the output_data to be input for the next loop
     current_size = block_count;
@@ -1674,6 +1860,8 @@ void Integrator3D::contractCube(double *device_cube,
         this->maximum_block_count,
         this->max_number_of_stored_results);
     check_errors(__FILE__, __LINE__);
+
+// printf("end Integrator3D::contractCube\n");
 }
 
 
@@ -1759,7 +1947,6 @@ void Integrator3D::integrateOnDevices(double **device_cubes, size_t *device_pitc
 void Integrator3D::integrateSingleDevice(double *device_cube, const size_t device_pitch, const int device_memory_shape_y, int shape[3],
                                          const int device, int &slice_offset, double *device_result) {
     
-
     int device_slice_count =  (this->grid->getShape(Z_)) / this->streamContainer->getNumberOfDevices()
                                   + ((this->grid->getShape(Z_) % this->streamContainer->getNumberOfDevices()) > device);
     this->streamContainer->setDevice(device);

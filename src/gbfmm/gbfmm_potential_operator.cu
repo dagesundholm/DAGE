@@ -107,7 +107,6 @@ void GBFMMPotentialOperator::initGBFMMPotentialOperator(
     
     this->centers = new double[3 * domain[1]-domain[0]+1];
     
-
     // init the subgrids and the streamcontainers for each domain box
     for (int i = 0; i <= domain[1]-domain[0]; i++) {
         // get a sub-streamcontainer 
@@ -309,7 +308,7 @@ void GBFMMPotentialOperator::calculateMultipoleMoments(CudaCube *input_cube) {
     for (int i = 0; i <= this->domain[1]-this->domain[0]; i++) {
         int start_indices[3] = {this->input_start_indices_x[i] * (this->input_grids[i]->axis[X_]->nlip-1),
                                 this->input_start_indices_y[i] * (this->input_grids[i]->axis[Y_]->nlip-1),
-                                this->input_start_indices_z[i] * (this->input_grids[i]->axis[Y_]->nlip-1)};
+                                this->input_start_indices_z[i] * (this->input_grids[i]->axis[Z_]->nlip-1)    };
         int end_indices[3] =   {this->input_end_indices_x[i] * (this->input_grids[i]->axis[X_]->nlip-1) + 1, 
                                 this->input_end_indices_y[i] * (this->input_grids[i]->axis[Y_]->nlip-1) + 1,
                                 this->input_end_indices_z[i] * (this->input_grids[i]->axis[Z_]->nlip-1) + 1  };
@@ -320,7 +319,6 @@ void GBFMMPotentialOperator::calculateMultipoleMoments(CudaCube *input_cube) {
     for (int i = 0; i <= this->domain[1]-this->domain[0]; i++) {
         // evaluate the potential within the box
         this->calculateMultipoleMomentsBox(i, sub_cubes[i]);
-        
     }
     
     // delete the subcubes
@@ -330,6 +328,7 @@ void GBFMMPotentialOperator::calculateMultipoleMoments(CudaCube *input_cube) {
     }
     delete[] sub_cubes;
 }
+
 
 /*
  * Evaluates local expansion at output_cube's points for each of the boxes belonging
@@ -367,7 +366,7 @@ void GBFMMPotentialOperator::evaluatePotentialLE(double *local_expansion, CudaCu
                                this->streamContainers[i]);
         // add the local_expansion pointer to be ready to handle the next box
         local_expansion = &local_expansion[(this->lmax+1)*(this->lmax+1)];
-        //check_errors(__FILE__, __LINE__);
+        // check_errors(__FILE__, __LINE__);
         
     }
     // delete the subcubes

@@ -96,6 +96,8 @@ contains
         type(SCFEnergetics)      :: scf_energetics
         integer                  :: iaction, ierr, provided
         logical                  :: action_success, success, initialized
+write(*,*) 'begin Core_run'
+
 #ifdef BUBBLES_REVISION_NUMBER
         print *, "Bubbles library revision number: ", BUBBLES_REVISION_NUMBER
         flush(6)
@@ -285,9 +287,6 @@ flush(6)
 write(*,*) 'get bub grid'
 flush(6)
         call self%get_bubble_grids(action_, struct, settings, bubble_grids)
-write(*,*) 'after bubble grids'
-flush(6)
-        
                                       
 write(*,*)'get orbs'
 flush(6)
@@ -295,16 +294,11 @@ flush(6)
         call self%get_orbitals(action_, struct, settings, orbital_parallel_info, &
                                electron_density_parallel_info, bubble_grids, &
                                basis_set, orbitals_a, orbitals_b, electron_density)
-write(*,*) 'after get orb'
-flush(6)
-                               
         
 write(*,*)'init core eval'
 flush(6)
         ! init the core evaluator
         core_evaluator = CoreEvaluator(orbitals_a(1))
-write(*,*) 'after get coreeval'
-flush(6)
 
 write(*,*)'init ops'
 flush(6)
@@ -313,8 +307,6 @@ flush(6)
                                  electron_density_parallel_info, &
                                  orbitals_a(1), quadrature, &
                                  coulomb_operator, laplacian_operator, helmholtz_operator)
-write(*,*) 'after init op'
-flush(6)
 
 write(*,*)'init scf'
 flush(6)
@@ -322,9 +314,6 @@ flush(6)
         call SCFCycle_init(settings, struct, basis_set, orbitals_a, orbitals_b, electron_density, &
                            laplacian_operator, coulomb_operator, helmholtz_operator, &
                            core_evaluator, scf_cycle)
-write(*,*) 'after scf init'
-flush(6)
-
         
 write(*,*)'calc nuc pot'
 flush(6)
@@ -780,7 +769,7 @@ flush(6)
         write(*,*)
         write(*,'(&
             &"========================================","'//new_line(" ")//'",&
-            &"===== Function3D grid information =o====","'//new_line(" ")//'",&
+            &"===== Function3D grid information ======","'//new_line(" ")//'",&
             &a)') mould%info()
         call mould%destroy()
         deallocate(mould)

@@ -36,7 +36,7 @@
 #define X_ 0
 #define Y_ 1
 #define Z_ 2
-#define BLOCK_SIZE 512
+#define BLOCK_SIZE 256 // was 512, lnw
 
 __host__ inline void check_helmholtz3d_errors(const char *filename, const int line_number) {
 #ifdef DEBUG_CUDA
@@ -179,7 +179,6 @@ __device__ double GBFMMHelmholtz3D_evaluate_le_point(const double x,
     // set value for l=0, m=0
     double result = 1.0 * bessel_values[0] * local_expansion[lm_address];
     if (r < 1e-12) one_per_r = 0.0;
-    
  
     
     
@@ -777,9 +776,8 @@ void GBFMMHelmholtz3D::evaluatePotentialLEBox(
     double kappa = sqrt(-2.0 * this->energy);
     int *device_memory_shape = output_cube->getDeviceMemoryShape();
     int slice_offset = 0;
-    
-    
-    check_helmholtz3d_errors(__FILE__, __LINE__);
+
+    check_helmholtz3d_errors(__FILE__, __LINE__); // a failure here probably implies a problem in the kernel 60 lines down
 
     // check if we are at the borders of the boxes, that are not the 
     // borders of the global grid
@@ -818,7 +816,7 @@ void GBFMMHelmholtz3D::evaluatePotentialLEBox(
             // upload the expansion
             cudaMemcpyAsync(device_expansion, local_expansion, sizeof(double)*(this->lmax + 1)*(this->lmax +1),
                             cudaMemcpyHostToDevice, *streamContainer->getStream(device, stream));
-            //check_coulomb_errors(__FILE__, __LINE__);
+            // check_errors(__FILE__, __LINE__);
             
             int slice_count = device_slice_count / streamContainer->getStreamsPerDevice() 
                                         + ((device_slice_count % streamContainer->getStreamsPerDevice()) > stream);
@@ -848,7 +846,7 @@ void GBFMMHelmholtz3D::evaluatePotentialLEBox(
                               device_pitch,
                               device_memory_shape[Y_],
                               slice_count);
-            //check_coulomb_errors(__FILE__, __LINE__);
+            // check_errors(__FILE__, __LINE__);
             
             // add the counter with the number of slices handled so far
             slice_offset += slice_count;
@@ -941,6 +939,7 @@ void GBFMMHelmholtz3D::evaluatePotentialLEBox(
         }
     }*/
 }
+
 
 /*************************************************** 
  *              Fortran interfaces                 *

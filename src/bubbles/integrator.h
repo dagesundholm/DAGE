@@ -113,17 +113,17 @@ class Integrator3D : public Integrator {
                           int device_order_number
                          );
          virtual void reduce3D(double *input_data, 
-                       size_t device_pitch,
-                       int device_y_shape, 
-                       int shape[3],
-                       int slice_count,
-                       double *output_data,
-                       unsigned int grid_size,
-                       unsigned int output_size,
-                       unsigned int threads_per_block,
-                       cudaStream_t *stream, 
-                       int slice_offset,
-                       int device_order_number);
+                               size_t device_pitch,
+                               int device_y_shape, 
+                               int shape[3],
+                               int slice_count,
+                               double *output_data,
+                               unsigned int grid_size,
+                               unsigned int output_size,
+                               unsigned int threads_per_block,
+                               cudaStream_t *stream, 
+                               int slice_offset,
+                               int device_order_number);
     public:
         Integrator3D();
         Integrator3D(StreamContainer *streamContainer, Grid3D *grid, int max_number_of_stored_results = 50, bool init_cube = true);

@@ -2535,8 +2535,7 @@ write(*,*) 'end HelmholtzSCFCycle_calculate_electron_density_worker'
                         
                         ! and finally [ij|ji]
                         temp_value = self%temp .dot. pot
-                        call self%set_two_electron_integral_value(i, j, j, i, &
-                                    temp_value) 
+                        call self%set_two_electron_integral_value(i, j, j, i, temp_value) 
                     end do
                 end do
                 
@@ -2573,8 +2572,7 @@ write(*,*) 'end HelmholtzSCFCycle_calculate_electron_density_worker'
                         pot => self%potential2
                         
                         temp_value = self%temp .dot. pot
-                        call self%set_two_electron_integral_value(i, j, j, i, &
-                                    temp_value) 
+                        call self%set_two_electron_integral_value(i, j, j, i, temp_value) 
                     end do
                 end do
             end if
@@ -3725,6 +3723,7 @@ write(*,*) 'end UnRestrictedHelmholtzSCFCycle_update_orbitals'
         real(REAL64), allocatable              :: orthogonalizing_matrix(:, :)
         logical                                :: do_update
 write(*,*) 'begin RHFCycle_calculate_hamiltonian_matrix'
+flush(6)
         
         call bigben%split("Creating Fock matrix")
 
@@ -3733,10 +3732,8 @@ write(*,*) 'begin RHFCycle_calculate_hamiltonian_matrix'
         ! calculate the kinetic energy matrix, nuclear-electron attraction matrix and the overlap matrix
         call self%calculate_one_electron_matrices(evaluate_all)
         
-        
         ! calculate electron density
         call self%calculate_closed_shell_electron_density()
-
 
         ! calculate two electron integrals, do not evaluate all integrals, if we are not diagonalizing,
         ! and thus don't need the off-diagonal values
@@ -3777,6 +3774,7 @@ write(*,*) 'begin RHFCycle_calculate_hamiltonian_matrix'
         ! stop fock matrix creation timing
         call bigben%stop()
 write(*,*) 'end RHFCycle_calculate_hamiltonian_matrix'
+flush(6)
     end subroutine
 
 !--------------------------------------------------------------------!
@@ -4449,6 +4447,7 @@ write(*,*) 'begin RDFTCycle_calculate_orbital_potentials'
         nullify(nuclear_potential)
         call bigben%stop() 
         call memoryfollower_print_status()
+write(*,*) 'end RDFTCycle_calculate_orbital_potentials'
     end subroutine
 
 

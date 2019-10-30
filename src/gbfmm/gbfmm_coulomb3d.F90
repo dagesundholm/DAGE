@@ -680,6 +680,7 @@ contains
         integer                              :: nmpiproc = 1
         integer                              :: iproc = 0
         logical                              :: calculate_bubbles
+write(*,*) 'begin GBFMMCoulomb3D_calculate_potential'
 
         call bigben%split("Calculate GBFMM Coulomb Potential")
         calculate_bubbles = .TRUE.
@@ -810,12 +811,12 @@ contains
         ! do MPI-communication between nodes to communicate the borders between node-domains
         call potential%communicate_cube_borders(reversed_order = .TRUE.)
 
-
         ! precalculate the taylor series bubbles to save some time in future multiplications
         call potential%precalculate_taylor_series_bubbles()
         call bigben%stop()
 
         !print *, "Coulomb potential nearfield time", toc-tic
+write(*,*) 'begin GBFMMCoulomb3D_calculate_potential'
     end subroutine
 
 

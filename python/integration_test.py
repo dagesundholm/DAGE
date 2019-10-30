@@ -34,7 +34,8 @@ import shutil
 class InvalidTestFileException(Exception):
     pass
 
-fortran_interface_tests = {"io_test":\
+fortran_interface_tests = {\
+         "io_test":\
             {"name": "Input/Ouput Test",\
              "fail_message": "Input XML and output XML from Fortran are interpreted differently.",\
              "filename": "{}/integration_test_files/input_files/io_test_input.xml".format(os.getcwd())},
@@ -43,9 +44,13 @@ fortran_interface_tests = {"io_test":\
              "fail_message": "Optimizing electron structure resulted in an unexpected result.",\
              "filename": "{}/integration_test_files/input_files/scf_test_input.xml".format(os.getcwd())},
          "scf_gga_test":\
-            {"name": "SCF Test", \
+            {"name": "SCF GGA Test", \
              "fail_message": "Optimizing electron structure resulted in an unexpected result.",\
              "filename": "{}/integration_test_files/input_files/scf_gga_test_input.xml".format(os.getcwd())},
+         "scf_gbfmm_test":\
+            {"name": "SCF GBFMM Test", \
+             "fail_message": "Optimizing electron structure resulted in an unexpected result.",\
+             "filename": "{}/integration_test_files/input_files/scf_gbfmm_test_input.xml".format(os.getcwd())},
          "scf_atoms_test":\
             {"name": "SCF Test", \
              "fail_message": "Optimizing electron structure resulted in an unexpected result.",\
