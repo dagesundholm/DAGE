@@ -649,9 +649,9 @@ contains
 
         if (present(basis_object)) then
             lobe_basis = LobeBasis(structure_object%coordinates, &
-                                   structure_object%charge, basis_object)
+                                   structure_object%nuclear_charge, basis_object)
         else
-            lobe_basis = LobeBasis(structure_object%coordinates,structure_object%charge)
+            lobe_basis = LobeBasis(structure_object%coordinates,structure_object%nuclear_charge)
         end if
 
         print *, 'lobe_basis done'
@@ -1900,15 +1900,12 @@ basis_object%exponentials(iexp,j), positions(:,i)  )
         real(REAL64), allocatable  :: c1(:,:),c1old(:,:)
         real(REAL64)               :: cdelta
 
-
         if(present(imaxin)) then
             imax = imaxin
         else
             ! 10 iterations should be enough
             imax = 10
         end if
-
-print *, 'nocc', nocc
 
         ! init
         overlap_matrix = basis%calculate_overlap_matrix()
@@ -2277,7 +2274,7 @@ print *, 'c1 delta', cdelta
         allocate(orbitals(norbitals))
 
         basis_ = SolidGaussianBasis(structure_object%coordinates,&  
-                                   structure_object%charge, basis_object)
+                                   structure_object%nuclear_charge, basis_object)
 
         !call basis_%normalize()
         print *, 'basis generator done'

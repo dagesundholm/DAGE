@@ -35,7 +35,7 @@
 
 __host__ inline void check_grid_errors(const char *filename, const int line_number) {
 #ifdef DEBUG_CUDA
-    cudaThreadSynchronize();
+    cudaDeviceSynchronize();
     cudaError_t error = cudaGetLastError();
     if(error != cudaSuccess)
     {
@@ -54,10 +54,11 @@ Grid1D::Grid1D() {
 }
 
 
-Grid1D::Grid1D(int ncell, int nlip, double r_max, double *h, double *d, double *gridpoints, double *lip, double *derivative_lip, double *lower_derivative_lip, double *base_integrals, StreamContainer *streamContainer, bool init_device_memory) {
+Grid1D::Grid1D(int ncell, int nlip, double r_max, double *h, double *d, int grid_type, double *gridpoints, double *lip, double *derivative_lip, double *lower_derivative_lip, double *base_integrals, StreamContainer *streamContainer, bool init_device_memory) {
     this->ncell = ncell;
     this->nlip = nlip;
     this->r_max = r_max;
+    this->grid_type = grid_type;
     this->streamContainer = streamContainer;
     // allocate space for device pointers
     this->device_h = new double*[streamContainer->getNumberOfDevices()];
@@ -157,19 +158,19 @@ void Grid1D::upload() {
     
     for (int device = 0; device < this->streamContainer->getNumberOfDevices(); device ++) {
         streamContainer->setDevice(device);
-        
+
         // get the preallocated device pointers
         device_h = this->device_h[device];
         device_d = this->device_d[device];
         device_gridpoints = this->device_gridpoints[device];
         device_integrals = this->device_integrals[device];
-        
+
         // NOTE: for all devices the first pointer points to  the first value of each array
         host_h = this->h;
         host_d = this->d;
         host_gridpoints = this->gridpoints;
         host_integrals = this->integrals;
-        
+
         // upload the lip to the device
         cudaMemcpyAsync(this->device_lip[device], this->lip, sizeof(double)*(this->nlip)*(this->nlip), cudaMemcpyHostToDevice, *this->streamContainer->getStream(device, 0));
         cudaMemcpyAsync(this->device_derivative_lip[device], this->derivative_lip, sizeof(double)*(this->nlip)*(this->nlip-1), cudaMemcpyHostToDevice, *this->streamContainer->getStream(device, 0));
@@ -210,7 +211,7 @@ void Grid1D::upload() {
 
 Grid1D *Grid1D::getSubGrid(int start_cell_index, int end_cell_index, StreamContainer *streamContainer) {
     Grid1D *subgrid = new Grid1D(end_cell_index-start_cell_index, this->nlip, this->r_max, &this->h[start_cell_index],
-                 &this->d[start_cell_index], &this->gridpoints[start_cell_index*(this->nlip-1)],
+                 &this->d[start_cell_index], this->grid_type, &this->gridpoints[start_cell_index*(this->nlip-1)],
                  this->lip, this->derivative_lip, this->lower_derivative_lip, this->base_integrals, streamContainer, false);
     subgrid->is_subgrid = true;
     double *host_integrals = subgrid->integrals;
@@ -494,8 +495,8 @@ int Grid3D::getShape(int axis) {
  *                                                 *
  ***************************************************/
 
-extern "C" Grid1D *grid1d_init_cuda(int ncell, int nlip, double r_max, double *h, double *d, double *gridpoints, double *lip, double *derivative_lip, double *lower_derivative_lip, double *base_integrals, StreamContainer *streamContainer) {
-    Grid1D *new_grid = new Grid1D(ncell, nlip, r_max, h, d, gridpoints, lip, derivative_lip, lower_derivative_lip, base_integrals, streamContainer);
+extern "C" Grid1D *grid1d_init_cuda(int ncell, int nlip, double r_max, double *h, double *d, int grid_type, double *gridpoints, double *lip, double *derivative_lip, double *lower_derivative_lip, double *base_integrals, StreamContainer *streamContainer) {
+    Grid1D *new_grid = new Grid1D(ncell, nlip, r_max, h, d, grid_type, gridpoints, lip, derivative_lip, lower_derivative_lip, base_integrals, streamContainer);
     return new_grid;
 }
 

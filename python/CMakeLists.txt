@@ -20,7 +20,7 @@
 #    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE #
 #    SOFTWARE.                                                                     #
 #----------------------------------------------------------------------------------# 
-get_filename_component(PYTHON_NAME ${PYTHON_EXECUTABLE} NAME)
+get_filename_component(PYTHON_NAME ${Python3_EXECUTABLE} NAME)
 install(FILES generate_objects.py input_reader.py integration_test.py input_parameters.xml __init__.py DESTINATION
     lib/${PYTHON_NAME}/site-packages/dage COMPONENT dage)
 install(DIRECTORY integration_test_files DESTINATION

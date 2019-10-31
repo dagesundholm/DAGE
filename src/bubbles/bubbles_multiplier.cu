@@ -33,7 +33,7 @@
 
 __host__ inline void check_multiplier_errors(const char *filename, const int line_number) {
 #ifdef CUDA_DEBUG
-    cudaThreadSynchronize();
+    cudaDeviceSynchronize();
 #endif
     cudaError_t error = cudaGetLastError();
     if(error != cudaSuccess)
@@ -73,6 +73,7 @@ __global__ void Bubble_product_kernel(Bubble *bubble, Bubble *bubble1, Bubble *r
     const int nmax0 = (lmax0 +1) * (lmax0+1), nmax1 = (lmax1 +1) * (lmax1+1);
     double value, value1, value12, value2;
     if (id < max_id) {
+        // printf("begin b1[0], b2[0], br[0]: %f, %f, %f\n", bubble->f[0], bubble1->f[0], result_bubble->f[0]);
         // go through all l, m values of input bubble 'bubble'
         for (lm_counter = 0; lm_counter < nmax0; lm_counter++) {
             // get the value for the point 'index' for 'bubble' with current l, m values
@@ -94,6 +95,7 @@ __global__ void Bubble_product_kernel(Bubble *bubble, Bubble *bubble1, Bubble *r
                          
             }
         }
+        // printf("end b1[0], b2[0], br[0]: %f, %f, %f\n", bubble->f[0], bubble1->f[0], result_bubble->f[0]);
     }
 }
 
@@ -211,12 +213,14 @@ void BubblesMultiplier::multiplyBubble(int ibub, Bubbles* bubbles1, Bubbles* bub
             
             int grid_size = (stream_point_count + block_size - 1) / block_size;
             // call the kernel
+            // printf("before b1[0], b2[0], br[0]: %f, %f, %f\n", bubbles1->getBubble(ibub)->f[0], bubbles2->getBubble(ibub)->f[0], result_bubbles->getBubble(ibub)->f[0]);
             Bubble_product_kernel <<<grid_size, block_size, 0, *this->streamContainer->getStream(device, stream)>>> 
                 (bubbles1->getBubble(ibub)->device_copies[device], bubbles2->getBubble(ibub)->device_copies[device], 
                  result_bubbles->getBubble(ibub)->device_copies[device], this->device_coefficients[device],
                  this->device_number_of_terms[device], this->device_result_lm[device], this->device_positions[device], offset, stream_point_count, 
                  bubbles1->getBubble(ibub)->device_f_pitch[device], factor);
             check_multiplier_errors(__FILE__, __LINE__);
+            // printf("after b1[0], b2[0], br[0]: %f, %f, %f\n", bubbles1->getBubble(ibub)->f[0], bubbles2->getBubble(ibub)->f[0], result_bubbles->getBubble(ibub)->f[0]);
 
             // increase the offset for the next calls.
             offset += stream_point_count;
@@ -278,7 +282,6 @@ void BubblesMultiplier::multiplyBubble(int ibub, double *bubble1_bf, double *bub
         bubble2->add(taylor_bubble2);
         check_multiplier_errors(__FILE__, __LINE__);
     }
-    
     
     // multiply the bubble1 with bubble2
     this->multiplyBubble(ibub, this->bubbles1, this->bubbles2, this->result_bubbles, 1.0);

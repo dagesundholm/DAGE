@@ -37,11 +37,10 @@
 #define TERM_COUNT 10
 #define MAX_TERM_COUNT 300
 
-#define PI_ 3.14159265358979323846
 
 __host__ inline void check_bessels_errors(const char *filename, const int line_number) {
 #ifdef CUDA_DEBUG
-    cudaThreadSynchronize();
+    cudaDeviceSynchronize();
     cudaError_t error = cudaGetLastError();
     if(error != cudaSuccess)
     {
@@ -109,7 +108,7 @@ __device__ double SecondModSphBesselCollection_evaluate_small(const double z, co
         reslt += pow((0.5 * pow(z, 2)), i) / ( fact_i ) *
                      (prefactor1 / ((double)divider) - prefactor2 / ( (double)divider2 ) );
     }
-    reslt *= PI_/2.0 * pow(-1.0, n+1);
+    reslt *= M_PI/2.0 * pow(-1.0, n+1);
     return reslt;
 }
 

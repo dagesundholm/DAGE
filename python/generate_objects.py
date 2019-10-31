@@ -187,11 +187,11 @@ class SettingsGenerator(object):
             lines.append("    type :: {} ".format(main_class_name))
             lines.extend(main_type_lines)
             lines.append("    end type")
-             
+
         return lines
-    
-    
-    
+
+
+
     def generate_input_type(self, definition_tag_name, template):
         """ 
             Generates Fortran90 source code lines for an input type.
@@ -236,11 +236,9 @@ class SettingsGenerator(object):
               
              
              
-        return lines        
-    
-    
-    
-    
+        return lines
+
+
     def get_all_interface_parameter_lines(self):
         
         tags = [self.root]
@@ -272,6 +270,7 @@ class SettingsGenerator(object):
         
         return lines
             
+
     def get_interface_header_lines(self):
         
         lines = []
@@ -478,7 +477,7 @@ class SettingsGenerator(object):
         result = True
         if not (parameter_type.startswith('bool') or parameter_type.startswith('double') or parameter_type.startswith('float') or parameter_type.startswith('int') or parameter_type.startswith('string')):
             result = False
-            print "parameter type: ", parameter_type
+            print("parameter type: ", parameter_type)
             if errors is not None:
                 errors.append("Error: <parameter> -tag with name '{}' has invalid 'type': '{}'. Allowed types are 'bool', 'int', 'float', 'double', 'string' and corresponding array types 'bool[]', 'int[]', 'float[]', 'double[]' and 'string[]'.".format(parameter_name, parameter_type))
         return result
@@ -535,7 +534,7 @@ class SettingsGenerator(object):
                     elif data_type.startswith('string'):
                         lines.append(SettingsGenerator.get_string_line(parameter, name, is_in_subclass))
                     else:
-                        print "parameter type", data_type
+                        print("parameter type", data_type)
                         sys.exit("Error: <parameter> -tag with name '{}' has invalid 'type': '{}'. Allowed types are 'bool', 'int', 'float', 'double', 'string' and corresponding array types 'bool[]', 'int[]', 'float[]', 'double[]' and 'string[]'.".format(name, data_type))
                 else:
                     sys.exit("Error: <parameter> -tags must have attribute 'type'")
@@ -569,7 +568,7 @@ class SettingsGenerator(object):
             else:
                 lines.append("{}!! {}".format(indent, line))
         else:
-            print "Warning: tag of type '{}' with name '{}' does not have a comment. Having a comment is highly recommended.".format(tag.tag, name)
+            print("Warning: tag of type '{}' with name '{}' does not have a comment. Having a comment is highly recommended.".format(tag.tag, name))
         return lines
             
    
@@ -592,7 +591,7 @@ class SettingsGenerator(object):
                     default_value = '.FALSE.'
             else:
                 default_value = '.FALSE.'
-                print "Warning: parameter with name '{}' does not have default value.".format(name)
+                print("Warning: parameter with name '{}' does not have default value.".format(name))
                 
             return "        logical              :: {} = {}".format(name, default_value)
     
@@ -615,7 +614,7 @@ class SettingsGenerator(object):
                     sys.exit('Error: <parameter> with type int and name "{}" has invalid default value: {}'.format(name, parameter.attrib['default']))
             else:
                 default_value = '0'
-                print "Warning: parameter with name '{}' does not have default value.".format(name)
+                print("Warning: parameter with name '{}' does not have default value.".format(name))
                 
             
             return "        integer                   :: {} = {}".format(name, default_value)
@@ -639,7 +638,7 @@ class SettingsGenerator(object):
                     sys.exit('Error: <parameter> with type float and name "{}" has invalid default value: {}'.format(name, parameter.attrib['default']))
             else:
                 default_value = '0.0'
-                print "Warning: parameter with name '{}' does not have default value.".format(name)
+                print("Warning: parameter with name '{}' does not have default value.".format(name))
                 
             return "        real(REAL64)              :: {0} = {1:.10f}".format(name, default_value)
     
@@ -662,7 +661,7 @@ class SettingsGenerator(object):
                     sys.exit('Error: <parameter> with type double and name "{}" has invalid default value: {}'.format(name, parameter.attrib['default']))
             else:
                 default_value = '0.0d0'
-                print "Warning: parameter with name '{}' does not have default value.".format(name)
+                print("Warning: parameter with name '{}' does not have default value.".format(name))
             
             return "        real(REAL64)              :: {0} = {1:.10f}d0".format(name, default_value)
     
@@ -685,7 +684,7 @@ class SettingsGenerator(object):
                     sys.exit('Error: <parameter> with type string and name "{}" has invalid default value: {}'.format(name, parameter.attrib['default']))
             else:
                 default_value = ''
-                print "Warning: parameter with name '{}' does not have default value.".format(name)
+                print("Warning: parameter with name '{}' does not have default value.".format(name))
                 
             return "        character*256              :: {} = \"{}\"".format(name, default_value)
     
@@ -821,7 +820,7 @@ class SettingsGenerator(object):
     def get_auto_generated_lines():
         lines = []
         lines.append("!    NOTE: This file is automatically generated by the python program              !")
-        lines.append("!    'generate objects.py'. DO NOT MODIFY THIS FILE manually. To change            !")
+        lines.append("!    'generate_objects.py'. DO NOT MODIFY THIS FILE manually. To change            !")
         lines.append("!    the contents of this file, edit the input_parameters.xml file and run         !")
         lines.append("!    'python generate_objects.py' in the 'python/' folder.                         !")
         return lines

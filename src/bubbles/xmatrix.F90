@@ -255,13 +255,14 @@ contains
     !!
     !! @returns The matrix @f$\mathbf{A}^{-1}: \mathbf{A}^{-1}\mathbf{A} = \mathbf{I} @f$. 
     function matrix_inverse(a) result(b)
+        implicit none
         real(REAL64), intent(in) :: a(:,:)
-        real(REAL64) :: b(size(a,1),size(a,2))
+        real(REAL64)             :: b(size(a,1), size(a,2))
 
 #ifdef HAVE_LAPACK
-        integer(INT32) :: n
-        integer :: ipiv(size(a,1)), info
-        real(REAL64) :: wrk(size(a,1)**2)
+        integer(INT32)           :: n
+        integer                  :: ipiv(size(a,1)), info
+        real(REAL64)             :: wrk(size(a,1)**2)
 
         n=size(a,1)
         b=a
@@ -348,11 +349,8 @@ contains
         ! the eigenvalues go to e
         e=alphar/beta
 
-
-
         t2=minloc(e,rank(e))
         write(*,*) 'minloc: ',t2, 'size',shape(t2)
-
 
     end subroutine
 

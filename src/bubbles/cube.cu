@@ -58,7 +58,8 @@ int getGlobalIdx_1D_3D()
         + threadIdx.y * blockDim.x + threadIdx.x;
 }
 
-__device__ inline void getXYZ3D(int *x, int *y, int *z) {
+__device__ inline
+void getXYZ3D(int *x, int *y, int *z) {
     *x = blockIdx.x * blockDim.x + threadIdx.x;
     *y = blockIdx.y * blockDim.y + threadIdx.y;
     *z = blockIdx.z * blockDim.z + threadIdx.z;
@@ -93,7 +94,7 @@ __global__ void sum_3d(double*       __restrict__ cube1, const int cube1_shape_x
     }
 }
 
-__global__ void sum_3d_with_factor(double*       __restrict__ cube1, const int cube1_shape_x, const int cube1_shape_y, const int cube1_memory_shape_y, const size_t cube1_pitch,
+__global__ void sum_3d_with_factor(double* __restrict__ cube1, const int cube1_shape_x, const int cube1_shape_y, const int cube1_memory_shape_y, const size_t cube1_pitch,
                        const double* __restrict__ cube2, const int cube2_shape_x, const int cube2_shape_y, const int cube2_memory_shape_y, const size_t cube2_pitch,
                        const int slice_count, const double factor
                       ) {
@@ -226,7 +227,7 @@ void CudaCube::getLaunchConfiguration(dim3 *grid, dim3 *block, int slice_count, 
     grid->x = this->getShape(0)/32 + ((this->getShape(0) % 32) > 0);
     grid->y = this->getShape(1)/block->y + ((this->getShape(1) % block->y) > 0);
     grid->z = slice_count;
-    //printf("Grid: %d, %d, %d, Block: %d, %d, %d\n", grid->x, grid->y, grid->z, block->x, block->y, block->z);
+    // printf("Grid: %d, %d, %d, Block: %d, %d, %d\n", grid->x, grid->y, grid->z, block->x, block->y, block->z);
 }
 
 

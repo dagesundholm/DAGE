@@ -1,15 +1,15 @@
 <?xml version="1.0"?>
-<settings name="settings_0.07" >
+<settings name="settings_0.05" >
     <function3d_settings taylor_order="2" bubble_cutoff_radius="14.0" cube_nlip="7" cube_grid_type="2" bubbles_grid_type="1">
         <bubble_cell_count>1500</bubble_cell_count>
-        <cube_grid_spacing>0.07</cube_grid_spacing>
+        <cube_grid_spacing>0.05</cube_grid_spacing>
         <bubble_lmax>3</bubble_lmax>
         <cube_cutoff_radius>7.00</cube_cutoff_radius>
-<!--        <bubbles_center_offset>2.5, 2.5, -2.2</bubbles_center_offset>    -->
+<!--        <bubbles_center_offset>2.5, 2.5, -2.2</bubbles_center_offset>   -->
     </function3d_settings>
     <coulomb3d_settings gbfmm="false" />
     <helmholtz3d_settings gbfmm="false" />
     <quadrature_settings nlin="20" nlog="16" tlin="2.0" tlog="500.0" />
     <scfoptimizer_settings maximum_iterations="200" optimizer_type="power-method"
-                           total_energy_convergence_threshold="0.0000001" /> 
+                           total_energy_convergence_threshold="0.0000001" />
 </settings>

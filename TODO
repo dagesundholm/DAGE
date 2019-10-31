@@ -1,0 +1,24 @@
+
+
+-- the currently used initial guess is annoying and poor: One inputs a number
+of MOs expanded in the chosen atom centred basis set in the structure
+definition.  Default is coeffs of zero and one, which is extremely poor for
+almost all structures.
+
+There is some functionality coded in initial_guess.F90 but it seems not to be
+used at the moment.
+
+Implementing something Hueckel-like or h1 would be an obvious first choice.
+
+
+-- there ought to be some early input sanitation, which checks if all files are
+there, have been readable, and if the combinations of chosen parameters are a)
+implemented and b) scientifically make sense
+
+
+-- print the complete set of input parameters
+
+-- ROHF is missing
+
+-- URDFT and RODFT are missing
+

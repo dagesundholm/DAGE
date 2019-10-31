@@ -92,7 +92,9 @@ module GaussGenerator_class
         !> Step of the default generated grid.
         real(REAL64)                :: step=0.2d0
         !> Number of LIP points of the default generated grid.
-        integer                     :: nlip=7
+        integer(int32)              :: nlip=7
+        !> grid_type. 1: eq, 2: Gauss Lobatto
+        integer(int32)              :: grid_type = 2
         !> Maximum value of each individual Gaussian shell at the edges
         !! of the default generated grid.
         real(REAL64)                :: thres=1.d-12
@@ -270,10 +272,12 @@ contains
         extent=sqrt( log(abs(self%q)*(self%alpha/PI)**1.5d0 / self%thres) / &
                       self%alpha )
 
-        cubegrid=Grid3D(centers= self%center,&
-                        radii  = extent,&
-                        step   = self%step,&
-                        nlip   = self%nlip )
+        write(*,*) 'using gridtype in slater-gen, used for cube '
+        cubegrid=Grid3D(centers   = self%center, &
+                        radii     = extent, &
+                        step      = self%step, &
+                        nlip      = self%nlip, &
+                        grid_type = self%grid_type )
     end function
 
     !> Returns a test charge density consisting of Gaussian functions.
@@ -565,7 +569,7 @@ contains
     !! step and nlip.
     function GaussBubblesGenerator_gen_cubegrid(self) result(cubegrid)
         class(GaussBubblesGenerator), intent(in)  :: self
-        type(Grid3D)                        :: cubegrid
+        type(Grid3D)                              :: cubegrid
 
         integer      :: ncell(3)
         real(REAL64) :: box(2,3)
@@ -580,10 +584,12 @@ contains
 !        extent=[ (maxval(extent, mask=(self%ibub==i) ), i=1,size(self%z) )]
         extent=[ (EXT, i=1,size(self%q) )]
 
-        cubegrid=Grid3D(centers= self%center,&
-                        radii  = extent,&
-                        step   = self%step,&
-                        nlip   = self%nlip )
+        write(*,*) 'using gridtype in slater-gen, used for cube '
+        cubegrid=Grid3D(centers   = self%center, &
+                        radii     = extent, &
+                        step      = self%step, &
+                        nlip      = self%nlip, &
+                        grid_type = self%grid_type)
     end function
 
 end module

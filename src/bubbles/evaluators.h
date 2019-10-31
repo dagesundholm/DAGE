@@ -33,7 +33,7 @@ class Evaluator  {
         StreamContainer *streamContainer;
     public:
         virtual void evaluatePoints(Points *result_points, Points *gradient_points_x  = NULL, Points *gradient_points_y  = NULL, Points *gradient_points_z = NULL, int gradient_direction =  3) = 0;
-        virtual void evaluateGrid(Grid3D *grid, CudaCube *result_cube, CudaCube *gradient_cube_x = NULL, CudaCube *gradient_cube_y = NULL, CudaCube *gradient_cube_z = NULL, int gradient_direction = 3) = 0;
+        virtual void evaluateGrid(Grid3D *grid, CudaCube *result_cube, CudaCube *gradient_cube_x = NULL, CudaCube *gradient_cube_y = NULL, CudaCube *gradient_cube_z = NULL, int gradient_direction = 3, int fin_diff_ord = 0) = 0;
         virtual void destroy() = 0;
 };
 
@@ -44,7 +44,7 @@ class BubblesEvaluator : public Evaluator {
         BubblesEvaluator(StreamContainer *streamContainer);
         void setBubbles(Bubbles *bubbles);
         void evaluatePoints(Points *result_points, Points *gradient_points_x  = NULL, Points *gradient_points_y  = NULL, Points *gradient_points_z = NULL, int gradient_direction =  3);
-        void evaluateGrid(Grid3D *grid, CudaCube *result_cube, CudaCube *gradient_cube_x = NULL, CudaCube *gradient_cube_y = NULL, CudaCube *gradient_cube_z = NULL, int gradient_direction = 3);
+		void evaluateGrid(Grid3D *grid, CudaCube *result_cube, CudaCube *gradient_cube_x = NULL, CudaCube *gradient_cube_y = NULL, CudaCube *gradient_cube_z = NULL, int gradient_direction = 3, int fin_diff_ord = 0);
         void destroy();
 };
 
@@ -57,7 +57,7 @@ class CubeEvaluator : public Evaluator {
         void setInputCube(CudaCube *input_cube);
         void setInputGrid(Grid3D *grid);
         void evaluatePoints(Points *result_points, Points *gradient_points_x  = NULL, Points *gradient_points_y  = NULL, Points *gradient_points_z = NULL, int gradient_direction =  3);
-        void evaluateGrid(Grid3D *grid, CudaCube *result_cube, CudaCube *gradient_cube_x = NULL, CudaCube *gradient_cube_y = NULL, CudaCube *gradient_cube_z = NULL, int gradient_direction = 3);
+		void evaluateGrid(Grid3D *grid, CudaCube *result_cube, CudaCube *gradient_cube_x = NULL, CudaCube *gradient_cube_y = NULL, CudaCube *gradient_cube_z = NULL, int gradient_direction = 3, int fin_diff_ord = 0);
         void destroy();
 };
 #endif

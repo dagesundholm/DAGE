@@ -45,7 +45,7 @@ module LCAO_m
     public :: mocoeffs_read
     public :: assignment(=)
 
-        
+
     type :: Basis
         !> Determines if the basis set is of slater type (=1) or of gaussian type  (=2) or of bubbles type (=3)
         integer              :: basis_set_type
@@ -77,7 +77,7 @@ module LCAO_m
         procedure            :: make_lcao_mos => Basis_make_lcao_mos
         procedure            :: make_basis_functions     => Basis_make_basis_functions
         procedure            :: make_basis_functions_gto => Basis_make_basis_functions_gto
-        procedure            :: evaluate_radial_function => Basis_evaluate_radial_function 
+        procedure            :: evaluate_radial_function => Basis_evaluate_radial_function
         procedure, private   :: init_basis_functions         => Basis_init_basis_functions
         procedure, private   :: get_total_number_of_basis_functions &
                                                          => Basis_get_total_number_of_basis_functions
@@ -87,19 +87,21 @@ module LCAO_m
     end type
 
 
-    !> Nuclear coordinates and atom type indeces
+    !> Nuclear coordinates and atom type indices
     type :: Structure
         !> Atom type id
         integer,      allocatable :: atom_type(:)
         !> Atomic number
-        real(REAL64), allocatable :: charge(:)
+        real(REAL64), allocatable :: nuclear_charge(:)
+        !> Sum of all nuclear and electronic charges
+        real(REAL64)              :: system_charge
         !> Indeces of the ignored basis functions for each atom
         integer, allocatable      :: ignored_basis_functions(:, :)
         !> The number of basis functions taken into account
         integer, allocatable      :: number_of_basis_functions(:)
         !> Nuclear positions
         real(REAL64), allocatable :: coordinates(:,:)
-        !> Molecular orbital coefficients 
+        !> Molecular orbital coefficients
         real(REAL64), allocatable :: orbital_coefficients(:, :)
         !> Molecular orbital spins: 0: a, 1: b
         integer,      allocatable :: orbital_spin(:)
@@ -141,10 +143,11 @@ module LCAO_m
         module procedure :: Structure_init_read
     end interface
 contains
+
+
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !%    Basis                                                               %
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
     function Basis_evaluate_radial_function(self, ishell, isubshell, r) result(radial_function)
         class(Basis), intent(in)  :: self
         integer,      intent(in)  :: ishell
@@ -169,15 +172,15 @@ contains
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !%   Structure                                                                  %
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    function Structure_init_explicit(atom_type, charge, coordinates) result(new)
+    function Structure_init_explicit(atom_type, nuclear_charge, coordinates) result(new)
         integer,      intent(in) :: atom_type(:)
-        real(REAL64), intent(in) :: charge     (size(atom_type))
+        real(REAL64), intent(in) :: nuclear_charge(size(atom_type))
         real(REAL64), intent(in) :: coordinates(3,size(atom_type))
         type(Structure)           :: new
   
-        new%atom_type=atom_type
-        new%charge        =charge
-        new%coordinates   =coordinates
+        new%atom_type      = atom_type
+        new%nuclear_charge = nuclear_charge
+        new%coordinates    = coordinates
     end function
 
     !> Initialize Structure from file.
@@ -203,11 +206,11 @@ contains
         integer                  :: iatom
 
         read(coords_fd,*) natoms
-        allocate(new%atom_type  (natoms))
-        allocate(new%charge     (natoms))
+        allocate(new%atom_type(natoms))
+        allocate(new%nuclear_charge(natoms))
         allocate(new%coordinates(3, natoms))
         do iatom=1,natoms
-            read(coords_fd,*) new%atom_type(iatom), new%charge(iatom), new%coordinates(:,iatom)
+            read(coords_fd,*) new%atom_type(iatom), new%nuclear_charge(iatom), new%coordinates(:,iatom)
         end do
     end function
 
@@ -261,6 +264,7 @@ contains
         end do
     end function
 
+
     !> Return the orbital coefficients for orbitals with specified spin (0: a, 1: b)
     function Structure_get_orbital_coefficients(self, basis_object, spin) result(orbital_coefficients)
         class(Structure), intent(in) :: self
@@ -279,6 +283,13 @@ contains
         ! get the total number of basis functions in the calculation
         number_of_basis_functions = basis_object%get_total_number_of_basis_functions(self)
 
+        if(number_of_orbitals > number_of_basis_functions) then
+          write(*,*) 'You have specified ', number_of_orbitals, ' MOs, but there are only ', &
+                     number_of_basis_functions, 'basis functions. Exiting ...'
+          flush(6)
+          call abort()
+        endif
+
         allocate(orbital_coefficients(number_of_basis_functions, number_of_basis_functions), &
                  source = 0.0d0)
         ! go through all orbitals and store the ones with spin == 'spin' 
@@ -290,13 +301,14 @@ contains
                 j = j + 1
             end if
         end do
-        
+
         ! create default coefficients for the orbitals that do not have given coefficients
         do i = j, number_of_basis_functions
             orbital_coefficients(:, i) = 0.0d0
             orbital_coefficients(i, i) = 1.0d0
         end do
     end function
+
 
     pure function Structure_get_atom_type_order_number(self, atom_number) result(atom_type)
         class(Structure), intent(in) :: self
@@ -370,7 +382,7 @@ contains
         
         do i = 1, size(self%atom_type)
             write(file_descriptor, '("    <atom atom_type=""",i0,""" charge=""",f7.4,""" ")', advance='no') &
-                self%atom_type(i), self%charge(i)
+                self%atom_type(i), self%nuclear_charge(i)
                 
             ! write the ignored basis functions
             do j = 1, size(self%ignored_basis_functions, 1)
@@ -447,13 +459,13 @@ contains
     
     pure subroutine Structure_destroy(self)
         class(Structure), intent(inout) :: self
-        if (allocated(self%atom_type))  deallocate(self%atom_type)
-        if (allocated(self%charge))      deallocate(self%charge)
-        if (allocated(self%coordinates)) deallocate(self%coordinates)
+        if (allocated(self%atom_type))      deallocate(self%atom_type)
+        if (allocated(self%nuclear_charge)) deallocate(self%nuclear_charge)
+        if (allocated(self%coordinates))    deallocate(self%coordinates)
     end subroutine
 
 
-    function Structure_make_cubegrid(self, step, radius, nlip) result(cubegrid)
+    function Structure_make_cubegrid(self, step, radius, nlip, grid_type) result(cubegrid)
         class(Structure),     intent(in)                :: self
         !> Step of the cube grid in \f$\mathrm{a}_0\f$.
         !! Recommended value: 0.1 a0.
@@ -463,17 +475,20 @@ contains
         real(REAL64),      intent(in)                   :: radius
         !> Number of Lagrange interpolation polynomials used
         integer,           intent(in)                   :: nlip
+        integer,           intent(in)                   :: grid_type
         type(Grid3D)                                    :: cubegrid
         integer                                         :: iatom
 
-        cubegrid=Grid3D(centers = self%coordinates,&
-                        radii   = [( radius, iatom=1,self%get_natoms() )],&
-                        step    = step,&
-                        nlip    = nlip, &
-                        gbfmm   = .TRUE. )
+        ! Grid3D_init_spheres
+        cubegrid=Grid3D(centers   = self%coordinates,&
+                        radii     = [( radius, iatom=1,self%get_natoms() )],&
+                        step      = step,&
+                        nlip      = nlip, &
+                        grid_type = grid_type, &
+                        gbfmm     = .TRUE. )
     end function
 
-    subroutine Structure_make_bubblegrids(self, grids, n0, cutoff, nlip)
+    subroutine Structure_make_bubblegrids(self, grids, n0, cutoff, nlip, grid_type)
         class(Structure),          intent(in)    :: self
         !> The array of grids that is allocated and initialized in this subroutine
         type(Grid1D), allocatable, intent(inout) :: grids(:)
@@ -485,17 +500,18 @@ contains
         real(REAL64),              intent(in)    :: cutoff
         !> Number of Lagrange interpolation polynomials used
         integer,                   intent(in)    :: nlip
+        integer,                   intent(in)    :: grid_type
         integer                                  :: iatom
 
         allocate(grids(self%get_natoms()))
         do iatom = 1, self%get_natoms()
-            grids(iatom) = Grid1D(self%charge(iatom), n0, nlip, cutoff)
+            grids(iatom) = Grid1D(self%nuclear_charge(iatom), n0, nlip, cutoff, grid_type)
         end do
     end subroutine
 
     
 
-    !> Construct a dummy Function3D instace adequeate to represent orbitals
+    !> Construct a dummy Function3D instance adequate to represent orbitals
     !! etc. for this structure.
     function Structure_make_f3d_mould(self, step, lmax, bubble_grids, parallelization_info, &
                                       taylor_series_order, bubbles_center_offset) result(mould)
@@ -519,52 +535,53 @@ contains
         real(REAL64),     allocatable :: centers(:, :)
         type(Grid1D)                  :: bubbles_grids(self%get_natoms())
         type(Bubbles)                 :: bubs
-        type(Grid1DPointer)            :: bubble_grid_pointers(self%get_natoms())
+        type(Grid1DPointer)           :: bubble_grid_pointers(self%get_natoms())
         real(REAL64)                  :: center_modulos(3, self%get_natoms()), adjust(3)
         type(Grid3D), pointer         :: global_grid
-        real(REAL64), pointer         :: cell_steps(:)
+        real(REAL64), pointer         :: cell_scales(:)
 
         integer                       :: iatom, i
-       
+
+! functionality to shift the whole structure such that atoms have maximum
+! distance from the cell boundaries
         global_grid => parallelization_info%get_global_grid()
         do iatom = 1, self%get_natoms()
             bubble_grid_pointers(iatom)%p => bubble_grids(iatom)
-            center_modulos(:, iatom) = &
-                global_grid%coordinates_to_grid_point_coordinates(self%coordinates(:, iatom))
+            center_modulos(:, iatom) = global_grid%coordinates_to_grid_point_coordinates(self%coordinates(:, iatom))
             center_modulos(:, iatom) = modulo(center_modulos(:, iatom), 1.0d0)
         end do
+! automatic shift
+#if 0
         do i = X_, Z_
             !print *, i, 1.0d0 - maxval(center_modulos(i, :)),  minval(center_modulos(i, :))
             adjust(i) = &
                 max((1.0d0 - maxval(center_modulos(i, :)) - minval(center_modulos(i, :))) / 2.0d0, &
-                             maxval(center_modulos(i, :)  - minval(center_modulos(i, :))) / 2.0d0)
+                    (        maxval(center_modulos(i, :)) - minval(center_modulos(i, :))) / 2.0d0)
             !if (abs(maxval(center_modulos(i, :)) - minval(center_modulos(i, :))) < 0.10d0) then
             !    adjust(i) = adjust(i) - 0.15d0
             !end if
         end do
-        !adjust(X_) = 2.5d0
-        !adjust(Y_) = 2.5d0!1.5d0
-        !adjust(Z_) = -2.20d0!1.2d0 ! adjust(Z_) + 2.0d0
+! user input shift
+#else
         adjust = bubbles_center_offset
-        !adjust = 0.0d0
+#endif
 
         centers = self%coordinates
-        cell_steps => global_grid%axis(X_)%get_cell_steps()
-        centers(X_, :) = centers(X_, :) + adjust(X_) * cell_steps(1)
-        cell_steps => global_grid%axis(Y_)%get_cell_steps()
-        centers(Y_, :) = centers(Y_, :) + adjust(Y_) * cell_steps(1)
-        cell_steps => global_grid%axis(Z_)%get_cell_steps()
-        centers(Z_, :) = centers(Z_, :) + adjust(Z_) * cell_steps(1)
+        cell_scales => global_grid%axis(X_)%get_cell_scales()
+        centers(X_, :) = centers(X_, :) + adjust(X_) * cell_scales(1)
+        cell_scales => global_grid%axis(Y_)%get_cell_scales()
+        centers(Y_, :) = centers(Y_, :) + adjust(Y_) * cell_scales(1)
+        cell_scales => global_grid%axis(Z_)%get_cell_scales()
+        centers(Z_, :) = centers(Z_, :) + adjust(Z_) * cell_scales(1)
      
-        
         bubs=Bubbles(&
-            lmax    = lmax,&
+            lmax    = lmax, &
             centers = centers, &
             global_centers = centers, &
             grids   = bubble_grid_pointers, &
             global_grids = bubble_grid_pointers, &
-            z       = self%charge, &
-            global_z= self%charge )
+            z       = self%nuclear_charge, &
+            global_z= self%nuclear_charge )
     
         deallocate(centers)
         mould=Function3D( parallelization_info, bubs, type=F3D_TYPE_CUSP, &
@@ -572,14 +589,19 @@ contains
         call bubs%destroy()
     end function
 
+
+    ! returns a pair, where the first entry is the number of orbitals with at
+    ! least one electron, and the second entry is the number of orbitals with
+    ! two electrons
     function Structure_get_number_of_occupied_orbitals(self) result(nocc)
         class(Structure),   intent(in) :: self
-        integer                        :: nocc(2), modulus, multiplicity
+        integer                        :: nocc(2)
+        integer                        :: modulus, multiplicity, n_electrons
         
-        
-        modulus = mod(nint(sum(self%charge)), 2)
-        nocc(1) = sum(nint(self%charge)) / 2 + modulus
-        nocc(2) = sum(nint(self%charge)) / 2
+        n_electrons = nint(sum(self%nuclear_charge)) - self%system_charge
+        modulus = mod(n_electrons, 2)
+        nocc(1) = n_electrons / 2 + modulus ! at least singly occupied
+        nocc(2) = n_electrons / 2 ! doubly occupied
 
         ! if no input multiplicity is given, select the singlet or doublet
         ! multiplicity taking into account the number of extra electrons
@@ -603,13 +625,12 @@ contains
             nocc(1) = nocc(1) + (multiplicity-1) / 2
             nocc(2) = nocc(2) - (multiplicity-1) / 2
         end if
-                
     end function 
+
 
 ! %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ! % MO constructor                                                            %
 ! %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
     
     !> Creates the molecular orbitals as Linear combinations of atomic orbitals. Determines
     !! the basis function types etc by comparing parameters of the basis set 'self'.
@@ -645,8 +666,8 @@ contains
                                                 restricted)
         end if
         
-        
     end subroutine
+
     
     !> Reads the basis functions as Function3D objects.
     subroutine Basis_make_basis_functions(self, molec, mould, basis_functions)
@@ -1011,7 +1032,7 @@ contains
             print "('INPUT ERROR: Not enough molecular orbitals specified&
                     & with spin value: ', i1 , '. Number of orbitals&
                     & required is ', i3, ' and specified is ', i3, '.')", &
-                     spin, size(mos), size(mocoeffs, 2) 
+                     spin, size(mos), size(mocoeffs, 2)
             stop
         end if
         nmo = size(mos)

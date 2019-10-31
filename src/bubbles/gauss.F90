@@ -28,9 +28,9 @@
 !! This class deals with integrating a function with the Gaussian quadrature
 !! method. According to Gaussian quadrature, an integral is approximated
 !! by a series at some carefully selected points @f$t_{i}@f$:
-!! 
+!!
 !! @f[ \int\limits_a^b f(x,t)\;dt \approx \sum\limits_{i=1}^{n} \omega_i f(x, t_i) @f]
-!! 
+!!
 !! This class uses the 12 point formulas, i.e. we have
 !! *n=12*. An arbitrary interval \[a, b\] is divided into smaller intervals,
 !! \[a,b\] = \[a1,a2\] U \[a2,a3\] U... U \[a(N-1), aN\], where the Gaussian
@@ -43,6 +43,9 @@ module GaussQuad_class
     private
 
     public :: GaussQuad
+    public :: gauss_lobatto_grid
+    ! public :: chebychev_grid
+
     interface GaussQuad
         module procedure :: GaussQuadInit
     end interface
@@ -116,7 +119,7 @@ contains
             end do
         end if
 
-    end function 
+    end function
 
     pure subroutine GaussQuad_destroy(self)
         class(GaussQuad), intent(inout) :: self
@@ -193,7 +196,7 @@ contains
     end function
 
     !    function get_interval_size(n,L) result(k)
-    !    
+    !
     !        ! Gets the factor to divide an interval of length L logarithmically
     !        ! Given a number L, it is divided in n intervals so that
     !        ! 1+k+k^2+k^3+..+k^n=L
@@ -207,7 +210,7 @@ contains
     !
     !          real(REAL64) :: k,k_p,L
     !          integer(INT32) :: n
-    !    
+    !
     !          ! We start a little bit to the right of the minimum
     !          k_p=(L/n)**(1.d0/(n-1.d0))
     !          print*,k_p,'k_p pre'
@@ -246,17 +249,17 @@ contains
     !
     !        else if (size(trange)==2) then ! User gave beg. and end
     !            g%rstart(1)=trange(1)
-    !    
+    !
     !            ! NEW "OPTIMIZED" SCHEME
     !            g%rstart(2)=1.0d0
     !            do i=3,g%interv
     !                g%rstart(i)=g%rstart(i-1)+4.9d0/(g%interv-2)
     !            end do
     !    !        g%rstart(g%interv)=100.d0
-    !    
+    !
     !    !      tmax=log(rinfin+1.d0)
     !    !      delt=(tmax-t0)/ncell
-    !    ! 
+    !    !
     !    !      do i=2,ncell
     !    !        t=(i-1)*delt
     !    !        grid%start(i)=exp(t)-1.d0
@@ -269,7 +272,7 @@ contains
     !    !           t=log(g%tmin+1.d0)+dt*(i-1)
     !    !           g%rstart(i)=dexp(t)
     !    !       end do
-    !    
+    !
     !            ! EXPONENTIAL SCHEME
     !    !        k=get_interval_size(2,1.1d0)
     !    !        print*,'k',k
@@ -277,7 +280,7 @@ contains
     !    !        do i=2,3
     !    !            g%rstart(i)=g%rstart(i-1)+k**(i-1)
     !    !        end do
-    !    
+    !
     !            g%rstart(g%interv+1)=trange(2)
     !
     !        else if((size(trange)==1).and.(g%nlin==1)) then ! User gave only 1 t-point!
@@ -304,22 +307,21 @@ contains
     pure subroutine gauleg_int(n,tp,tw,a,b,log_p)
 
         integer(INT32),    intent(in)    :: n           ! # of Gauss Points
-        real(REAL64),      intent(inout) :: tp(n),tw(n) ! The tp, tp, and their weights, tw 
-        real(REAL64),      intent(in)    :: a,b        
-        logical, optional, intent(in)    :: log_p       ! Is the logarithmic calculations also 
-        ! going to be included?
-        call gauleg(n,tp,tw)          
+        real(REAL64),      intent(inout) :: tp(n),tw(n) ! The tp, tp, and their weights, tw
+        real(REAL64),      intent(in)    :: a,b
+        logical, optional, intent(in)    :: log_p       ! Is the logarithmic calculations also
+                                                        ! going to be included?
+        call gauleg(n,tp,tw)
 
         if(present(log_p) .and. log_p) then ! If the logarithmic part is
             tp=a*(b/a)**(0.5d0*(tp+1.d0))   ! activated it will calculate
             tw=0.5d0*log(b/a)*tw*tp         ! quadrature log coordinates.
         else                                !
             tp=0.5d0*( (b+a) + (b-a)*tp)    ! If the logarithmic part is
-            tw=0.5d0*(b-a)*tw               ! inactivated, it calculates 
+            tw=0.5d0*(b-a)*tw               ! inactivated, it calculates
         end if                              ! the quadrature normally in
         ! [a;b] intervall.
 
-        return
     end subroutine
 
 
@@ -335,7 +337,7 @@ contains
     pure subroutine  gauleg(ngp, xabsc, weig)
 
         implicit none
-        integer,      intent(in) :: ngp            
+        integer,      intent(in) :: ngp
         real(REAL64), intent(out) :: xabsc(ngp), weig(ngp)
 
         integer :: i, j, m
@@ -376,9 +378,9 @@ contains
             weig(i) = 2.0d0/((1.0d0-z*z)*pp*pp) ! Compute the weight and its       */
             weig(ngp+1-i) = weig(i)             ! symmetric counterpart         */
 
-        end do     
+        end do
 
-    end subroutine 
+    end subroutine
 
     !> Create a uniformly distributed mesh of t-points to compute "spectra"
     function GaussQuadInitSpectrum(trange) result(new)
@@ -398,7 +400,68 @@ contains
             new%tp(i)=new%tp(i-1)*factor
         end do
 
-    end function 
+    end function
+
+
+    ! where the n-point Gauss Lobatto grid in the intervall [-1,1] consists of
+    ! the points -1, 1, and the n-2 roots of the first derivative of the n-1st
+    ! Legendre Polynomial
+    pure function gauss_lobatto_grid(n, left, right) result(tp)
+        implicit none
+        integer(INT32),  intent(in) :: n           ! # of Gauss-Lobatto Points
+        real(REAL64),    intent(in) :: left, right
+        real(REAL64)                :: tp(n) ! The points tp
+
+
+        select case(n)
+            ! mathematica: dlp5 = D[LegendreP[5, x], x]
+            !              Simplify[Solve[dlp5 == 0, x]]
+            case (6)
+               tp(1) = -1.d0
+               tp(2) = -dsqrt((7.d0 + 2*dsqrt(7.d0))/21.d0)
+               tp(3) = -dsqrt((7.d0 - 2*dsqrt(7.d0))/21.d0)
+               tp(4) =  dsqrt((7.d0 - 2*dsqrt(7.d0))/21.d0)
+               tp(5) =  dsqrt((7.d0 + 2*dsqrt(7.d0))/21.d0)
+               tp(6) = 1.d0
+
+            case (7)
+               tp(1) = -1.d0
+               tp(2) = -dsqrt((15.d0 + 2*dsqrt(15.d0))/33.d0)
+               tp(3) = -dsqrt((15.d0 - 2*dsqrt(15.d0))/33.d0)
+               tp(4) =  0.d0
+               tp(5) =  dsqrt((15.d0 - 2*dsqrt(15.d0))/33.d0)
+               tp(6) =  dsqrt((15.d0 + 2*dsqrt(15.d0))/33.d0)
+               tp(7) =  1.d0
+
+            case default
+    !            write(*,*) 'order not implemented'
+    !            flush(6)
+    !            call abort()
+        end select
+
+        ! scale to intervall
+        tp=0.5d0*( (right+left) + (right-left)*tp)
+    end function
+
+
+    ! currently unused
+    pure function chebychev_grid(n,left,right) result(tp)
+        implicit none
+        integer(INT32),    intent(in)    :: n       ! # of Ch Points
+        real(REAL64),      intent(in)    :: left, right
+        real(REAL64)                     :: tp(n) ! grid points
+        integer(int32)                   :: k
+
+        tp(1) = -1
+        tp(n) = 1
+        do k=1, n-2
+          tp(k+1) = cos( (2*k + 1)/(2*(n-2))*PI )
+        enddo
+
+        ! scale to intervall
+        tp=0.5d0*( (right+left) + (right-left)*tp)
+    end function
+
 
 end module
 

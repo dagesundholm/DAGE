@@ -941,9 +941,6 @@ contains
         call cudablas_mm_multiplication_batched_cuda(self%cuda_interface, device_id, stream_id, &
                                                      a%cuda_interface, b%cuda_interface, c%cuda_interface, &
                                                      slice_dimension, alpha, beta, waited_event)
-
-     
-            
     end subroutine
 
 
@@ -1020,7 +1017,7 @@ contains
     function CUDACube_init_page_locked_cube(cube_shape) result(result_pointer)
         integer, intent(in)   :: cube_shape(3)
         type(C_PTR)           :: c_pointer
-        real(REAL64), pointer :: result_pointer(:, :, :)
+        real(REAL64), contiguous, pointer :: result_pointer(:, :, :)
         c_pointer = CUDACube_init_page_locked_cube_cuda(cube_shape)
 
         call c_f_pointer(c_pointer, result_pointer, cube_shape)

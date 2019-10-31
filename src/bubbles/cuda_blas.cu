@@ -35,7 +35,7 @@
 
 __host__ inline void check_cuda_blas_errors(const char *filename, const int line_number) {
 #ifdef DEBUG_CUDA
-    cudaThreadSynchronize();
+    cudaDeviceSynchronize();
 #endif
     cudaError_t error = cudaGetLastError();
     if(error != cudaSuccess)

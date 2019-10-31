@@ -200,6 +200,7 @@ contains
                         self%scf_cycle%overlap_matrix, self%scf_cycle%nuclear_electron_matrix)
                 call self%scf_cycle%calculate_orbital_two_electron_integrals &
                         (self%scf_cycle%coefficients_a, self%scf_cycle%two_electron_integrals)
+#ifdef HAVE_DFT
             ! if the cycle is based on the lcmo-rdft, calculate all the matrix elements in 
             ! basis function form. Then reformulate the one electron matrices and the two
             ! electron integrals to be in orbital-form.
@@ -213,12 +214,15 @@ contains
                 call self%scf_cycle%calculate_orbital_two_electron_integrals &
                         (self%scf_cycle%coefficients_a, self%scf_cycle%two_electron_integrals)
             ! calculate the matrix elements directly in orbital form for the rdft and rhf cycles
+#endif
             type is (RHFCycle)
                 call self%scf_cycle%calculate_one_electron_matrices(.TRUE.)
                 call self%scf_cycle%calculate_all_two_electron_integrals()
+#ifdef HAVE_DFT
             type is (RDFTCycle)
                 call self%scf_cycle%calculate_one_electron_matrices(.TRUE.)
                 call self%scf_cycle%calculate_all_two_electron_integrals()
+#endif
         end select
 
         ! calculate the number of states

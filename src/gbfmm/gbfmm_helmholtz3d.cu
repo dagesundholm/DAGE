@@ -36,12 +36,11 @@
 #define X_ 0
 #define Y_ 1
 #define Z_ 2
-#define PI_ 3.14159265358979323846
-#define BLOCK_SIZE 512
+#define BLOCK_SIZE 256 // was 512, lnw
 
 __host__ inline void check_helmholtz3d_errors(const char *filename, const int line_number) {
 #ifdef DEBUG_CUDA
-    cudaThreadSynchronize();
+    cudaDeviceSynchronize();
 #endif
     cudaError_t error = cudaGetLastError();
     if(error != cudaSuccess)
@@ -150,7 +149,7 @@ __device__ inline void FirstModSphBessel_multiply_result_with_normalization_fact
                                                                                    double *result) {
     if (normalization != 1) {
         for (int l = min_stored_l; l <= max_stored_l; l++) {
-            result[l-min_stored_l] *= sqrt((2.0*(double)l+1.0)/(4.0*PI_));
+            result[l-min_stored_l] *= sqrt((2.0*(double)l+1.0)/(4.0*M_PI));
         }
     }
 }
@@ -180,7 +179,6 @@ __device__ double GBFMMHelmholtz3D_evaluate_le_point(const double x,
     // set value for l=0, m=0
     double result = 1.0 * bessel_values[0] * local_expansion[lm_address];
     if (r < 1e-12) one_per_r = 0.0;
-    
  
     
     
@@ -723,7 +721,7 @@ void GBFMMHelmholtz3D::downloadMultipoleMoments(double *host_multipole_moments) 
         // multiply with factor, if the normalization != 1
         if (this->normalization != 1) {
             for (int l = 0; l <= this->lmax; l++) {
-                double normalization_factor = sqrt((2.0*(double)l+1.0)/(4.0*PI_));
+                double normalization_factor = sqrt((2.0*(double)l+1.0)/(4.0*M_PI));
                 for (int n = 0; n <= 2*l; n++) {
                     host_multipole_moments[l*l + n] *= normalization_factor;
                 }
@@ -778,9 +776,8 @@ void GBFMMHelmholtz3D::evaluatePotentialLEBox(
     double kappa = sqrt(-2.0 * this->energy);
     int *device_memory_shape = output_cube->getDeviceMemoryShape();
     int slice_offset = 0;
-    
-    
-    check_helmholtz3d_errors(__FILE__, __LINE__);
+
+    check_helmholtz3d_errors(__FILE__, __LINE__); // a failure here probably implies a problem in the kernel 60 lines down
 
     // check if we are at the borders of the boxes, that are not the 
     // borders of the global grid
@@ -819,7 +816,7 @@ void GBFMMHelmholtz3D::evaluatePotentialLEBox(
             // upload the expansion
             cudaMemcpyAsync(device_expansion, local_expansion, sizeof(double)*(this->lmax + 1)*(this->lmax +1),
                             cudaMemcpyHostToDevice, *streamContainer->getStream(device, stream));
-            //check_coulomb_errors(__FILE__, __LINE__);
+            // check_errors(__FILE__, __LINE__);
             
             int slice_count = device_slice_count / streamContainer->getStreamsPerDevice() 
                                         + ((device_slice_count % streamContainer->getStreamsPerDevice()) > stream);
@@ -849,7 +846,7 @@ void GBFMMHelmholtz3D::evaluatePotentialLEBox(
                               device_pitch,
                               device_memory_shape[Y_],
                               slice_count);
-            //check_coulomb_errors(__FILE__, __LINE__);
+            // check_errors(__FILE__, __LINE__);
             
             // add the counter with the number of slices handled so far
             slice_offset += slice_count;
@@ -942,6 +939,7 @@ void GBFMMHelmholtz3D::evaluatePotentialLEBox(
         }
     }*/
 }
+
 
 /*************************************************** 
  *              Fortran interfaces                 *

@@ -40,7 +40,6 @@
 #define Y_ 1
 #define Z_ 2
 #define R_ 3
-#define FOURPI_ 12.566370614359173
 #if (__CUDA_ARCH__ > 350)
 #define INJECT_BLOCK_SIZE 256
 #else
@@ -55,6 +54,8 @@
 #define BLOCKDIMY 4
 /** \brief Size of the CUDA blocks in the Z dimension */
 #define BLOCKDIMZ 4
+
+#define FULL_MASK 0xffffffff
 
 #define STR_HELPER(x) #x
 #define STR(x) STR_HELPER(x)
@@ -198,7 +199,7 @@ __global__ void calc_cf(Bubble *bub, int offset, int number_of_points, size_t de
     const int index = blockIdx.x * blockDim.x + threadIdx.x;
     // get the global index
     const int id= index + offset;
-    
+
     const int icell=id%bub->grid->ncell;
     const int ilm=id/bub->grid->ncell;
     const int nlip = bub->grid->nlip;
@@ -208,7 +209,7 @@ __global__ void calc_cf(Bubble *bub, int offset, int number_of_points, size_t de
     __shared__ double cf_results[8*64];
     __shared__ double df_results[8*64];
     double f_i;
-    
+
     // load the Lagrange interpolation polynomials coefficients to
     // the shared memory
     if (threadIdx.x < (nlip) * (nlip)) {
@@ -221,8 +222,8 @@ __global__ void calc_cf(Bubble *bub, int offset, int number_of_points, size_t de
         lower_derivative_lip[threadIdx.x] = bub->grid->lower_derivative_lip[threadIdx.x];
     }
     __syncthreads();
-    
-    
+
+
     if ( index < number_of_points && ilm < ((bub->lmax+1)*(bub->lmax+1)) ) {
         double *f  = bub->f + ilm * device_f_pitch / sizeof(double) + (icell * (bub->grid->nlip-1));
         double *cf = bub->cf + ( ilm * bub->grid->ncell + icell ) * 8;
@@ -246,23 +247,36 @@ __global__ void calc_cf(Bubble *bub, int offset, int number_of_points, size_t de
             for (j=0; j < nlip ;j++){
                 cf_results[threadIdx.x * 8 + j] += f_i* (*(lip++));
             }
-            // handle the special case of the first cell, where the first
-            // data item most likely is not valid
-            if (icell == 0) {
-                if (i != 0) {
-                    for (j = 1 ; j <= nlip-2; j++) {
-                        df_results[threadIdx.x * 8 + j] += f_i* (*(ldlip++));
+
+            // I (lnw) cannot see any good reason for this special case that is, the
+            // derivative at the centre of each bubble should be zero, but why does it have
+            // to be enforced?
+            const bool ignore_first = true;
+            if(ignore_first){
+                // handle the special case of the first cell, where the first
+                // data item most likely is not valid
+                if (icell == 0) {
+                    if (i != 0) {
+                        for (j = 1 ; j <= nlip-2; j++) {
+                            df_results[threadIdx.x * 8 + j] += f_i* (*(ldlip++));
+                        }
+                    }
+                    else {
+                        df_results[threadIdx.x * 8] = 0.0;
                     }
                 }
                 else {
-                    df_results[threadIdx.x * 8] = 0.0;
+                    for (j=0; j < nlip-1 ;j++) {
+                        df_results[threadIdx.x * 8 + j] += f_i* (*(dlip++));
+                    }
                 }
             }
-            else {
+            else { // no special treatment
                 for (j=0; j < nlip-1 ;j++) {
                     df_results[threadIdx.x * 8 + j] += f_i* (*(dlip++));
                 }
             }
+
         }
         // copy the result to device memory
         for (i=0; i < 8; i++) {
@@ -286,10 +300,12 @@ __device__ inline double evaluate_polynomials(int n, const double* __restrict__ 
     return result;
 }
 
-//#ifdef __CUDA_ARCH__
-#if __CUDA_ARCH__ >= 350 
+
+// __shfl* are defined from 3.x until including 6.x.  
+// they are replaced by __shfl*_sync
+#if (__CUDA_ARCH__ >= 350) && (__CUDA_ARCH__ < 700)
 /*
- *  Evaluates one granular polynomial for coefficients, and x 
+ *  Evaluates one granular polynomial for coefficients, and x
  * NOTE: each thread is different value for coefficient, when entering the function
  * NOTE: each x value must be the same for 8 consecutive threads
  * NOTE: upon return each thread has the same value.
@@ -316,23 +332,23 @@ double evaluate_polynomials_unit_register(const double * __restrict__ coefficien
 }
 
 __device__ inline void horizontal_rotate_8f(double coefficients[8], unsigned int order_number) {
-    coefficients[1] = __shfl(coefficients[1], (order_number+1)%8, 8); 
-    coefficients[2] = __shfl(coefficients[2], (order_number+2)%8, 8); 
-    coefficients[3] = __shfl(coefficients[3], (order_number+3)%8, 8); 
-    coefficients[4] = __shfl(coefficients[4], (order_number+4)%8, 8); 
-    coefficients[5] = __shfl(coefficients[5], (order_number+5)%8, 8); 
-    coefficients[6] = __shfl(coefficients[6], (order_number+6)%8, 8); 
-    coefficients[7] = __shfl(coefficients[7], (order_number+7)%8, 8); 
+    coefficients[1] = __shfl(coefficients[1], (order_number+1)%8, 8);
+    coefficients[2] = __shfl(coefficients[2], (order_number+2)%8, 8);
+    coefficients[3] = __shfl(coefficients[3], (order_number+3)%8, 8);
+    coefficients[4] = __shfl(coefficients[4], (order_number+4)%8, 8);
+    coefficients[5] = __shfl(coefficients[5], (order_number+5)%8, 8);
+    coefficients[6] = __shfl(coefficients[6], (order_number+6)%8, 8);
+    coefficients[7] = __shfl(coefficients[7], (order_number+7)%8, 8);
 }
 
 __device__ inline void horizontal_rotate_8b(double coefficients[8], unsigned int order_number) {
-    coefficients[1] = __shfl(coefficients[1], (order_number+7)%8, 8); 
-    coefficients[2] = __shfl(coefficients[2], (order_number+6)%8, 8); 
-    coefficients[3] = __shfl(coefficients[3], (order_number+5)%8, 8); 
-    coefficients[4] = __shfl(coefficients[4], (order_number+4)%8, 8); 
-    coefficients[5] = __shfl(coefficients[5], (order_number+3)%8, 8); 
-    coefficients[6] = __shfl(coefficients[6], (order_number+2)%8, 8); 
-    coefficients[7] = __shfl(coefficients[7], (order_number+1)%8, 8); 
+    coefficients[1] = __shfl(coefficients[1], (order_number+7)%8, 8);
+    coefficients[2] = __shfl(coefficients[2], (order_number+6)%8, 8);
+    coefficients[3] = __shfl(coefficients[3], (order_number+5)%8, 8);
+    coefficients[4] = __shfl(coefficients[4], (order_number+4)%8, 8);
+    coefficients[5] = __shfl(coefficients[5], (order_number+3)%8, 8);
+    coefficients[6] = __shfl(coefficients[6], (order_number+2)%8, 8);
+    coefficients[7] = __shfl(coefficients[7], (order_number+1)%8, 8);
 }
 
 __device__ inline void vertical_rotate_8(double src[8], unsigned int order_number) {
@@ -345,7 +361,7 @@ __device__ inline void vertical_rotate_8(double src[8], unsigned int order_numbe
     src[3] = (order_number == 1) ? src[2] : src[3];
     src[2] = (order_number == 1) ? src[1] : src[2];
     src[1] = (order_number == 1) ? tmp    : src[1];
-    
+   
     src[1] = (order_number == 2) ? src[7] : src[1];
     src[0] = (order_number == 2) ? src[6] : src[0];
     src[7] = (order_number == 2) ? src[5] : src[7];
@@ -354,7 +370,7 @@ __device__ inline void vertical_rotate_8(double src[8], unsigned int order_numbe
     src[4] = (order_number == 2) ? src[2] : src[4];
     src[3] = (order_number == 2) ? src[1] : src[3];
     src[2] = (order_number == 2) ? tmp    : src[2];
-    
+   
     src[2] = (order_number == 3) ? src[7] : src[2];
     src[1] = (order_number == 3) ? src[6] : src[1];
     src[0] = (order_number == 3) ? src[5] : src[0];
@@ -363,7 +379,7 @@ __device__ inline void vertical_rotate_8(double src[8], unsigned int order_numbe
     src[5] = (order_number == 3) ? src[2] : src[5];
     src[4] = (order_number == 3) ? src[1] : src[4];
     src[3] = (order_number == 2) ? tmp    : src[3];
-    
+   
     src[3] = (order_number == 4) ? src[7] : src[3];
     src[2] = (order_number == 4) ? src[6] : src[2];
     src[1] = (order_number == 4) ? src[5] : src[1];
@@ -372,7 +388,7 @@ __device__ inline void vertical_rotate_8(double src[8], unsigned int order_numbe
     src[6] = (order_number == 4) ? src[2] : src[6];
     src[5] = (order_number == 4) ? src[1] : src[5];
     src[4] = (order_number == 4) ? tmp    : src[4];
-    
+   
     src[4] = (order_number == 5) ? src[7] : src[4];
     src[3] = (order_number == 5) ? src[6] : src[3];
     src[2] = (order_number == 5) ? src[5] : src[2];
@@ -381,7 +397,7 @@ __device__ inline void vertical_rotate_8(double src[8], unsigned int order_numbe
     src[7] = (order_number == 5) ? src[2] : src[7];
     src[6] = (order_number == 5) ? src[1] : src[6];
     src[5] = (order_number == 5) ? tmp    : src[5];
-    
+   
     src[5] = (order_number == 6) ? src[7] : src[5];
     src[4] = (order_number == 6) ? src[6] : src[4];
     src[3] = (order_number == 6) ? src[5] : src[3];
@@ -390,7 +406,7 @@ __device__ inline void vertical_rotate_8(double src[8], unsigned int order_numbe
     src[0] = (order_number == 6) ? src[2] : src[0];
     src[7] = (order_number == 6) ? src[1] : src[7];
     src[6] = (order_number == 6) ? tmp    : src[6];
-    
+   
     src[6] = (order_number == 7) ? src[7] : src[6];
     src[5] = (order_number == 7) ? src[6] : src[5];
     src[4] = (order_number == 7) ? src[5] : src[4];
@@ -403,7 +419,7 @@ __device__ inline void vertical_rotate_8(double src[8], unsigned int order_numbe
 
 
 __device__ inline void transpose8(double coefficients[8], int order_number) {
-    
+
     //printf("Original coefficients %d: %f, %f, %f, %f, %f, %f, %f, %f\n", order_number, coefficients[0], coefficients[1], coefficients[2], coefficients[3], coefficients[4], coefficients[5], coefficients[6], coefficients[7]);
     horizontal_rotate_8f(coefficients, order_number);
     vertical_rotate_8(coefficients, order_number);
@@ -414,12 +430,12 @@ __device__ inline void transpose8(double coefficients[8], int order_number) {
 
 /*
  *  Evaluates the polynomials using shuffle actions. This saves the shared_memory significantly and allows
- *  the increase of the occupancy of the devices. 
- * 
+ *  the increase of the occupancy of the devices.
+ *
  *  This function only needs blockDim.x * 8 bytes of shared memory. This allows the usage of any sized blocks
  *  that are practically useful.
- * 
- *  The number of arithmetic operations is larger than for the version using shared memory only, and thus 
+ *
+ *  The number of arithmetic operations is larger than for the version using shared memory only, and thus
  *  the effect to the execution speed remains to be seen.
  */
 __device__ inline double evaluate_polynomials_shuffle(const int address,
@@ -429,40 +445,38 @@ __device__ inline double evaluate_polynomials_shuffle(const int address,
     double *result = &shared_memory[0];
     //double coefficients[8];
     //double res;
-    
+   
     int remainder =  threadIdx.x%8;
     int base_address = 8*(threadIdx.x/8);
     double res;
-    
-    for (int i = 0; i < 8; i ++) { 
-        // evaluate the polynomials 
+   
+    for (int i = 0; i < 8; i ++) {
+        // evaluate the polynomials
         // NOTE: __shfl(address, i, width=8)  gets the address needed by the thread i/8 in the thread group
         // NOTE: __shfl(x, i, width = 8) gets the coordinate x of the thread i/8 in the thread group
-        // NOTE: the c access (global memory is coalesced), 
+        // NOTE: the c access (global memory is coalesced),
         // NOTE: shared memorybank conflict should not occur, as every thread in the 8 thread group access
         //       the same address, thus resulting in broadcast.
         //coefficients[i] = c[__shfl(address, i, 8) + remainder];
-         res  = evaluate_polynomials_unit_shuffle(
-                                    c[__shfl(address, i, 8) + remainder],
-                                    __shfl(x, i, 8));
+         res  = evaluate_polynomials_unit_shuffle( c[__shfl(address, i, 8) + remainder], __shfl(x, i, 8));
         if (remainder == 0) result[base_address + i] = res;
     }
-    
-    
-    // swap the coefficients to be with their rightful owners 
+   
+   
+    // swap the coefficients to be with their rightful owners
     //transpose8(coefficients, remainder);
     return result[threadIdx.x];
     //return evaluate_polynomials_unit_register(coefficients, x, nlip);
 }
 #endif
-//#endif
+
 
 /*
  * Get the thread-id within block.
  */
 __device__ inline int getThreadId() {
-    return   threadIdx.x  
-           + blockDim.x * threadIdx.y 
+    return   threadIdx.x 
+           + blockDim.x * threadIdx.y
            + blockDim.x * blockDim.y * threadIdx.z;
 }
 
@@ -481,16 +495,12 @@ double evaluate_polynomials_shared(const int address, const double* __restrict__
     double *coefficients = &shared_memory[0];
     //const float *fc = (const float *)c;
     int threadId = getThreadId();
-    
-    int remainder =  threadId%8;
-    int base_address = 8*(threadId/8);
-    int id = base_address * 7 + remainder;
-    /*int remainder =  threadId%16;
-    base_address = 16*(threadId/16);
-    id = base_address * 16 + remainder;
-    int faddress = 2 * address;*/
 
-#if (__CUDA_ARCH__ >= 350)
+    const int remainder =  threadId%8;
+    const int base_address = 8*(threadId/8);
+    const int id = base_address * 7 + remainder;
+
+#if (__CUDA_ARCH__ >= 350) && (__CUDA_ARCH__ < 700)
     // read the coefficients in the shared memory, 8 threads 
     // neighbouring each other are reading the global memory
     // coefficients for one thread at the time, starting from 0
@@ -498,7 +508,7 @@ double evaluate_polynomials_shared(const int address, const double* __restrict__
     
     int address_7 = __shfl(address, 7, 8);
     
-    if (remainder < 7) {
+    if (remainder < 7) { // every eighth lane is idle
         coefficients[id]        = ldg<double>(&c[__shfl(address, 0, 8)  + remainder]);
         coefficients[id+7]      = ldg<double>(&c[__shfl(address, 1, 8)  + remainder]);
         coefficients[id+7*2]    = ldg<double>(&c[__shfl(address, 2, 8)  + remainder]);
@@ -534,6 +544,22 @@ double evaluate_polynomials_shared(const int address, const double* __restrict__
     fcoefficients[id+208] = fc[__shfl(faddress, 13, 16)  + remainder];
     fcoefficients[id+224] = fc[__shfl(faddress, 14, 16)  + remainder];
     fcoefficients[id+240] = fc[__shfl(faddress, 15, 16)  + remainder];*/
+
+#elif __CUDA_ARCH__ >= 700
+    
+    // printf("activemask: %u\n", __activemask());
+    int address_7 = __shfl_sync(FULL_MASK, address, 7, 8);
+    if (remainder < 7) { // every eighth lane is idle and therefore removed from the mask
+        // printf("activemask: %u\n", __activemask());
+        coefficients[id]      = ldg<double>(&c[__shfl_sync(0b01111111011111110111111101111111, address, 0, 8) + remainder]);
+        coefficients[id+7]    = ldg<double>(&c[__shfl_sync(0b01111111011111110111111101111111, address, 1, 8) + remainder]);
+        coefficients[id+7*2]  = ldg<double>(&c[__shfl_sync(0b01111111011111110111111101111111, address, 2, 8) + remainder]);
+        coefficients[id+7*3]  = ldg<double>(&c[__shfl_sync(0b01111111011111110111111101111111, address, 3, 8) + remainder]);
+        coefficients[id+7*4]  = ldg<double>(&c[__shfl_sync(0b01111111011111110111111101111111, address, 4, 8) + remainder]);
+        coefficients[id+7*5]  = ldg<double>(&c[__shfl_sync(0b01111111011111110111111101111111, address, 5, 8) + remainder]);
+        coefficients[id+7*6]  = ldg<double>(&c[__shfl_sync(0b01111111011111110111111101111111, address, 6, 8) + remainder]);
+        coefficients[id+7*7]  = ldg<double>(&c[ address_7 + remainder]);
+    }
     
 #else
     // store the addresses to the shared memory
@@ -569,12 +595,10 @@ double evaluate_polynomials_shared(const int address, const double* __restrict__
         result *= x;
         result += coeff[4];
     }
-    
     if (nlip > 5) {
         result *= x;
         result += coeff[5];
     }
-    
     if (nlip > 6) {
         result *= x;
         result += coeff[6];
@@ -658,7 +682,7 @@ __device__ inline double Bubbles_evaluate_point_lmin(
                                          const int &lmax,
                                          // number of cells
                                          const int &ncell,
-                                         // number of lagrange integration polyniomials per 
+                                         // number of lagrange integration polynomials per 
                                          // cell, i.e., the number of grid points per cell
                                          const int &nlip,
                                          // position inside the cell
@@ -678,7 +702,7 @@ __device__ inline double Bubbles_evaluate_point_lmin(
     int l, m, l2; 
     double top = 0.0, bottom = 0.0, new_bottom = 0.0, prev1 = 0.0, prev2 = 0.0, current = 0.0;
     double multiplier = 0.0, multiplier2 = 0.0, one_per_r = 1.0 / distance;
-    double r2 = x*x+y*y+z*z;
+    double r2 = x*x + y*y + z*z;
     l = 0;
     // set value for l=0, m=0
     if (lmin == 0) {
@@ -881,7 +905,7 @@ __device__ inline void Bubbles_evaluate_gradient_point(
                                          const int &lmax,
                                          // number of cells
                                          const int &ncell,
-                                         // number of lagrange integration polyniomials per 
+                                         // number of lagrange integration polynomials per
                                          // cell, i.e., the number of grid points per cell
                                          const int &nlip,
                                          // position inside the cell
@@ -906,7 +930,7 @@ __device__ inline void Bubbles_evaluate_gradient_point(
     const int ncell_nlip = ncell * 8;
     int l, l2; 
     double top, bottom, new_bottom, prev1, prev2, current, current_gradient[3], prev1_gradient[3], prev2_gradient[3], bottom_gradient[3], new_bottom_gradient, top_gradient[3];
-    double one_per_r = 1.0 / distance;;
+    double one_per_r = 1.0 / distance;
     double one_per_r_gradient[3] = {(-x) * one_per_r * one_per_r,
                                     (-y) * one_per_r * one_per_r,
                                     (-z) * one_per_r * one_per_r};
@@ -914,11 +938,11 @@ __device__ inline void Bubbles_evaluate_gradient_point(
     
     // set value for l=0, m=0
     
-    double radial_value, radial_derivative;
-    radial_derivative = evaluate_polynomials_shared<NLIP-1>(lm_address, df, r);
-    if (evaluate_gradients_x) result[X_] =  radial_derivative * x;// * one_per_r;
-    if (evaluate_gradients_y) result[Y_] =  radial_derivative * y;// * one_per_r;
-    if (evaluate_gradients_z) result[Z_] =  radial_derivative * z;// * one_per_r;
+    double radial_value;
+    double radial_derivative = evaluate_polynomials_shared<NLIP-1>(lm_address, df, r);
+    if (evaluate_gradients_x) result[X_] =  radial_derivative * x; // * one_per_r;
+    if (evaluate_gradients_y) result[Y_] =  radial_derivative * y; // * one_per_r;
+    if (evaluate_gradients_z) result[Z_] =  radial_derivative * z; // * one_per_r;
     
     if (distance >= 0.0 && distance < 1e-12) {
         one_per_r = 0.0;
@@ -935,7 +959,7 @@ __device__ inline void Bubbles_evaluate_gradient_point(
         if (evaluate_gradients_y) one_per_r_gradient[Y_] = 0.0;
         if (evaluate_gradients_z) one_per_r_gradient[Z_] = 0.0;
     }*/
-    if (lmax >= 1) {    
+    if (lmax >= 1) {
         // set all values where m=-1
         prev1 = y * one_per_r;
         if (evaluate_gradients_x) prev1_gradient[X_] = one_per_r_gradient[X_] * y;
@@ -1252,7 +1276,7 @@ __device__ inline void Bubbles_evaluate_gradient_point(
     result[Z_] *= one_per_r;
     // multiply the result with r^k, if k is not 0
     // the distance is not too close to 0.0 as this is checked
-    // earlier in this function, NOTE: should never happen, thus 
+    // earlier in this function, NOTE: should never happen, thus
     // commented away
     //if (k != 0 && distance > 1e-12) {
     
@@ -1274,11 +1298,10 @@ __device__ inline void Bubbles_evaluate_gradient_point(
 
 
 /* 
- * Evaluates value of single bubble at a point. This is very similar with the
+ * Evaluates value of single bubble at a point. This is very similar to the
  * SolidHarmonics simple evaluation, but the results are multiplied with the
  * polynomial evaluations
  */
-
 __device__ inline double  Bubbles_evaluate_point(
                                          // x-coordinate relative to the center of the bubble
                                          const double &x,
@@ -1292,7 +1315,7 @@ __device__ inline double  Bubbles_evaluate_point(
                                          const int &lmax,
                                          // number of cells
                                          const int &ncell,
-                                         // number of lagrange integration polyniomials per 
+                                         // number of lagrange integration polynomials per
                                          // cell, i.e., the number of grid points per cell
                                          const int &nlip,
                                          // position inside the cell
@@ -1312,16 +1335,15 @@ __device__ inline double  Bubbles_evaluate_point(
     const int ncell_nlip = ncell * 8;
     int l, l2; 
     double top, bottom, new_bottom, prev1, prev2, current, a, b, a2;
-    const double one_per_r = 1.0 / distance;;
+    const double one_per_r = 1.0 / distance;
     l = 0;
     // set value for l=0, m=0
-    //printf("x: %f, y: %f, z: %f, nlip: %d, ncell: %d, l: 0, address: %d, cf: %ld, r: %f\n", x, y, z, nlip, ncell, 0, lm_address, cf, r);
-    //printf("shared_memory address: %ld\n");
-    //printf("shared memory first value: %f", shared_memory[0]);
+    // printf("x: %f, y: %f, z: %f, nlip: %d, ncell: %d, l: 0, lmax: %d, address: %d, cf: %ld, r: %f\n", x, y, z, nlip, ncell, 0, lmax, lm_address, cf, r);
+    // printf("shared_memory address: %ld\n", );
+    // printf("shared memory first value: %f", shared_memory[0]);
     result = evaluate_polynomials_shared<NLIP>(lm_address, cf, r);
-    
-    
-    
+
+
     if (lmax >= 1) { 
         // set value for l=1, m=-1
         result += y * evaluate_polynomials_shared<NLIP>(address+ncell_nlip, cf, r) * one_per_r;
@@ -1340,7 +1362,11 @@ __device__ inline double  Bubbles_evaluate_point(
         a =  ( 2.0*(double)l-1.0) * rsqrt( 1.0*(double)((l-1)*(l+1)) );
         b =  (l > 2) ? sqrt( (double)((l-2)*(l)) /  (double)((l-1)*(l+1)) ) : 0.0;
         for (l = 2; l <= lmax; l++) {
+#if (__CUDA_ARCH__ >= 350) && (__CUDA_ARCH__ < 700)
             current =  __shfl(a, l) * z*prev1 * one_per_r - __shfl(b, l) * prev2;
+#elif (__CUDA_ARCH__ >= 700)
+            current =  __shfl_sync(FULL_MASK, a, l) * z*prev1 * one_per_r - __shfl_sync(FULL_MASK, b, l) * prev2;
+#endif
             result += current * evaluate_polynomials_shared<NLIP>(address2, cf, r) ;
             prev2 = prev1;
             prev1 = current;
@@ -1356,12 +1382,17 @@ __device__ inline double  Bubbles_evaluate_point(
         // the starting address has 1 item before from the l=0, 3 from l=1, and 2 from l=2
         address2 = address + ncell_nlip * 6;
         
-        
-        l = threadIdx.x % 32;
+        l = threadIdx.x % 32; // lane within warp
         a =  ( 2.0*(double)l-1.0) * rsqrt( 1.0*(double)((l)*(l)) );
         b =  sqrt( (double)((l-1)*(l-1)) /  (double)((l)*(l)) );
+        // printf("l: %d, lmax:%d, a: %f, b: %f, z: %f, prev1: %f, one_per_r: %f, prev2: %f\n", l, lmax, a, b, z, prev1, one_per_r, prev2);
         for (l = 2; l <= lmax; l++) {
+#if (__CUDA_ARCH__ >= 350) && (__CUDA_ARCH__ < 700)
             current =   __shfl(a, l) * z * prev1 * one_per_r -  __shfl(b, l) * prev2;
+#elif __CUDA_ARCH__ >= 700
+            // printf("lane: %d, l: %d, a: %f, b:%f\n", threadIdx.x % 32, l, a, b);
+            current = __shfl_sync(FULL_MASK, a, l) * z * prev1 * one_per_r - __shfl_sync(FULL_MASK, b, l) * prev2;
+#endif
             result += current * evaluate_polynomials_shared<NLIP>(address2, cf, r);
             prev2 = prev1;
             prev1 = current; 
@@ -1380,7 +1411,11 @@ __device__ inline double  Bubbles_evaluate_point(
         a =  ( 2.0*(double)l-1.0) * rsqrt( 1.0*(double)((l+1)*(l-1)) );
         b =  (l > 2) ? sqrt( (double)((l)*(l-2)) /  (double)((l+1)*(l-1)) ) : 0.0;
         for (l = 2; l <= lmax; l++) {   
-            current =  __shfl(a, l) * z*prev1 * one_per_r -  __shfl(b, l) * prev2;
+#if (__CUDA_ARCH__ >= 350) && (__CUDA_ARCH__ < 700)
+            current =  __shfl(a, l) * z * prev1 * one_per_r -  __shfl(b, l) * prev2;
+#elif __CUDA_ARCH__ >= 700
+            current =  __shfl_sync(FULL_MASK, a, l) * z * prev1 * one_per_r -  __shfl_sync(FULL_MASK, b, l) * prev2;
+#endif
             result += current * evaluate_polynomials_shared<NLIP>(address2, cf, r);
             prev2 = prev1;
             prev1 = current;
@@ -1397,8 +1432,13 @@ __device__ inline double  Bubbles_evaluate_point(
         a = sqrt((2.0*(double)l - 1.0) / (2.0*(double)l));
         for (l=2; l <= lmax; l++) {
             
+#if (__CUDA_ARCH__ >= 350) && (__CUDA_ARCH__ < 700)
             new_bottom = __shfl(a, l) * one_per_r * ( y*top + x*bottom);
             top        = __shfl(a, l) * one_per_r * ( x*top - y*bottom );
+#elif __CUDA_ARCH__ >= 700
+            new_bottom = __shfl_sync(FULL_MASK, a, l) * one_per_r * ( y*top + x*bottom);
+            top        = __shfl_sync(FULL_MASK, a, l) * one_per_r * ( x*top - y*bottom );
+#endif
                         
             // store the new bottom: l=l, m=-l (we need the old bottom in calculation of top previously, so we 
             // have to sacrifice one register temporarily)
@@ -1420,7 +1460,11 @@ __device__ inline double  Bubbles_evaluate_point(
             b =  (l2 > l+1) ? sqrt( (double)((l2-l-1)*(l2+l-1)) /  (double)((l2-l)*(l2+l)) ) : 0.0;
             for (l2 = l+1; l2 <= lmax; l2++) {
                 // evaluate spherical harmonics for l=l2, m=-l
-                current =  __shfl(a2, l2) * z*prev1 * one_per_r - __shfl(b, l2) *  prev2; 
+#if (__CUDA_ARCH__ >= 350) && (__CUDA_ARCH__ < 700)
+                current =  __shfl(a2, l2) * z * prev1 * one_per_r - __shfl(b, l2) *  prev2; 
+#elif __CUDA_ARCH__ >= 700
+                current =  __shfl_sync(FULL_MASK, a2, l2) * z * prev1 * one_per_r - __shfl_sync(FULL_MASK, b, l2) *  prev2; 
+#endif
                 
                 result += current * evaluate_polynomials_shared<NLIP>(address2, cf, r);
                 prev2 = prev1;
@@ -1440,7 +1484,12 @@ __device__ inline double  Bubbles_evaluate_point(
             b =  (l2 > l+1) ? sqrt( (double)((l2+l-1)*(l2-l-1)) /  (double)((l2+l)*(l2-l)) ) : 0.0;
             for (l2 = l+1; l2 <= lmax; l2++) {
                 // evaluate spherical harmonics for l=l2, m=l
-                current =  __shfl(a2, l2) * z*prev1 * one_per_r - __shfl(b, l2) * prev2;
+#if (__CUDA_ARCH__ >= 350) && (__CUDA_ARCH__ < 700)
+                current =  __shfl(a2, l2) * z * prev1 * one_per_r - __shfl(b, l2) * prev2;
+#elif __CUDA_ARCH__ >= 700
+                current =  __shfl_sync(FULL_MASK, a2, l2) * z * prev1 * one_per_r - __shfl_sync(FULL_MASK, b, l2) * prev2;
+#endif
+
                 // the latter term will go to zero, if l2 <= l+1
                 result += current * evaluate_polynomials_shared<NLIP>(address2, cf, r);
                 
@@ -1460,7 +1509,6 @@ __device__ inline double  Bubbles_evaluate_point(
     // earlier in this function, NOTE: should never happen, thus 
     // commented away
     //if (k != 0 && distance > 1e-12) {
-    
     
     
     if (distance < 1e-14) {
@@ -1586,7 +1634,7 @@ Bubbles_evaluate_grid(const Bubble* __restrict__ bubble,
     int icell;
     double relative_position_x, relative_position_y, relative_position_z, distance;
                 
-    //printf("X: %f, cell_spacing: %f, ncell: %d", distance, bubble->cell_spacing, ncell);
+    // printf("X: %f, cell_spacing: %f, ncell: %d", distance, bubble->cell_spacing, ncell);
     // Check that the point is within the block 
     if (x < shape_x && y < shape_y && z+slice_offset < shape_z && z < slice_count) {
         // calculate relative position to the zero-point and distance to it 
@@ -1669,7 +1717,6 @@ Bubbles_evaluate_grid(const Bubble* __restrict__ bubble,
         }
     }
     
-    
     if (x < shape_x && y < shape_y && z+slice_offset < shape_z && z < slice_count && icell < ncell) {
         /*if (x == 0 && y == 0) {
             printf("%d: [x, y, z], id : [%d, %d, %d], %d, icell: %d, in_cell_position:%f, first_bubble-value:%e, distance:%f, coord: [%f, %f, %f] old-value: %e, value: %e, multiplier: %f\n", slice_offset, x, y, z+slice_offset, id, icell, in_cell_position, bubble->cf[icell*8], distance, relative_position_x, relative_position_y, relative_position_z, cube[id], value, multiplier);
@@ -1680,7 +1727,6 @@ Bubbles_evaluate_grid(const Bubble* __restrict__ bubble,
         if (evaluate_gradients_z) gradient_cube_z[id] += multiplier * gradient[Z_];
     }
     return;
-
 }
 
 
@@ -2571,6 +2617,8 @@ void Bubble::download(int lmax) {
     }
 }
 
+
+
 /*
  * Adds together the f-values of 'this' and input bubble 'bubble'
  * 
@@ -2789,7 +2837,7 @@ double Bubble::integrate() {
         exit(-1);
     }
     
-    return  FOURPI_ * this->integrator->integrate(); // 
+    return  4.0 * M_PI * this->integrator->integrate(); // 
 }
 
 void Bubble::registerHost(double *f) {
@@ -3561,6 +3609,8 @@ void Function3DMultiplier::multiply(Bubbles *f1_bubbles, Bubbles *f2_bubbles, Bu
                                         1.0);
                                         
                     check_errors(__FILE__, __LINE__);
+// printf("after offending kernel\n");
+// fflush(stdout);
                 }
 
                 check_errors(__FILE__, __LINE__);
@@ -3735,7 +3785,7 @@ extern "C" double *bubbles_init_page_locked_f_cuda(int lmax, int shape){
     //allocated += 1;
     double * result_f;
     check_errors(__FILE__, __LINE__);
-    cudaHostAlloc((void **)&result_f, 
+    cudaHostAlloc((void **)&result_f,
                   sizeof(double) * (lmax+1) * (lmax+1) * shape,
                   cudaHostAllocPortable);
     check_errors(__FILE__, __LINE__);

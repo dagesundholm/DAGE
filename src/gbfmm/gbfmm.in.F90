@@ -24,6 +24,7 @@
 ! Auxiliary module for reading xyz files
 module read_xyz_file_m
     use ISO_FORTRAN_ENV
+    use globals_m
     implicit none
     public :: read_xyz_file
     private
@@ -35,7 +36,6 @@ contains
         real(REAL64) :: xyz(3)
         character(len=2) :: element
         integer :: natom, iatom
-        real(REAL64), parameter :: ANG2BOHR = 1.88972612d0
 
         open(unit=44, file=fname, action='read')
         read(unit=44, fmt=*) natom
@@ -50,7 +50,7 @@ contains
         enddo
 
         ! The coordinates in xyz files are in angstroms by definition
-        pos(1:, :) = ANG2BOHR*pos(1:, :)
+        pos(1:, :) = A2AU*pos(1:, :)
 
         close(44)
     end subroutine
@@ -256,19 +256,21 @@ contains
         type(Grid3D)                        :: bounding_box
         real(REAL64)                        :: ranges(2,3)
         real(REAL64)                        :: rootlen(3)
-        
+
+        integer(int32), parameter :: nlip = 7
+        integer(int32), parameter :: grid_type = 2 ! equidistant: 1, lobatto: 2
         
         class(Function3D), allocatable      :: rho
         
         ! initialize gaussian generator
         rhogen     = charges_and_positions_to_slater_generator(pos)
-	
+
         bounding_box = rhogen%gen_cubegrid()
         ranges = bounding_box%get_range()
     
         rootlen = ranges(2,:) - ranges(1,:)
         ! initialize charge density
-        allocate(rho, source = function3d_boxed_density(rhogen, maxlevel, ranges, stepmax, 7))
+        allocate(rho, source = function3d_boxed_density(rhogen, maxlevel, ranges, stepmax, nlip, grid_type))
         ! initialize coulomb operator
         allocate(V2, source = GBFMMCoulomb3D(rho%grid, rho%bubbles, maxlevel, lmax))
         ! apply coulomb operator
@@ -298,6 +300,9 @@ contains
         type(Grid3D)                        :: bounding_box
         real(REAL64)                        :: ranges(2,3)
         real(REAL64)                        :: rootlen(3)
+
+        integer(int32), parameter :: nlip = 7
+        integer(int32), parameter :: grid_type = 2 ! equidistant: 1, lobatto: 2
         
         
         class(Function3D), allocatable      :: rho
@@ -310,7 +315,7 @@ contains
     
         rootlen = ranges(2,:) - ranges(1,:)
         ! initialize charge density
-        allocate(rho, source = function3d_boxed_density(rhogen, maxlevel, ranges, stepmax, 7))
+        allocate(rho, source = function3d_boxed_density(rhogen, maxlevel, ranges, stepmax, nlip, grid_type))
         ! initialize coulomb operator
         allocate(V2, source = GBFMMCoulomb3D(rho%grid, rho%bubbles, maxlevel, lmax))
         ! apply coulomb operator
@@ -340,6 +345,9 @@ contains
         type(Grid3D)                        :: bounding_box
         real(REAL64)                        :: ranges(2,3)
         real(REAL64)                        :: rootlen(3)
+
+        integer(int32), parameter :: nlip = 7
+        integer(int32), parameter :: grid_type = 2 ! equidistant: 1, lobatto: 2
         
         
         class(Function3D), allocatable      :: rho
@@ -352,7 +360,7 @@ contains
     
         rootlen = ranges(2,:) - ranges(1,:)
         ! initialize charge density
-        allocate(rho, source = function3d_boxed_density(rhogen, maxlevel, ranges, stepmax, 7))
+        allocate(rho, source = function3d_boxed_density(rhogen, maxlevel, ranges, stepmax, nlip, grid_type))
         ! initialize coulomb operator
         allocate(V2, source = Coulomb3D(rho%grid, rho%bubbles))
         ! apply coulomb operator
@@ -382,6 +390,9 @@ contains
         type(Grid3D)                        :: bounding_box
         real(REAL64)                        :: ranges(2,3)
         real(REAL64)                        :: rootlen(3)
+
+        integer(int32), parameter :: nlip = 7
+        integer(int32), parameter :: grid_type = 2 ! equidistant: 1, lobatto: 2
         
         
         class(Function3D), allocatable      :: rho
@@ -394,7 +405,7 @@ contains
     
         rootlen = ranges(2,:) - ranges(1,:)
         ! initialize charge density
-        allocate(rho, source = function3d_boxed_density(rhogen, maxlevel, ranges, stepmax, 7))
+        allocate(rho, source = function3d_boxed_density(rhogen, maxlevel, ranges, stepmax, nlip, grid_type))
         ! initialize coulomb operator
         allocate(V2, source = GBFMMCoulomb3D(rho%grid, rho%bubbles, maxlevel, lmax))
         ! apply coulomb operator
@@ -425,6 +436,9 @@ contains
         type(Grid3D)                        :: bounding_box
         real(REAL64)                        :: ranges(2,3)
         real(REAL64)                        :: rootlen(3)
+
+        integer(int32), parameter :: nlip = 7
+        integer(int32), parameter :: grid_type = 2 ! equidistant: 1, lobatto: 2
         
         
         class(Function3D), allocatable      :: rho
@@ -437,7 +451,7 @@ contains
     
         rootlen = ranges(2,:) - ranges(1,:)
         ! initialize charge density
-        allocate(rho, source = function3d_boxed_density(rhogen, maxlevel, ranges, stepmax, 7))
+        allocate(rho, source = function3d_boxed_density(rhogen, maxlevel, ranges, stepmax, nlip, grid_type))
         ! initialize coulomb operator
         allocate(V2, source = Coulomb3D(rho%grid, rho%bubbles))
         ! apply coulomb operator

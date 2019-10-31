@@ -110,17 +110,17 @@ module bubbles_class
         integer(INT32) :: k=0
         !> Bubble centers
         real(REAL64), public, allocatable :: centers(:,:)
-        !> Glabal bubble centers
+        !> Global bubble centers
         real(REAL64), public, allocatable :: global_centers(:,:)
         !> Nuclear charges
         real(REAL64),         allocatable :: z(:)
         !> Global Nuclear charges
         real(REAL64),         allocatable :: global_z(:)
         !> xwh, dimension of gr = number of atoms, i.e, = nbub
-        type(Grid1DPointer),     public, allocatable :: gr(:)
+        type(Grid1DPointer),     public, allocatable :: gr(:) ! number of bubbles -> (pointers to grid1d)
         type(Grid1DPointer),     public, allocatable :: global_grids(:)
         type(REAL64_2D_Pointer), public, allocatable :: bf(:)
-        type(REAL64_2D), private, allocatable        :: bf_data(:)
+        type(REAL64_2D),        private, allocatable :: bf_data(:) ! number of bubbles -> (grid points : angular functions)
     contains
         procedure, private :: alloc_bf   => bubbles_alloc_bf
 
@@ -197,12 +197,12 @@ module bubbles_class
         procedure :: eval_3dgrid => bubbles_eval_3dgrid
         procedure :: destroy => bubbles_destroy
         generic   :: get_contaminants => Bubbles_get_contaminants, &
-                                      Bubbles_get_foreign_bubbles_contaminants
-        procedure :: make_taylor      => bubbles_make_taylor
-        procedure :: project_onto     => bubbles_project_onto
+                                         Bubbles_get_foreign_bubbles_contaminants
+        procedure :: make_taylor      => Bubbles_make_taylor
+        procedure :: project_onto     => Bubbles_project_onto
 
-        procedure, private :: bubbles_product
-        generic, public    :: operator(*) => bubbles_product
+        procedure, private :: Bubbles_product
+        generic, public    :: operator(*) => Bubbles_product
 
         procedure, private :: get_radial_derivatives => Bubbles_get_radial_derivatives
         procedure          :: radial_derivative      => Bubbles_radial_derivative
@@ -336,7 +336,7 @@ module bubbles_class
     end interface
     
     interface
-        subroutine bubbles_destroy_cuda(bubbles) bind(C)
+        subroutine Bubbles_destroy_cuda(bubbles) bind(C)
             use ISO_C_BINDING
             type(C_PTR), value    :: bubbles
         end subroutine
@@ -1014,7 +1014,7 @@ contains
     end function
 
     !> Create a copy of another Bubbles instance but only take bubbles
-    !! withing ranges into account
+    !! within range into account
     function Bubbles_subtract_bubbles(self, bubbls, copy_content) result(new)
         class(Bubbles), intent(in)  :: self
         type(Bubbles), intent(in)   :: bubbls
@@ -1232,8 +1232,8 @@ contains
         do i = 1, self%nbub
             c_pointer = Bubbles_init_page_locked_f_cuda(self%lmax, self%gr(i)%p%get_shape())
             call c_f_pointer(c_pointer, self%bf(i)%p, [self%gr(i)%p%get_shape(), self%numf])
+            self%bf(i)%p = 0.d0
         end do
-        
 #else
         allocate(self%bf_data(self%nbub))
         allocate(self%bf(self%nbub))
@@ -1252,7 +1252,7 @@ contains
         class(Bubbles) :: self
         integer        :: ibub
         integer(INT32), intent(in) :: fd
-        real(REAL64), pointer :: cell_steps(:)
+        ! real(REAL64), pointer :: cell_scales(:)
         write(fd) self%nbub
         write(fd) self%nbub_global
         write(fd) self%lmax
@@ -1414,7 +1414,7 @@ contains
         integer                       :: i
         
         if (allocated(self%cuda_interface)) then
-            call bubbles_destroy_cuda(self%cuda_interface)
+            call Bubbles_destroy_cuda(self%cuda_interface)
             deallocate(self%cuda_interface)
         end if
     end subroutine
@@ -1456,8 +1456,8 @@ contains
         real(REAL64) :: coeff
 
         real(REAL64), allocatable :: one_per_kappa_factorial(:)
-
         type(Cart2SphIter) :: c2s
+
         call bigben%split("Make taylor")
         ! Initialize 1/|kappa|!
         allocate(one_per_kappa_factorial(0:tmax))
@@ -2405,30 +2405,57 @@ contains
         do i = 1, self%get_nbub()
             do n = nmin, nmax
                        
-                ! use linear extrapolation to get the point at zero
-                !result_bubbles%bf(i)%p(1, n) = result_bubbles%bf(i)%p(2, n) &
-                !      - (result_bubbles%bf(i)%p(3, n) - result_bubbles%bf(i)%p(2, n)) 
-
                 ! lagrange interpolation:
-                if (order == 2) then
-                    self%bf(i)%p(1, n) = &
-                        2.0d0 * self%bf(i)%p(2, n) &
-                        -  1.0d0 * self%bf(i)%p(3, n) 
-                        
-                else if (order == 3) then
-                    self%bf(i)%p(1, n) = &
-                           3.0d0 * self%bf(i)%p(2, n) &
-                        -  3.0d0 * self%bf(i)%p(3, n) &
-                        +  1.0d0 * self%bf(i)%p(4, n)
-                
-                else if (order == 6) then
-                    self%bf(i)%p(1, n) = &
-                           6.0d0 * self%bf(i)%p(2, n) &
-                        - 15.0d0 * self%bf(i)%p(3, n) &
-                        + 20.0d0 * self%bf(i)%p(4, n) &
-                        - 15.0d0 * self%bf(i)%p(5, n) &
-                        +  6.0d0 * self%bf(i)%p(6, n) &
-                        -  1.0d0 * self%bf(i)%p(7, n)
+                if( self%gr(i)%p%get_grid_type() == 1) then ! equidistant
+                    if (order == 2) then
+                        self%bf(i)%p(1, n) = &
+                               2.0d0 * self%bf(i)%p(2, n) &
+                            -  1.0d0 * self%bf(i)%p(3, n) 
+                            
+                    else if (order == 3) then
+                        self%bf(i)%p(1, n) = &
+                               3.0d0 * self%bf(i)%p(2, n) &
+                            -  3.0d0 * self%bf(i)%p(3, n) &
+                            +  1.0d0 * self%bf(i)%p(4, n)
+                    
+                    else if (order == 6) then
+                        self%bf(i)%p(1, n) = &
+                               6.0d0 * self%bf(i)%p(2, n) &
+                            - 15.0d0 * self%bf(i)%p(3, n) &
+                            + 20.0d0 * self%bf(i)%p(4, n) &
+                            - 15.0d0 * self%bf(i)%p(5, n) &
+                            +  6.0d0 * self%bf(i)%p(6, n) &
+                            -  1.0d0 * self%bf(i)%p(7, n)
+                    end if
+                else if ( self%gr(i)%p%get_grid_type() == 2) then ! lobatto
+                    ! generated using https://github.com/lnw/finite-diff-weights
+                    ! {1,0,0,0,0,0}
+                    ! {1.46980575696,-0.469805756961,0,0,0,0}
+                    ! {1.77037274348,-1.00204109193,0.231668348449,0,0,0}
+                    ! {2.00174315785,-1.56963915594,0.725790017684,-0.157894019598,0,0}
+                    ! {2.2064157501,-2.21141673934,1.6,-0.799671603001,0.204672592246,0}
+                    ! {2.41108834235,-3.01108834235,3.2,-3.01108834235,2.41108834235,-1}
+
+                    if (order == 2) then
+                        self%bf(i)%p(1, n) = &
+                               1.46980575696  * self%bf(i)%p(2, n) &
+                             - 0.469805756961 * self%bf(i)%p(3, n) 
+                            
+                    else if (order == 3) then
+                        self%bf(i)%p(1, n) = &
+                               1.77037274348  * self%bf(i)%p(2, n) &
+                             - 1.00204109193  * self%bf(i)%p(3, n) &
+                             + 0.231668348449 * self%bf(i)%p(4, n)
+                    
+                    else if (order == 6) then
+                        self%bf(i)%p(1, n) = &
+                               2.41108834235 * self%bf(i)%p(2, n) &
+                             - 3.01108834235 * self%bf(i)%p(3, n) &
+                             + 3.2d0         * self%bf(i)%p(4, n) &
+                             - 3.01108834235 * self%bf(i)%p(5, n) &
+                             + 2.41108834235 * self%bf(i)%p(6, n) &
+                             - 1.d0          * self%bf(i)%p(7, n)
+                    end if
                 end if
             end do
         end do
@@ -2606,7 +2633,7 @@ contains
 
     !> Increase \ref bubbles::k "Bubbles%k" by `k_delta` (divide radial
     !! functions by `k_delta`).
-    !! NOTE: This procedure is more complicated that \ref bubbles_decrease_k
+    !! NOTE: This procedure is more complicated than \ref bubbles_decrease_k
     !! "Bubbles%decrease_k" ! because it implies dividing by 0 at r=0!
 
     !> The radial functions are divided by `r**k_delta. The value at \f$r=0\f$
@@ -2615,6 +2642,7 @@ contains
     !! picking the last coefficient. This assumes that all discarded
     !! coefficients are 0.
     subroutine Bubbles_increase_k(self, k_delta)
+        implicit none
         class(Bubbles)              :: self
         integer, intent(in)         :: k_delta
 
@@ -2625,7 +2653,7 @@ contains
 
         integer  :: ibub
         integer  :: ilip, j, nlip, m
-        real(REAL64), pointer      :: cell_steps(:)
+        real(REAL64), pointer      :: cell_scales(:)
         real(REAL64)               :: middle_point
         real(REAL64), allocatable  :: rkdelta(:)
 
@@ -2645,9 +2673,9 @@ contains
         coeffs=self%gr(1)%p%lip%coeffs(0)
 
         do ibub=1,self%nbub
-            cell_steps =>self%gr(ibub)%p%get_cell_steps()
+            cell_scales =>self%gr(ibub)%p%get_cell_scales()
             ! calculate the middle point of the first cell
-            middle_point = cell_steps(1) * ( (nlip-1)/2 )
+            middle_point = cell_scales(1) * ( (nlip-1)/2 )
 
             ! Computing the value of the function at r=0 (can't divide by 0...)
             ! Compute polynomial in local (cell) coordinates
@@ -2658,17 +2686,17 @@ contains
             ! Compute b_j's such that
             ! \sum b_j x^j = \sum c_j ((x-mp)/h)^j
             allocate(p_shf(nlip, (self%lmax+1)**2))
-            p_shf(1,:) =  p_loc(1,:) !eval_polys(coeffs(1)%p, self%gr(ibub)%p%x2cell(self%bf(ibub)%p(1, :))) & 
-                           ! * self%bf(ibub)%p(1:nlip, :) !
+            p_shf(1,:) =  p_loc(1,:) ! eval_polys(coeffs(1)%p, self%gr(ibub)%p%x2cell(self%bf(ibub)%p(1, :))) & 
+                                     ! * self%bf(ibub)%p(1:nlip, :) !
             p_shf(2:,:)=0.d0
             do ilip=2,nlip
                 do j=1, (self%lmax+1)**2
-                    p_shf(ilip,j) = ( p_shf(ilip,j) - middle_point * p_shf(ilip-1,j) ) / cell_steps(1)
+                    p_shf(ilip,j) = ( p_shf(ilip,j) - middle_point * p_shf(ilip-1,j) ) / cell_scales(1)
                     p_shf(ilip,j) = p_shf(ilip,j) + p_loc(ilip,j)
                 end do
             end do
 
-            nullify(cell_steps)
+            nullify(cell_scales)
             deallocate(p_loc)
 
             ! Column to use
@@ -3555,7 +3583,7 @@ contains
         !> The off-diagonal taylor series  part of input 'bubbles2' object 
         type(Bubbles), optional, target,   intent(in)  :: taylor_series_bubbles2
         integer(INT32)                          :: l1, m1, l2, m2, ms, i, n1, n2, bubs1_i, bubs2_i, &
-                                                   sz, ibub, order_number, order_number2, lmax
+                                                   sz, ibub, order_number, order_number1, order_number2, lmax
         integer(INT32), pointer                 :: order_numbers(:)
         real(REAL64),   pointer                 :: bf1(:, :), bf2(:, :), tbf1(:, :), tbf2(:, :), rbf(:, :) 
         real(REAL64),   pointer                 :: coefficients(:)
@@ -3608,8 +3636,8 @@ contains
             do order_number = 1, result_bubbles%get_nbub()
                 ibub = result_bubbles%get_ibub(order_number)
                 if (bubbles1%contains_ibub(ibub)) then
-                    order_number2 = bubbles1%get_order_number(ibub)
-                    bf1 => bubbles1%bf(order_number2)%p
+                    order_number1 = bubbles1%get_order_number(ibub)
+                    bf1 => bubbles1%bf(order_number1)%p
                 else 
                     call C_F_POINTER(C_NULL_PTR, bf1, [0, 0]) 
                 end if
@@ -3621,8 +3649,8 @@ contains
                     call C_F_POINTER(C_NULL_PTR, bf2, [0, 0])
                 end if
                 
-                order_number2 = taylor_series_bubbles1%get_order_number(ibub)
-                tbf1 => taylor_series_bubbles1%bf(order_number2)%p
+                order_number1 = taylor_series_bubbles1%get_order_number(ibub)
+                tbf1 => taylor_series_bubbles1%bf(order_number1)%p
                 order_number2 = taylor_series_bubbles2%get_order_number(ibub)
                 tbf2 => taylor_series_bubbles2%bf(order_number2)%p
                 rbf  => result_bubbles%bf(order_number)%p
@@ -3644,8 +3672,8 @@ contains
                 ibub = result_bubbles%get_ibub(order_number)
 
                 ! set the pointers
-                order_number2 = bubbles1%get_order_number(ibub)
-                bf1 => bubbles1%bf(order_number2)%p
+                order_number1 = bubbles1%get_order_number(ibub)
+                bf1 => bubbles1%bf(order_number1)%p
                 order_number2 = bubbles2%get_order_number(ibub)
                 bf2 => bubbles2%bf(order_number2)%p
                 rbf  => result_bubbles%bf(order_number)%p
@@ -3656,7 +3684,7 @@ contains
                             bubbles1%get_lmax(), bubbles2%get_lmax(), 0, 0)
             end do
         end if
- 
+
         call CUDASync_all()
 
          ! download the result to cpu
@@ -4526,7 +4554,7 @@ contains
     !! and 'get_results' will synchronize the cuda and cpus
     subroutine BubblesEvaluator_evaluate_grid(self,  bubbls, grid, output_function_cube, &
                                               output_derivative_x_cube, output_derivative_y_cube, &
-                                              output_derivative_z_cube, ibubs)
+                                              output_derivative_z_cube, ibubs, finite_diff_order)
         class(BubblesEvaluator), intent(inout)      :: self
         type(Bubbles),             intent(in)       :: bubbls
         type(Grid3D),              intent(in)       :: grid
@@ -4538,6 +4566,7 @@ contains
         integer                                     :: output_shape(3)
 #ifdef HAVE_CUDA
         type(C_PTR)                                 :: original_bubbles, current_bubbles
+        integer,                   intent(in)       :: finite_diff_order
         
         call self%set_input_bubbles(bubbls, ibubs)
         call self%set_output_grid(grid)
@@ -4561,7 +4590,8 @@ contains
                                               self%result_cuda_cube%cuda_interface, &
                                               self%gradient_cuda_cube_x%cuda_interface, &
                                               self%gradient_cuda_cube_y%cuda_interface, &
-                                              self%gradient_cuda_cube_z%cuda_interface, 3)
+                                              self%gradient_cuda_cube_z%cuda_interface, 3, &
+                                              finite_diff_order)
             ! start downloading the results. NOTE: this is asynchronous,
             ! the cpu-gpu sync will happen when 'get_results' or 'get_gradients'
             ! is called.   
@@ -4575,17 +4605,17 @@ contains
             call CUDASync_all()
             
             if (present(output_derivative_x_cube)) then
-                call self%cuda_evaluate_grid_derivative(X_, output_derivative_x_cube)
+                call self%cuda_evaluate_grid_derivative(X_, output_derivative_x_cube, finite_diff_order=finite_diff_order)
                 call CUDASync_all()
             end if
 
             if (present(output_derivative_y_cube)) then
-                call self%cuda_evaluate_grid_derivative(Y_, output_derivative_y_cube)
+                call self%cuda_evaluate_grid_derivative(Y_, output_derivative_y_cube, finite_diff_order=finite_diff_order)
                 call CUDASync_all()
             end if
 
             if  (present(output_derivative_z_cube)) then
-                call self%cuda_evaluate_grid_derivative(Z_, output_derivative_z_cube)
+                call self%cuda_evaluate_grid_derivative(Z_, output_derivative_z_cube, finite_diff_order=finite_diff_order)
                 call CUDASync_all()    
             end if
         end if

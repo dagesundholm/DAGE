@@ -1,13 +1,6 @@
 <?xml version="1.0"?>
 <structure name="H2_sr" basis_set_name="cc-pVDZ" multiplicity="singlet" number_of_virtual_orbitals="0">
-    <atom atom_type="1" charge="1" coordinates="0.0, 0.0,  0.700521475"/>
-    <atom atom_type="1" charge="1" coordinates="0.0, 0.0, -0.700521475"/>
-    <molecular_orbital orbital_spin="0" orbital_coefficients="4.13385274506790e-01,  1.74151132135870e-01,  4.13385274506790e-01,  1.74151132135860e-01"/>
-    <molecular_orbital orbital_spin="0" orbital_coefficients="1.51464048859130e-01,  1.85609903201590e+00, -1.51464048859130e-01, -1.85609903201590e+00"/>
-    <molecular_orbital orbital_spin="0" orbital_coefficients="-7.19371400990630e-01,  7.32330437786870e-01, -7.19371400990620e-01,  7.32330437786870e-01"/>
-    <molecular_orbital orbital_spin="0" orbital_coefficients="1.24519164185300e+00, -1.56289824773280e+00, -1.24519164185300e+00,  1.56289824773280e+00" />
-    <molecular_orbital orbital_spin="1" orbital_coefficients="4.13385274506790e-01,  1.74151132135870e-01,  4.13385274506790e-01,  1.74151132135860e-01"/>
-    <molecular_orbital orbital_spin="1" orbital_coefficients="1.51464048859130e-01,  1.85609903201590e+00, -1.51464048859130e-01, -1.85609903201590e+00"/>
-    <molecular_orbital orbital_spin="1" orbital_coefficients="-7.19371400990630e-01,  7.32330437786870e-01, -7.19371400990620e-01,  7.32330437786870e-01"/>
-    <molecular_orbital orbital_spin="1" orbital_coefficients="1.24519164185300e+00, -1.56289824773280e+00, -1.24519164185300e+00,  1.56289824773280e+00"/>
+    <atom atom_type="1" nuclear_charge="1" coordinates="0.0, 0.0,  0.700521475"/>
+    <atom atom_type="1" nuclear_charge="1" coordinates="0.0, 0.0, -0.700521475"/>
+    <molecular_orbital orbital_coefficients="1"/>
 </structure>

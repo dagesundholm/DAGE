@@ -644,6 +644,7 @@ contains
     end subroutine
 #endif
     
+
     !> Implementation of the FMM algorithm as an operator. This method is called with
     !! .apply. operator
     subroutine GBFMMCoulomb3D_calculate_potential(self, func, new, cell_limits, only_cube)
@@ -809,7 +810,6 @@ contains
 
         ! do MPI-communication between nodes to communicate the borders between node-domains
         call potential%communicate_cube_borders(reversed_order = .TRUE.)
-
 
         ! precalculate the taylor series bubbles to save some time in future multiplications
         call potential%precalculate_taylor_series_bubbles()
@@ -1780,7 +1780,9 @@ contains
             end do
             deallocate(self%input_parallel_infos)
         end if 
+#ifdef HAVE_CUDA
         call check_cuda_errors_from_fortran(1)
+#endif
         if(allocated(self%output_parallel_infos)) then
             do i = 1, size(self%output_parallel_infos)
                 call self%output_parallel_infos(i)%destroy()
@@ -1804,7 +1806,9 @@ contains
             end do
             deallocate(self%output_grids)
         end if 
+#ifdef HAVE_CUDA
         call check_cuda_errors_from_fortran(1)
+#endif
         
         if(allocated(self%interaction_matrices)) then
             do i = 1, size(self%interaction_matrices)
@@ -1822,13 +1826,17 @@ contains
         nullify(self%gridin)
         nullify(self%gridout)
         if (allocated(self%w))  deallocate(self%w)
+#ifdef HAVE_CUDA
         call check_cuda_errors_from_fortran(1)
+#endif
         call self%nuclear_potential%destroy()
+#ifdef HAVE_CUDA
         call check_cuda_errors_from_fortran(1)
+#endif
     end subroutine
     
     
-    function function3d_boxed_density(gen, maxlevel, ranges, stepmax, nlip) result(rho)
+    function function3d_boxed_density(gen, maxlevel, ranges, stepmax, nlip, grid_type) result(rho)
         class(Generator), intent(in)        :: gen
         !> Charge density generator
         integer, intent(in), optional       :: maxlevel
@@ -1838,10 +1846,11 @@ contains
         real(REAL64), intent(in)            :: stepmax
         !> Maximum stepsize
         integer, intent(in)                 :: nlip
+        integer(int32), intent(in)          :: grid_type
         !> Number of Lagrange interpolation polynomials per cell
 
         ! returned 3d function
-        class(Function3D), allocatable     :: rho
+        class(Function3D), allocatable      :: rho
         ! final grid
         type(Grid3D)                        :: grid
 
@@ -1867,7 +1876,7 @@ contains
             stepsizes(iaxis) = (ranges(2, iaxis) - ranges(1, iaxis)) / (ncell(iaxis) * (nlip-1))
             ncell(iaxis) = floor((ranges(2, iaxis) - ranges(1, iaxis)) / ((nlip-1)*stepsizes(iaxis))) 
         enddo
-        
+
         ! allocate the axis stepsizes and give them values
         allocate(stepsize_x(ncell(X_)))
         allocate(stepsize_y(ncell(Y_)))
@@ -1875,9 +1884,9 @@ contains
         stepsize_x = stepsizes(X_)
         stepsize_y = stepsizes(Y_)
         stepsize_z = stepsizes(Z_)
-        
+
         ! init grid via Grid3D_init_step constructor
-        grid = Grid3D(ranges(1, :), ncell, nlip, stepsize_x, stepsize_y, stepsize_z)
+        grid = Grid3D(ranges(1, :), ncell, nlip, stepsize_x, stepsize_y, stepsize_z, grid_type)
 
         deallocate(stepsize_x, stepsize_y, stepsize_z)
         ! init density in the grid

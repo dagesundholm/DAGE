@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<dage_input>
+    <settings path="settings/urhf_settings_0.07.xml" />
+    <structure path="structures/H.xml" />
+    <structure path="structures/Hep.xml" />
+    <structure path="structures/He.xml" />
+    <basis_set path="basis_sets/cc-pVDZ.xml" />
+
+    <action structure_name="H"
+            settings_name="urhf_settings_0.07"
+            name="optimize_electron_structure"
+            output_folder="../h_0.07_output_urhf/"
+            store_result_functions="yes"/>
+
+    <action structure_name="Hep"
+            settings_name="urhf_settings_0.07"
+            name="optimize_electron_structure"
+            output_folder="../hep_0.07_output_urhf/"
+            store_result_functions="yes"/>
+
+    <action structure_name="He"
+            settings_name="urhf_settings_0.07"
+            name="optimize_electron_structure"
+            output_folder="../he_0.07_output_urhf/"
+            store_result_functions="yes"/>
+
+</dage_input>
+

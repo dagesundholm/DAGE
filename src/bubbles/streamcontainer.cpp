@@ -188,8 +188,6 @@ StreamContainer::StreamContainer(StreamContainer *parentContainer, int subcontai
             stream_offset = order_number_within_device * streams_per_subcontainer +  
                     ((order_number_within_device > streams_modulus) ? streams_modulus : order_number_within_device);
                 
-            
-            
         }
         else {
             printf("ERROR: unfavourable stream-configuration, more subcontainers for device (%d), than available streams (%d) and subcontainers per device is not equal.\n", 
@@ -214,9 +212,9 @@ StreamContainer::StreamContainer(StreamContainer *parentContainer, int subcontai
     else {
         printf("ERROR: Mixed configuration is not supported, yet!\n");
     }
-    
-    
 }
+
+
 
 StreamContainer *StreamContainer::getSingleDeviceContainer(int device_order_number) {
     StreamContainer *result = new StreamContainer(this, &device_order_number, 1);
@@ -431,7 +429,7 @@ extern "C" void streamcontainer_destroy(StreamContainer *streamContainer) {
 
 extern "C" void check_cuda_errors_from_fortran_(bool lock) {
     if (lock) {
-        cudaThreadSynchronize();
+        cudaDeviceSynchronize();
     }
 
     cudaError_t error = cudaGetLastError();

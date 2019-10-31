@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<dage_input>
+    <settings path="settings/rhf_gbfmm_settings_0.07.xml" />
+    <structure path="structures/H2.xml"/>
+    <basis_set path="basis_sets/cc-pVDZ.xml" />
+
+    <action structure_name="H2"
+            settings_name="rhf_gbfmm_settings_0.07"
+             name="optimize_electron_structure"
+             output_folder="../h2_0.07_output_rhf_gbfmm/" store_result_functions="yes"/>
+
+</dage_input>
+                      
+                            
+                     

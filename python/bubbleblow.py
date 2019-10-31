@@ -30,7 +30,7 @@ class LIP:
         self.nlip = nlip
         self.start = -((nlip-1)/2)
         self.end   = nlip/2
-        self.roots = range(self.start,self.end+1)
+        self.roots = list(range(self.start,self.end+1))
         self.poly = []
         for i in range(nlip):
             # Calculate polynomials
@@ -85,7 +85,7 @@ class Bubble:
         try:
             if (nlip%2!=1): raise ValueError
         except ValueError:
-            print 'The number of LIP per cell must be an odd number ({0} given)'.format(nlip)
+            print('The number of LIP per cell must be an odd number ({0} given)'.format(nlip))
             exit(1)
         self.lip=LIP(nlip)
         self.origin=origin
@@ -180,7 +180,7 @@ class Bubble:
                     if(not(os.access(self.origin,os.F_OK))):
                         raise IOError("The file "+self.origin+" doesn't exist!")
                 except IOError as detail:
-                    print detail
+                    print(detail)
                     quit()
                 # Initialize and read MOs (mos.py is not working...)
 #            self.get_rho=mos.Density(origin)
@@ -197,7 +197,7 @@ class Bubble:
                     try:
                         self.file=open(self.origin,'r')
                     except IOError as detail:
-                        print detail
+                        print(detail)
                         quit()
                     self.data_r=[]
                     self.data_d=[]
@@ -231,10 +231,10 @@ class Bubble:
                 self.get_rho=self.__rho_interpolate_from_data
                 self.label=""
             except TypeError as err:
-                print err
+                print(err)
                 quit()
             except ValueError as err:
-                print err
+                print(err)
                 quit()
 
     def __rho_interpolate_from_data(self,r_in):
@@ -416,7 +416,7 @@ if(__name__=="__main__"):
             plt.show()
         else:
             for i in range(bubbletest.npoint):
-                print "{0:20.10e}{1:20.10e}{2:20.10e}".format(bubbletest.r[i],\
-                        bubbletest.pot[i],bubbletest.genpot_an(bubbletest.r[i])-bubbletest.pot[i])
+                print("{0:20.10e}{1:20.10e}{2:20.10e}".format(bubbletest.r[i],\
+                        bubbletest.pot[i],bubbletest.genpot_an(bubbletest.r[i])-bubbletest.pot[i]))
     else:
-        print bubbletest
+        print(bubbletest)

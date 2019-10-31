@@ -19,16 +19,18 @@
 #    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, #
 #    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE #
 #    SOFTWARE.                                                                     #
-#----------------------------------------------------------------------------------# 
+#----------------------------------------------------------------------------------#
 # Master CMakeLists.txt file for libbubbles
 
 set(F2PY_LIBS   "")
 set(F2PY_INCLUDE_DIRS   "")
 
-cmake_minimum_required(VERSION 2.6)
+cmake_minimum_required(VERSION 3.12)
 project(BUBBLES) # Enables C/C++ support
 enable_language(Fortran)
-find_package(PythonInterp 2.7 REQUIRED)
+# find_package(PythonInterp 2.7 REQUIRED)
+find_package(Python3 3.7 REQUIRED)
+
 
 # Define bubbles specific CMake modules in the folder `cmake'
 set(CMAKE_MODULE_PATH
@@ -88,11 +90,11 @@ if (ENABLE_DFT)
     find_library(LIBXC xc)
     find_library(LIBXCF90 xcf90)
     if(LIBXC AND LIBXCF90)
-        set(LIBS "${LIBS} -lxc -lxcf90")   
-        message("libs ${LIBS}")
-        set(F2PY_LIBS "${F2PY_LIBS} -lxc -lxcf90") 
+        set(LIBS ${LIBS} "-lxc" "-lxcf90")
+        # message("libs ${LIBS}")
+        set(F2PY_LIBS ${F2PY_LIBS} "-lxc" "-lxcf90")
         set(F2PY_INCLUDE_DIRS ${F2PY_INCLUDE_DIRS} ${LIBXC} ${LIBXCF90})
-        message("f2py inc dir ${F2PY_INCLUDE_DIRS}")
+        # message("f2py inc dir ${F2PY_INCLUDE_DIRS}")
         add_definitions(-DHAVE_DFT)
     else()
         message("LibXC was not found")
@@ -104,10 +106,10 @@ if(ENABLE_MPI)
     find_package(MPI)
     if(MPI_FOUND)
         add_definitions(-DHAVE_MPI)
-        set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${MPI_COMPILE_FLAGS}")
+        set(CMAKE_Fortran_FLAGS ${CMAKE_Fortran_FLAGS} ${MPI_COMPILE_FLAGS})
         set(CMAKE_CXX_COMPILER ${MPI_CXX_COMPILER})
         set(CMAKE_Fortran_COMPILER ${MPI_Fortran_COMPILER})
-    
+
         message("-- CMake fortran flags \"${MPI_COMPILE_FLAGS}\"")
         message("-- MPI CXX compiler \"${MPI_CXX_COMPILER}\"")
         message("-- MPI Fortran compiler \"${MPI_Fortran_COMPILER}\"")
@@ -119,11 +121,11 @@ endif()
 if(ENABLE_OMP)
     message("!!! Open MP enabled")
     add_definitions(-DHAVE_OMP)
-    set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fopenmp")
-    set(F2PY_LIBS "${F2PY_LIBS} -lgomp")
+    set(CMAKE_Fortran_FLAGS ${CMAKE_Fortran_FLAGS} "-fopenmp")
+    set(F2PY_LIBS ${F2PY_LIBS} "-lgomp")
     #set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${OpenMP_COMPILE_FLAGS}")
     #include_directories(${OpenMP_INCLUDE_PATH})
-    
+
 endif()
 
 if (ENABLE_CUDA)
@@ -135,34 +137,39 @@ if (ENABLE_CUDA)
         message("Cuda libraries ${CUDA_CUBLAS_LIBRARIES} ${CUDA_LIBRARIES}")
         set(LIBS ${LIBS} ${CUDA_CUBLAS_LIBRARIES} ${CUDA_LIBRARIES})
         set(F2PY_INCLUDE_DIRS ${F2PY_INCLUDE_DIRS} ${CUDA_CUBLAS_LIBRARIES} ${CUDA_LIBRARIES})
-        set(F2PY_LIBS "${F2PY_LIBS} -lcublas -lcudart -lcuda")
+        set(F2PY_LIBS ${F2PY_LIBS} "-lcublas" "-lcudart" "-lcuda")
         if (ENABLE_CUDA_PROFILING)
             set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} -lineinfo --ptxas-options;-v)
             add_definitions(-DHAVE_CUDA_PROFILING)
         endif()
         if (ENABLE_NVTX)
-            set(F2PY_LIBS "${F2PY_LIBS} -lnvToolsExt")
+            set(F2PY_LIBS ${F2PY_LIBS} "-lnvToolsExt")
             add_definitions(-DHAVE_NVTX)
         endif()
-        set(CUDA_NVCC_ARCH "60;37"
+        set(CUDA_NVCC_ARCH "37;60;70"
             CACHE STRING
-            "List of CUDA Compute capability (35, 37, 60 for 3.5, 3.7, 6.0, respectively)"
+            "List of CUDA Compute capability (37 and 70 for 3.7 and 7.0, respectively)"
             )
+        # set(CUDA_NVCC_ARCH "35;37;60"
+        #     CACHE STRING
+        #     "List of CUDA Compute capability (35, 37, 60 for 3.5, 3.7, 6.0, respectively)"
+        #     )
         foreach (ARCH ${CUDA_NVCC_ARCH})
             set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS}
                         "-gencode arch=compute_${ARCH},code=sm_${ARCH}"
                         )
         endforeach()
-        
-        set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} 
+
+        set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS}
                         "-I${CMAKE_INSTALL_PREFIX}/include/"
                         )
-        
+
         message("cuda nvcc flags ${CUDA_NVCC_FLAGS}")
         message(WARNING "
         >> Remember to set CUDA_HOST_COMPILER to the correct version
         (e.g. gcc <= 4.6 for CUDA 5.0)")
         if (DEBUG_CUDA)
+            set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} -g -G) # which implies -lineinfo
             add_definitions(-DDEBUG_CUDA)
         endif()
     endif()
@@ -171,7 +178,7 @@ endif ()
 add_definitions(-DBUBBLES_REVISION_NUMBER=\"${BUBBLES_REVISION_NUMBER}\")
 
 if (DEBUG_MEMORY_LEAKS)
-    add_definitions(-DDEBUG_MEMORY_LEAKS) 
+    add_definitions(-DDEBUG_MEMORY_LEAKS)
 endif ()
 
 
@@ -179,11 +186,8 @@ endif ()
 # Where to look for Fortran module files
 include_directories(
     ${PROJECT_BINARY_DIR}/modules
-)
-
-# Where to look for Fortran module files
-include_directories(
     ${CMAKE_INSTALL_PREFIX}/include
+    /usr/include
 )
 
 # Where to dump libraries...

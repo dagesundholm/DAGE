@@ -287,7 +287,7 @@ contains
 
         character, parameter :: tab=achar(9)
 
-        write(fd,'(i3,a1,f15.6,a1,f15.6,a1,a)'), depth,tab,&
+        write(fd,'(i3,a1,f15.6,a1,f15.6,a1,a)') depth, tab, &
             self%t0-start,tab,&
             self%t1-start,tab,trim(self%label)
         if(associated(self%child))   call self%child%dump  (depth+1, fd, start)

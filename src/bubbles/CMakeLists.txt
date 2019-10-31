@@ -115,6 +115,8 @@ if(CUDA_FOUND)
         cuda_profiling.cu
         evaluators.cu
         points.cu
+        gpu_info.cu
+        gpu_info.F90
         ../gbfmm/gbfmm_helmholtz3d.cu
         ../gbfmm/gbfmm_coulomb3d.cu
         ../gbfmm/gbfmm_potential_operator.cu)
@@ -131,6 +133,5 @@ set_target_properties(bubbles PROPERTIES LINKER_LANGUAGE CXX)
 install (TARGETS bubbles LIBRARY DESTINATION lib COMPONENT bubbles)
 install (DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY}/ DESTINATION include/bubbles 
          COMPONENT bubbles FILES_MATCHING PATTERN "*.mod")
-
 
 

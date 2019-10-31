@@ -73,7 +73,7 @@ module expo_m
         real(REAL64), pointer               :: expmat_slice(:, :)
         
         logical                             :: initialize,duplicate,thiswaslast
-        real(REAL64), dimension(:), pointer :: cell_lengths
+        real(REAL64), dimension(:), pointer :: cell_scales
         type(REAL64_2D), allocatable        :: lip_coeffs(:)
 
         ! gr1d_in is the density, gr1d_out is  the potential
@@ -103,19 +103,20 @@ module expo_m
         ! for all points in the x2 direction
         ! THIS SHOULD BE THE LOCAL NDIM
 
-        cell_lengths => input_grid%axis(axis)%get_cell_steps()
+        cell_scales => input_grid%axis(axis)%get_cell_scales()
         lip_coeffs=lip%coeffs(0)
         ! Loop over all t-points
-        do itpoint = 1, size(tpoints) 
+        do itpoint=1, size(tpoints) 
             t = tpoints(itpoint)
             ! Loop over all point charges
             do icell=1, input_grid%axis(axis)%get_ncell()
                 
                 ! get the exponent (t*h) measured in cells (each one being h in length)
-                shft=t*cell_lengths(icell)
+                shft=t*cell_scales(icell)
 
-                ! get the box length in number of cells
-                displacement = box_length/cell_lengths(icell)
+
+                ! get the scaled box length (ie, as it is stored in grid%lip)
+                displacement = box_length/cell_scales(icell)
 
                 ! get the slice of the result matrix corrensponding to this t-point and cell
                 expmat_slice => expmat((icell-1)*(nlip-1)+1 : (icell-1)*(nlip-1)+nlip, :, itpoint)
@@ -152,17 +153,16 @@ module expo_m
                         ! contrib(:,2) was the current contribution
 
                         ! If contrib(2,:) brings any larger integral, put it in
-                        where(abs(contribution(:, 2)) > abs(contribution(:, 1))) contribution(:, 1) = contribution(:, 2)
+                        where(dabs(contribution(:, 2)) > dabs(contribution(:, 1))) contribution(:, 1) = contribution(:, 2)
 
                         ! If the last contributions were all tiny
-                        if(all(cvg*abs(contribution(:, 1)) >= abs(contribution(:, 2)))) exit
+                        if(all(cvg*dabs(contribution(:, 1)) >= dabs(contribution(:, 2)))) exit
                         if(all(contribution(:, 2) == 0.d0) .and. j>1) exit
 
                         j=j+1
                     end do
                     ! Multiply the integrals times the polynomial coefficients
-                    temp_expmat = xmatmul(lip_coeffs(1)%p(:,:),temp_expmat)*&
-                                                         cell_lengths(icell)
+                    temp_expmat = xmatmul(lip_coeffs(1)%p(:,:),temp_expmat)*cell_scales(icell)
                     expmat_slice(:, ipoint) = expmat_slice(:, ipoint) + temp_expmat
                 end do
             end do
@@ -190,16 +190,16 @@ module expo_m
         type(LIPBasis), pointer :: lip
         type(PBC), pointer :: pbc_ptr
         
-        real(REAL64), allocatable, target :: expmat(:,:, :)
+        real(REAL64), allocatable, target :: expmat(:,:,:) ! dim(dens-grid), dim(pot-grid), dim(t)
         
 
         type(Grid1D), pointer :: gr1d_in, gr1d_out
         real(REAL64) :: x2,beginning,theend,pst0, t
         real(REAL64) :: shft,pot_boxmid,den_boxlen,disp
         real(REAL64), allocatable :: temp_expmat(:),contrib(:,:)
-        integer(INT32) :: ix2,ncell, nlip,j, itpoint
+        integer(INT32) :: ix2, icell, nlip, j, itpoint
         integer(INT32) :: idisp, first_gridpoint, last_gridpoint
-        real(REAL64) :: qmax,qmin, cell_length, tic, toc, mul_time
+        real(REAL64) :: qmax, qmin, cell_scale, tic, toc, mul_time
 
         real(REAL64) :: cvg=1.D-12 ! Relative error threshold
 
@@ -207,7 +207,7 @@ module expo_m
         real(REAL64), pointer :: expmat_slice(:, :)
         
         logical :: initialize,duplicate,thiswaslast
-        real(REAL64),dimension(:),pointer :: grid, cellh
+        real(REAL64),dimension(:),pointer :: grid, cell_scales
         type(REAL64_2D),allocatable :: lip_coeffs(:)
 
         ! gr1d_in is the density, gr1d_out is  the potential
@@ -250,18 +250,18 @@ module expo_m
         ! THIS SHOULD BE THE LOCAL NDIM
 
         grid => gr1d_out%get_coord()
-        cellh=>gr1d_in%get_cell_steps()
+        cell_scales => gr1d_in%get_cell_scales()
         mul_time = 0
         lip_coeffs=lip%coeffs(0)
         do itpoint = 1, size(tpoints) 
             t = tpoints(itpoint)
-            do ncell=1,gr1d_in%get_ncell()
-                cell_length = cellh(ncell)
-                shft=t*cell_length
-                disp=den_boxlen/cell_length
-                first_gridpoint = (ncell-1)*(nlip-1)+1
-                last_gridpoint = (ncell-1)*(nlip-1)+nlip
-            
+            do icell=1,gr1d_in%get_ncell()
+                cell_scale = cell_scales(icell)
+                shft=t*cell_scale
+                disp=den_boxlen/cell_scale
+                first_gridpoint = (icell-1)*(nlip-1)+1
+                last_gridpoint = (icell-1)*(nlip-1)+nlip
+
                 if (present(trsp)) then
                     expmat_slice => expmat(first_gridpoint:last_gridpoint, :, itpoint)
                 else 
@@ -270,16 +270,15 @@ module expo_m
                 do ix2=1,gr1d_out%get_shape()
                     x2=grid(ix2)
             
-            ! integrate every basis function with exponential weights
+                    ! integrate every basis function with exponential weights
             
-                
     ! the integration is done in the basis function coordinates
     ! pst0  = -(np-1)/2+(p-gr1d_in)/h is the distance from the center of the box to the center of the gaussian measured in cells (each one being h in length)
     ! shft =  shft= t*h is the exponent measured in cells (each one being h in length)
     ! disp is the box length in unit cells. For an equidistant grid, it is simply gr1d_in%ndim
 
-!                pst0=beginning+(x2-cellb-disp0)/gr1d_in%cellh(ncell)
-                    pst0=gr1d_in%x2cell(x2,ncell)
+!                pst0=beginning+(x2-cellb-disp0)/gr1d_in%cellh(icell)
+                    pst0=gr1d_in%x2cell(x2,icell)
                 
 
                     j=1 ! Counter of the number of images taken into account
@@ -307,9 +306,9 @@ module expo_m
                         ! contrib(:,2) was the current contribution
 
                         ! If contrib(2,:) brings any larger integral, put it there
-                        where(abs(contrib(:, 2))>abs(contrib(:, 1))) contrib(:, 1)=contrib(:, 2)
+                        where(dabs(contrib(:, 2))>dabs(contrib(:, 1))) contrib(:, 1)=contrib(:, 2)
                         ! If the last contributions were all tiny
-                        if(all(cvg*abs(contrib(:, 1))>=abs(contrib(:, 2)))) exit
+                        if(all(cvg*dabs(contrib(:, 1))>=dabs(contrib(:, 2)))) exit
                         if(all(contrib(:, 2)==0.d0).and.j>1) exit
 !                        if(j>0) then
 !                            if(j>1000) then
@@ -329,8 +328,7 @@ module expo_m
                     end do
                     !j_max=max(j_max,j)
                     ! Multiply the integrals times the polynomial coefficients
-                    temp_expmat=xmatmul(lip_coeffs(1)%p(:,:),temp_expmat)*&
-                                                         cell_length
+                    temp_expmat=xmatmul(lip_coeffs(1)%p(:,:),temp_expmat) * cell_scale
                     if (present(trsp)) then
                         expmat_slice(:, ix2)= expmat_slice(:, ix2) + temp_expmat
                     else
@@ -371,7 +369,7 @@ module expo_m
         real(REAL64), allocatable :: temp_expmat(:),contrib(:,:)
         integer(INT32) :: ix2,ncell, nlip,j, itpoint, evaluated_cells(2), evaluated_grid_points(2)
         integer(INT32) :: idisp, first_gridpoint, last_gridpoint, icell, i_grid_point
-        real(REAL64) :: qmax,qmin, cell_length, tic, toc, mul_time
+        real(REAL64) :: qmax,qmin, cell_scale, tic, toc, mul_time
 
         real(REAL64) :: cvg=1.D-12 ! Relative error threshold
 
@@ -379,7 +377,7 @@ module expo_m
         real(REAL64), pointer :: expmat_slice(:, :)
         
         logical :: initialize,duplicate,thiswaslast
-        real(REAL64),dimension(:),pointer :: grid, cellh
+        real(REAL64),dimension(:),pointer :: grid, cell_scales
         type(REAL64_2D),allocatable :: lip_coeffs(:)
 
         ! gr1d_in is the density, gr1d_out is  the potential
@@ -422,16 +420,16 @@ module expo_m
         ! THIS SHOULD BE THE LOCAL NDIM
 
         grid => gr1d_out%get_coord()
-        cellh=>gr1d_in%get_cell_steps()
+        cell_scales => gr1d_in%get_cell_scales()
         mul_time = 0
         lip_coeffs=lip%coeffs(0)
         do itpoint = 1, size(tpoints) 
             t = tpoints(itpoint)
             do icell=1,2
                 ncell = evaluated_cells(icell)
-                cell_length = cellh(ncell)
-                shft=t*cell_length
-                disp=den_boxlen/cell_length
+                cell_scale = cell_scales(ncell)
+                shft=t*cell_scale
+                disp=den_boxlen/cell_scale
                 first_gridpoint = (ncell-1)*(nlip-1)+1
                 last_gridpoint = (ncell-1)*(nlip-1)+nlip
                 if (present(trsp)) then
@@ -478,9 +476,9 @@ module expo_m
                         ! contrib(:,2) was the current contribution
 
                         ! If contrib(2,:) brings any larger integral, put it there
-                        where(abs(contrib(:, 2))>abs(contrib(:, 1))) contrib(:, 1)=contrib(:, 2)
+                        where(dabs(contrib(:, 2))>dabs(contrib(:, 1))) contrib(:, 1)=contrib(:, 2)
                         ! If the last contributions were all tiny
-                        if(all(cvg*abs(contrib(:, 1))>=abs(contrib(:, 2)))) exit
+                        if(all(cvg*dabs(contrib(:, 1))>=dabs(contrib(:, 2)))) exit
                         if(all(contrib(:, 2)==0.d0).and.j>1) exit
 !                        if(j>0) then
 !                            if(j>1000) then
@@ -500,8 +498,7 @@ module expo_m
                     end do
                     !j_max=max(j_max,j)
                     ! Multiply the integrals times the polynomial coefficients
-                    temp_expmat=xmatmul(lip_coeffs(1)%p(:,:),temp_expmat)*&
-                                                         cell_length
+                    temp_expmat=xmatmul(lip_coeffs(1)%p(:,:),temp_expmat) * cell_scale
                     if (present(trsp)) then
                         expmat_slice(:, ix2)= expmat_slice(:, ix2) + temp_expmat
                     else
@@ -512,9 +509,9 @@ module expo_m
             end do
              
             do ncell=2, gr1d_in%get_ncell() -1 
-                cell_length = cellh(ncell)
-                shft=t*cell_length
-                disp=den_boxlen/cell_length
+                cell_scale = cell_scales(ncell)
+                shft=t*cell_scale
+                disp=den_boxlen/cell_scale
                 first_gridpoint = (ncell-1)*(nlip-1)+1
                 last_gridpoint = (ncell-1)*(nlip-1)+nlip
                 if (present(trsp)) then
@@ -561,9 +558,9 @@ module expo_m
                         ! contrib(:,2) was the current contribution
 
                         ! If contrib(2,:) brings any larger integral, put it there
-                        where(abs(contrib(:, 2))>abs(contrib(:, 1))) contrib(:, 1)=contrib(:, 2)
+                        where(dabs(contrib(:, 2))>dabs(contrib(:, 1))) contrib(:, 1)=contrib(:, 2)
                         ! If the last contributions were all tiny
-                        if(all(cvg*abs(contrib(:, 1))>=abs(contrib(:, 2)))) exit
+                        if(all(cvg*dabs(contrib(:, 1))>=dabs(contrib(:, 2)))) exit
                         if(all(contrib(:, 2)==0.d0).and.j>1) exit
 !                        if(j>0) then
 !                            if(j>1000) then
@@ -583,8 +580,7 @@ module expo_m
                     end do
                     !j_max=max(j_max,j)
                     ! Multiply the integrals times the polynomial coefficients
-                    temp_expmat=xmatmul(lip_coeffs(1)%p(:,:),temp_expmat)*&
-                                                         cell_length
+                    temp_expmat=xmatmul(lip_coeffs(1)%p(:,:),temp_expmat) * cell_scale
                     if (present(trsp)) then
                         expmat_slice(:, ix2)= expmat_slice(:, ix2) + temp_expmat
                     else
@@ -601,6 +597,7 @@ module expo_m
         return
 
     end function
+
 
     function make_Coulomb3D_matrices(gridin, gridout, tp, jmax, threshold, only_border) &
                                                                     result(f)
@@ -641,6 +638,7 @@ module expo_m
         call bigben%stop()
     end function
 
+ 
     !> Returns a vector of integrals.
     !!
     !! Elements in `values` are given by 
@@ -701,9 +699,7 @@ module expo_m
         ! 0.25*sqrt(pii)+0.25*erf(2)*sqrt(pii)
         ! 30.1.2004
 
-        real(REAL64) :: sqpii,derf,instability_threshold,value
-
-        real(REAL64), parameter  :: pii = 3.141592653589793D0
+        real(REAL64) :: instability_threshold,value
 
         instability_threshold=1.0d-06
 
@@ -712,8 +708,7 @@ module expo_m
         else if(t.lt.instability_threshold) then
             value=(b-a)
         else 
-            sqpii=dsqrt(pii)
-            value=sqpii*(derf(b*t-t*p)-derf(a*t-t*p))/t/2.d0
+            value= SQRTPI *(derf(b*t-t*p)-derf(a*t-t*p))/t/2.d0
         end if 
     end function expo_0
 
@@ -727,11 +722,9 @@ module expo_m
         ! 0.25*sqrt(pii)+0.125*exp(-4)+0.25*erf(2)*sqrt(pii)
         ! 30.1.2004
 
-        real(REAL64) :: sqpii,derf,value
+        real(REAL64) :: value
 
         real(REAL64) :: v1,v2,v3,q,r,instability_threshold
-
-        real(REAL64), parameter  :: pii = 3.141592653589793D0
 
         instability_threshold=1.0d-06
 
@@ -741,9 +734,7 @@ module expo_m
             value=(b*b-a*a)/2.d0
         !      write(6,*) 'Instability warning in expo_1, t = and p = ',t,p
         else 
-            sqpii=dsqrt(pii)
-
-            v1=p*sqpii*derf(t*(b-p))
+            v1=p* SQRTPI *derf(t*(b-p))
 
             if(t.gt.1.d-03) then
                 v2=(dexp(-t**2*(a-p)**2)-dexp(-t**2*(b-p)**2))/t
@@ -764,13 +755,13 @@ module expo_m
                 v2=(q+q*q/2.d0+q*q*q/6.d0+q*q*q*q/24.d0 &
                 -r-r*r/2.d0-r*r*r/6.d0-r*r*r*r/24.d0)/t
             end if
-            v3=-p*sqpii*derf(a*t-t*p)
+            v3=-p* SQRTPI *derf(a*t-t*p)
             value=(v1+v2+v3)/t/2.d0
 
             ! value=(-dexp(-t**2*(b**2+p**2))*dexp(2*t**2*p*b)+ &
-            !         dexp(-t**2*(b**2+p**2))*p*sqpii*derf(b*t-t*p)*t* &
+            !         dexp(-t**2*(b**2+p**2))*p*SQRTPI*derf(b*t-t*p)*t* &
             !         dexp(t**2*(b**2+p**2))+dexp(-t**2*(a**2+p**2))* &
-            !         dexp(2*t**2*p*a)-dexp(-t**2*(a**2+p**2))*p*sqpii* &
+            !         dexp(2*t**2*p*a)-dexp(-t**2*(a**2+p**2))*p*SQRTPI* &
             !         derf(a*t-t*p)*t*dexp(t**2*(a**2+p**2)))/t**2/2.d0
         end if 
 
@@ -787,11 +778,9 @@ module expo_m
 
         implicit none
         real(REAL64), intent(in) :: a,b,t,p
-        real(REAL64) :: sqpii,derf,value  
+        real(REAL64) :: value  
         real(REAL64) :: v1,v2,v3,v4,v5
         real(REAL64) :: q,r,instability_threshold              
-
-        real(REAL64), parameter  :: pii = 3.141592653589793D0
 
         instability_threshold=0.5d-04
 
@@ -801,8 +790,7 @@ module expo_m
             value=(b**3-a**3)/3.d0
             ! write(6,*) 'Instability warning in expo_2, t = and p = ',t,p
         else 
-            sqpii=dsqrt(pii)
-            v1=p**2*sqpii*derf(b*t-t*p)/2.d0
+            v1=p**2*SQRTPI*derf(b*t-t*p)/2.d0
             if(t.gt.1.d-03) then
                 v2=(dexp(-t*t*(a-p)**2)*a-dexp(-t*t*(b-p)**2)*b)
                 v3=(dexp(-t*t*(a-p)**2)-dexp(-t*t*(b-p)**2))*p/t/2.d0
@@ -820,24 +808,24 @@ module expo_m
         ! cancellation of significant numbers
         ! v2 and v5 should be combined to increase the accuracy for small t
         ! how this is done is not yet known, DS 2.2.2004, this is almost ok
-            v5=sqpii*(derf(t*(b-p))-derf(t*(a-p)))/t/2.d0
+            v5=SQRTPI *(derf(t*(b-p))-derf(t*(a-p)))/t/2.d0
             v2=(v2+v5)/t/2.d0
             v5=0.d0
 
-            v4=-p**2*sqpii*derf(a*t-t*p)/2.d0
+            v4=-p**2* SQRTPI *derf(a*t-t*p)/2.d0
 
             value=(v1+v2+v3+v4+v5)/t
 
         !  value= (-2.d0*dexp(-t**2*(b**2+p**2))*b*dexp(2*t**2*p*b)*t- & 
         !   2.d0*dexp(-t**2*(b**2+p**2))*p*dexp(2*t**2*p*b)*t+     &
-        !   2.d0*dexp(-t**2*(b**2+p**2))*t**2*p**2*sqpii*   &
+        !   2.d0*dexp(-t**2*(b**2+p**2))*t**2*p**2*SQRTPI*   &
         !   derf(b*t-t*p)*dexp(t**2*(b**2+p**2))+dexp(-t**2*(b**2+p**2))* &
-        !   sqpii*derf(b*t-t*p)*dexp(t**2*(b**2+p**2))+ &
+        !   SQRTPI*derf(b*t-t*p)*dexp(t**2*(b**2+p**2))+ &
         !   2.d0*dexp(-t**2*(a**2+p**2))*a*dexp(2*t**2*p*a)*t+ &
         !   2.d0*dexp(-t**2*(a**2+p**2))*p*dexp(2*t**2*p*a)*t- &
-        !   2.d0*dexp(-t**2*(a**2+p**2))*t**2*p**2*sqpii* & 
+        !   2.d0*dexp(-t**2*(a**2+p**2))*t**2*p**2*SQRTPI* & 
         !   derf(a*t-t*p)*dexp(t**2*(a**2+p**2))-dexp(-t**2*(a**2+p**2))* &
-        !   sqpii*derf(a*t-t*p)*dexp(t**2*(a**2+p**2)))/t**3/4.d0
+        !   SQRTPI*derf(a*t-t*p)*dexp(t**2*(a**2+p**2)))/t**3/4.d0
         end if
 
     end function expo_2
@@ -853,11 +841,9 @@ module expo_m
 
         implicit none
         real(REAL64), intent(in) :: a,b,t,p  
-        real(REAL64) :: sqpii,derf,value
+        real(REAL64) :: value
         real(REAL64) :: v1,v2,v3,v4,v5,v6
         real(REAL64) :: q,r,instability_threshold
-
-        real(REAL64), parameter  :: pii = 3.141592653589793D0
 
         instability_threshold=1.0d-04
 
@@ -867,8 +853,6 @@ module expo_m
             value=(b**4-a**4)/4.d0
         !      write(6,*) 'Instability warning in expo_3, t = and p = ',t,p
         else
-            sqpii=dsqrt(pii)
-
             if(t.gt.1.d-03) then
                 v1 =  2.d0*(dexp(-t**2*(a-p)**2)*a**2 &
                 -dexp(-t**2*(b-p)**2)*b**2)/t**2  
@@ -893,8 +877,8 @@ module expo_m
                 -(r+r*r/2.d0+r*r*r/6.d0+r*r*r*r/24.d0)
                 v5=2.d0*v5/t
             end if
-            v4 =  2.d0*p**3*sqpii*(derf(b*t-t*p)-derf(a*t-t*p))/t 
-            v6 =  3.d0*p*sqpii*(derf(b*t-t*p)-derf(a*t-t*p))  
+            v4 =  2.d0*p**3*SQRTPI*(derf(b*t-t*p)-derf(a*t-t*p))/t 
+            v6 =  3.d0*p*SQRTPI*(derf(b*t-t*p)-derf(a*t-t*p))  
 
     ! improved precision can be obtained by combining in an earlier stage
     ! the sum of them should be calculated as a series expansion for small t
@@ -910,15 +894,15 @@ module expo_m
     ! s4 = -2.d0*dexp(-t**2*(b**2+p**2))*b**2*dexp(2*t**2*p*b)*t**2- & 
     !       2.d0*dexp(-t**2*(b**2+p**2))*p*b*dexp(2*t**2*p*b)*t**2-  &
     !       2.d0*dexp(-t**2*(b**2+p**2))*p**2*dexp(2*t**2*p*b)*t**2+ &
-    !       2.d0*dexp(-t**2*(b**2+p**2))*t**3*p**3*sqpii*derf(b*t-t*p)* &
-    !       dexp(t**2*(b**2+p**2))+3.d0*dexp(-t**2*(b**2+p**2))*p*sqpii* & 
+    !       2.d0*dexp(-t**2*(b**2+p**2))*t**3*p**3*SQRTPI*derf(b*t-t*p)* &
+    !       dexp(t**2*(b**2+p**2))+3.d0*dexp(-t**2*(b**2+p**2))*p*SQRTPI* & 
     !       derf(b*t-t*p)*t*dexp(t**2*(b**2+p**2))- &
     !       2.d0*dexp(-t**2*(b**2+p**2))*dexp(2*t**2*p*b)
     ! s3 = s4+2d0*dexp(-t**2*(a**2+p**2))*a**2*dexp(2*t**2*p*a)*t**2+ &
     !      2.d0*dexp(-t**2*(a**2+p**2))*p*a*dexp(2*t**2*p*a)*t**2+ &
     !      2.d0*dexp(-t**2*(a**2+p**2))*p**2*dexp(2*t**2*p*a)*t**2- &
-    !      2.d0*dexp(-t**2*(a**2+p**2))*t**3*p**3*sqpii*derf(a*t-t*p)* &
-    !      dexp(t**2*(a**2+p**2))-3.d0*dexp(-t**2*(a**2+p**2))*p*sqpii* &
+    !      2.d0*dexp(-t**2*(a**2+p**2))*t**3*p**3*SQRTPI*derf(a*t-t*p)* &
+    !      dexp(t**2*(a**2+p**2))-3.d0*dexp(-t**2*(a**2+p**2))*p*SQRTPI* &
     !      derf(a*t-t*p)*t*dexp(t**2*(a**2+p**2))+2.d0* &
     !      dexp(-t**2*(a**2+p**2))*dexp(2*t**2*p*a)
     ! s4 = 1/t**4
@@ -939,11 +923,9 @@ module expo_m
 
         implicit none
         real(REAL64), intent(in) :: a,b,t,p 
-        real(REAL64) :: sqpii,derf,value 
+        real(REAL64) :: value 
         real(REAL64) :: v1,v2,v3,v4,v5,v6,v7,v8,v9
         real(REAL64) :: q,r,instability_threshold
-
-        real(REAL64), parameter  :: pii = 3.141592653589793D0
 
         instability_threshold=1.0d-03
 
@@ -953,8 +935,6 @@ module expo_m
             value=(b**5-a**5)/5.d0
             !  write(6,*) 'Instability warning in expo_4, t = and p = ',t,p
         else
-            sqpii=dsqrt(pii)
-
             ! for small t values the integrals explode, the precision can be
             ! improved by removing cancellations of large numbers
             ! or alternatively an extrapolation approach
@@ -1001,9 +981,9 @@ module expo_m
                 v8 = 6.d0*v8
             end if
 
-            v5 = -4.d0*t*p**4*sqpii*(derf(a*t-t*p)-derf(b*t-t*p))
-            v6 = -12.d0/t*p**2*sqpii*(derf(a*t-t*p)-derf(b*t-t*p))
-            v9 = -3.d0*sqpii*(derf(a*t-t*p)-derf(b*t-t*p))/t  
+            v5 = -4.d0*t*p**4*SQRTPI*(derf(a*t-t*p)-derf(b*t-t*p))
+            v6 = -12.d0/t*p**2*SQRTPI*(derf(a*t-t*p)-derf(b*t-t*p))
+            v9 = -3.d0*SQRTPI*(derf(a*t-t*p)-derf(b*t-t*p))/t  
 
             v2=v2/t**2
             v5=(v4+v5)/t**2
@@ -1024,23 +1004,23 @@ module expo_m
     !       4.d0*dexp(-t**2*(b**2+p**2))*p*b**2*dexp(2*t**2*p*b)*t**3- &
     !       4.d0*dexp(-t**2*(b**2+p**2))*p**2*b*dexp(2*t**2*p*b)*t**3- &
     !       4.d0*dexp(-t**2*(b**2+p**2))*p**3*dexp(2*t**2*p*b)*t**3+ &
-    !       4.d0*dexp(-t**2*(b**2+p**2))*t**4*p**4*sqpii*derf(b*t-t*p)* &
+    !       4.d0*dexp(-t**2*(b**2+p**2))*t**4*p**4*SQRTPI*derf(b*t-t*p)* &
     !       dexp(t**2*(b**2+p**2))+12.d0*dexp(-t**2*(b**2+p**2))*t**2*p**2* &
-    !       sqpii*derf(b*t-t*p)*dexp(t**2*(b**2+p**2))- &
+    !       SQRTPI*derf(b*t-t*p)*dexp(t**2*(b**2+p**2))- &
     !       10.d0*dexp(-t**2*(b**2+p**2))*p*dexp(2*t**2*p*b)*t- &
     !       6.d0*dexp(-t**2*(b**2+p**2))*b*dexp(2*t**2*p*b)*t+ &
-    !       3.d0*dexp(-t**2*(b**2+p**2))*sqpii*derf(b*t-t*p)* &
+    !       3.d0*dexp(-t**2*(b**2+p**2))*SQRTPI*derf(b*t-t*p)* &
     !       dexp(t**2*(b**2+p**2))
     ! s3 = s4+4.d0*dexp(-t**2*(a**2+p**2))*a**3*dexp(2*t**2*p*a)*t**3+ &
     !      4.d0*dexp(-t**2*(a**2+p**2))*p*a**2*dexp(2*t**2*p*a)*t**3+ &
     !      4.d0*dexp(-t**2*(a**2+p**2))*p**2*a*dexp(2*t**2*p*a)*t**3+ &
     !      4.d0*dexp(-t**2*(a**2+p**2))*p**3*dexp(2*t**2*p*a)*t**3- &
-    !      4.d0*dexp(-t**2*(a**2+p**2))*t**4*p**4*sqpii*derf(a*t-t*p)* &
+    !      4.d0*dexp(-t**2*(a**2+p**2))*t**4*p**4*SQRTPI*derf(a*t-t*p)* &
     !      dexp(t**2*(a**2+p**2))-12.d0*dexp(-t**2*(a**2+p**2))*t**2*p**2* &
-    !      sqpii*derf(a*t-t*p)*dexp(t**2*(a**2+p**2))+ &
+    !      SQRTPI*derf(a*t-t*p)*dexp(t**2*(a**2+p**2))+ &
     !      10.d0*dexp(-t**2*(a**2+p**2))*p*dexp(2*t**2*p*a)*t+ &
     !      6.d0*dexp(-t**2*(a**2+p**2))*a*dexp(2*t**2*p*a)*t- &
-    !      3.d0*dexp(-t**2*(a**2+p**2))*sqpii*derf(a*t-t*p)* &
+    !      3.d0*dexp(-t**2*(a**2+p**2))*SQRTPI*derf(a*t-t*p)* &
     !      dexp(t**2*(a**2+p**2))
     ! s4 = 1/t**5
     ! s2 = s3*s4
@@ -1061,11 +1041,9 @@ module expo_m
 
         implicit none
         real(REAL64), intent(in)  :: a,b,t,p  
-        real(REAL64) :: sqpii,derf,value
+        real(REAL64) :: value
         real(REAL64) :: q,r,instability_threshold    
         real(REAL64) :: v1,v2,v3,v4,v5,v6,v7,v8,v9,v10,v11,v12
-
-        real(REAL64), parameter  :: pii = 3.141592653589793D0
 
         ! the error cancellation is not avoided, but it behaves better
         ! 2.2.2004
@@ -1078,8 +1056,6 @@ module expo_m
             value=(b**6-a**6)/6.d0
         ! write(6,*) 'Instability warning in expo_5, t = and p = ',t,p
         else
-            sqpii=dsqrt(pii)
-
             if(t.gt.1.d-02) then
 
                 v1 =  4.d0*(dexp(-t**2*(a-p)**2)*a**4    &   
@@ -1149,9 +1125,9 @@ module expo_m
 
             end if
 
-            v6 = -4.d0*t*p**5*sqpii*(derf(a*t-t*p)-derf(b*t-t*p))
-            v7 =-20.d0/t*p**3*sqpii*(derf(a*t-t*p)-derf(b*t-t*p))
-            v10 = -15.d0*p*sqpii*(derf(a*t-t*p)-derf(b*t-t*p))/t**3
+            v6 = -4.d0*t*p**5*SQRTPI*(derf(a*t-t*p)-derf(b*t-t*p))
+            v7 =-20.d0/t*p**3*SQRTPI*(derf(a*t-t*p)-derf(b*t-t*p))
+            v10 = -15.d0*p*SQRTPI*(derf(a*t-t*p)-derf(b*t-t*p))/t**3
 
             ! write(6,*) v1,v2,v3
             ! write(6,*) v4,v5,v6
@@ -1171,12 +1147,12 @@ module expo_m
     !       4.d0*dexp(-t**2*(b**2+p**2))*p**2*b**2*dexp(2*t**2*p*b)*t**4- &
     !       4.d0*dexp(-t**2*(b**2+p**2))*p**3*b*dexp(2*t**2*p*b)*t**4- &
     !       4.d0*dexp(-t**2*(b**2+p**2))*p**4*dexp(2*t**2*p*b)*t**4+ &
-    !       4.d0*dexp(-t**2*(b**2+p**2))*t**5*p**5*sqpii*derf(b*t-t*p)* &
+    !       4.d0*dexp(-t**2*(b**2+p**2))*t**5*p**5*SQRTPI*derf(b*t-t*p)* &
     !       dexp(t**2*(b**2+p**2)) 
-    ! s4 = s5+20.d0*dexp(-t**2*(b**2+p**2))*t**3*p**3*sqpii*derf(b*t-t*p)* &
+    ! s4 = s5+20.d0*dexp(-t**2*(b**2+p**2))*t**3*p**3*SQRTPI*derf(b*t-t*p)* &
     !      dexp(t**2*(b**2+p**2))-18.d0*dexp(-t**2*(b**2+p**2))*p**2* &
     !      dexp(2*t**2*p*b)*t**2-14.d0*dexp(-t**2*(b**2+p**2))*p*b* &
-    !      dexp(2*t**2*p*b)*t**2+15.d0*dexp(-t**2*(b**2+p**2))*p*sqpii* &
+    !      dexp(2*t**2*p*b)*t**2+15.d0*dexp(-t**2*(b**2+p**2))*p*SQRTPI* &
     !      derf(b*t-t*p)*t*dexp(t**2*(b**2+p**2))-8.d0* &
     !      dexp(-t**2*(b**2+p**2))*b**2*dexp(2*t**2*p*b)*t**2- &
     !      8.d0*dexp(-t**2*(b**2+p**2))*dexp(2*t**2*p*b)
@@ -1185,12 +1161,12 @@ module expo_m
     !      4.d0*dexp(-t**2*(a**2+p**2))*p**2*a**2*dexp(2*t**2*p*a)*t**4+ &
     !      4.d0*dexp(-t**2*(a**2+p**2))*p**3*a*dexp(2*t**2*p*a)*t**4+ &
     !      4.d0*dexp(-t**2*(a**2+p**2))*p**4*dexp(2*t**2*p*a)*t**4 
-    ! s3 = s5-4.d0*dexp(-t**2*(a**2+p**2))*t**5*p**5*sqpii*derf(a*t-t*p)* &
+    ! s3 = s5-4.d0*dexp(-t**2*(a**2+p**2))*t**5*p**5*SQRTPI*derf(a*t-t*p)* &
     !      dexp(t**2*(a**2+p**2))-20.d0*dexp(-t**2*(a**2+p**2))*t**3*p**3* &
-    !      sqpii*derf(a*t-t*p)*dexp(t**2*(a**2+p**2))+ &
+    !      SQRTPI*derf(a*t-t*p)*dexp(t**2*(a**2+p**2))+ &
     !      18.d0*dexp(-t**2*(a**2+p**2))*p**2*dexp(2*t**2*p*a)*t**2+ &
     !      14.d0*dexp(-t**2*(a**2+p**2))*p*a*dexp(2*t**2*p*a)*t**2- &
-    !      15.d0*dexp(-t**2*(a**2+p**2))*p*sqpii*derf(a*t-t*p)*t* &
+    !      15.d0*dexp(-t**2*(a**2+p**2))*p*SQRTPI*derf(a*t-t*p)*t* &
     !      dexp(t**2*(a**2+p**2))+8.d0*dexp(-t**2*(a**2+p**2))*a**2* &
     !      dexp(2*t**2*p*a)*t**2+8.d0*dexp(-t**2*(a**2+p**2))* &
     !      dexp(2*t**2*p*a)
@@ -1212,11 +1188,9 @@ module expo_m
 
         implicit none
         real(REAL64), intent(in) :: a,b,t,p 
-        real(REAL64) :: sqpii,derf,value 
+        real(REAL64) :: value 
         real(REAL64) :: q,r,instability_threshold 
         real(REAL64) :: v1,v2,v3,v4,v5,v6,v7,v8,v9,v10,v11,v12,v13,v14,v15,v16
-
-        real(REAL64), parameter  :: pii = 3.141592653589793D0
 
         ! for small t values the integrals explode, the precision can be
         ! improved by removing cancellations of large numbers
@@ -1232,14 +1206,12 @@ module expo_m
             value=(b**7-a**7)/7.d0
             ! write(6,*) 'Instability warning in expo_6, t = and p = ',t,p
         else
-            sqpii=dsqrt(pii)
-
             v1=30.d0*(dexp(-t**2*(a-p)**2)*a-dexp(-t**2*(b-p)**2)*b)
-            v2=15.d0*sqpii*(derf(b*t-t*p)-derf(a*t-t*p))
+            v2=15.d0*SQRTPI*(derf(b*t-t*p)-derf(a*t-t*p))
             v1=(v1+v2/t)/t/t/t
             v2=0.d0
 
-            v3=90.d0*p**2*sqpii*(derf(b*t-t*p)-derf(a*t-t*p))/t/t
+            v3=90.d0*p**2*SQRTPI*(derf(b*t-t*p)-derf(a*t-t*p))/t/t
 
             v4=56.d0*(dexp(-t**2*(a-p)**2)-dexp(-t**2*(b-p)**2))*p**3/t 
 
@@ -1253,7 +1225,7 @@ module expo_m
 
             v9=48.d0*(dexp(-t**2*(a-p)**2)*a-dexp(-t**2*(b-p)**2)*b)*p**2/t
 
-            v10=8.d0*p**6*sqpii*(derf(b*t-t*p)-derf(a*t-t*p))*t**2
+            v10=8.d0*p**6*SQRTPI*(derf(b*t-t*p)-derf(a*t-t*p))*t**2
 
             v11=8.d0*(dexp(-t**2*(a-p)**2)*a**4-dexp(-t**2*(b-p)**2)*b**4)*p*t
 
@@ -1265,7 +1237,7 @@ module expo_m
 
             v15=8.d0*(dexp(-t**2*(a-p)**2)*a**2-dexp(-t**2*(b-p)**2)*b**2)*p**3*t
 
-            v16=60.d0*p**4*sqpii*(derf(b*t-t*p)-derf(a*t-t*p))
+            v16=60.d0*p**4*SQRTPI*(derf(b*t-t*p)-derf(a*t-t*p))
 
             value=v1+v2+v3+v4+v5+v6+v7+v8
             value=value+v9+v10+v11+v12+v13+v14+v15+v16
@@ -1281,23 +1253,23 @@ module expo_m
 
     ! s1 = 0.0625d0
     ! s5 = 30.d0*dexp(-t**2*(a**2+p**2))*a*dexp(2*t**2*p*a)*t- &
-    !      15.d0*dexp(-t**2*(a**2+p**2))*sqpii*derf(a*t-t*p)* &
+    !      15.d0*dexp(-t**2*(a**2+p**2))*SQRTPI*derf(a*t-t*p)* &
     !      dexp(t**2*(a**2+p**2))-8.d0*dexp(-t**2*(b**2+p**2))*p**2*b**3* &
     !      dexp(2*t**2*p*b)*t**5-90.d0*dexp(-t**2*(a**2+p**2))*t**2*p**2* &
-    !      sqpii*derf(a*t-t*p)*dexp(t**2*(a**2+p**2))+ &
+    !      SQRTPI*derf(a*t-t*p)*dexp(t**2*(a**2+p**2))+ &
     !      56.d0*dexp(-t**2*(a**2+p**2))*p**3*dexp(2*t**2*p*a)*t**3+ &
     !      66.d0*dexp(-t**2*(a**2+p**2))*p*dexp(2*t**2*p*a)*t+ &
     !      8.d0*dexp(-t**2*(a**2+p**2))*a**5*dexp(2*t**2*p*a)*t**5+ &
     !      8.d0*dexp(-t**2*(a**2+p**2))*p**5*dexp(2*t**2*p*a)*t**5
     ! s4 = s5-30.d0*dexp(-t**2*(b**2+p**2))*b*dexp(2*t**2*p*b)*t+ &
-    !      15.d0*dexp(-t**2*(b**2+p**2))*sqpii*derf(b*t-t*p)* &
+    !      15.d0*dexp(-t**2*(b**2+p**2))*SQRTPI*derf(b*t-t*p)* &
     !      dexp(t**2*(b**2+p**2))+20.d0*dexp(-t**2*(a**2+p**2))*a**3* &
     !      dexp(2*t**2*p*a)*t**3-8.d0*dexp(-t**2*(b**2+p**2))*p**5* &
     !      dexp(2*t**2*p*b)*t**5-36.d0*dexp(-t**2*(b**2+p**2))*p*b**2* &
     !      dexp(2*t**2*p*b)*t**3-48.d0*dexp(-t**2*(b**2+p**2))*p**2*b* &
     !      dexp(2*t**2*p*b)*t**3-8.d0*dexp(-t**2*(b**2+p**2))*p**4*b* &
     !      dexp(2*t**2*p*b)*t**5+8.d0*dexp(-t**2*(b**2+p**2))*t**6*p**6* &
-    !      sqpii*derf(b*t-t*p)*dexp(t**2*(b**2+p**2))
+    !      SQRTPI*derf(b*t-t*p)*dexp(t**2*(b**2+p**2))
     ! s5 = s4-8.d0*dexp(-t**2*(b**2+p**2))*p**3*b**2*dexp(2*t**2*p*b)*t**5- &
     !      56.d0*dexp(-t**2*(b**2+p**2))*p**3*dexp(2*t**2*p*b)*t**3- &
     !      66d0*dexp(-t**2*(b**2+p**2))*p*dexp(2*t**2*p*b)*t+ &
@@ -1305,16 +1277,16 @@ module expo_m
     !      8.d0*dexp(-t**2*(a**2+p**2))*p**2*a**3*dexp(2*t**2*p*a)*t**5- &
     !      8.d0*dexp(-t**2*(b**2+p**2))*b**5*dexp(2*t**2*p*b)*t**5-8* &
     !      dexp(-t**2*(b**2+p**2))*p*b**4*dexp(2*t**2*p*b)*t**5
-    ! s6 = s5+60.d0*dexp(-t**2*(b**2+p**2))*t**4*p**4*sqpii*derf(b*t-t*p)* &
+    ! s6 = s5+60.d0*dexp(-t**2*(b**2+p**2))*t**4*p**4*SQRTPI*derf(b*t-t*p)* &
     !      dexp(t**2*(b**2+p**2))-20.d0*dexp(-t**2*(b**2+p**2))*b**3* &
     !      dexp(2*t**2*p*b)*t**3+8.d0*dexp(-t**2*(a**2+p**2))*p**4*a* &
     !      dexp(2*t**2*p*a)*t**5+8.d0*dexp(-t**2*(a**2+p**2))*p**3*a**2* &
     !      dexp(2*t**2*p*a)*t**5 
-    ! s3 = s6+90.d0*dexp(-t**2*(b**2+p**2))*t**2*p**2*sqpii*derf(b*t-t*p)* &
+    ! s3 = s6+90.d0*dexp(-t**2*(b**2+p**2))*t**2*p**2*SQRTPI*derf(b*t-t*p)* &
     !      dexp(t**2*(b**2+p**2))-8.d0*dexp(-t**2*(a**2+p**2))*t**6*p**6* &
-    !      sqpii*derf(a*t-t*p)*dexp(t**2*(a**2+p**2))+ &
+    !      SQRTPI*derf(a*t-t*p)*dexp(t**2*(a**2+p**2))+ &
     !      48.d0*dexp(-t**2*(a**2+p**2))*p**2*a*dexp(2*t**2*p*a)*t**3- &
-    !      60.d0*dexp(-t**2*(a**2+p**2))*t**4*p**4*sqpii*derf(a*t-t*p)* &
+    !      60.d0*dexp(-t**2*(a**2+p**2))*t**4*p**4*SQRTPI*derf(a*t-t*p)* &
     !      dexp(t**2*(a**2+p**2))+36.d0*dexp(-t**2*(a**2+p**2))*p*a**2* &
     !      dexp(2*t**2*p*a)*t**3
     ! s4 = 1/t**7
@@ -1332,11 +1304,7 @@ module expo_m
 
         implicit none
         real(REAL64), intent(in) :: a,b,t,p 
-        real(REAL64) :: sqpii,derf,value 
-
-        real(REAL64), parameter  :: pii = 3.141592653589793D0
-
-        sqpii=dsqrt(pii)
+        real(REAL64) :: value 
 
         !write(6,*) ' the exponential matrices have not been coded'
         !write(6,*) ' for cases where n>6 in x^n*exp(-t^2*(x-p)^2)'
@@ -2470,15 +2438,14 @@ module expo_m
         integer(INT32) :: i
         
         real(REAL64) :: tf,ap,bp,ea,eb, ints(n)
-        real(REAL64), parameter :: fac=0.88622692545275801364D0 !sqrt(pi)/2
-        real(REAL64) :: erf
+        ! real(REAL64), parameter :: fac=0.88622692545275801364D0 !sqrt(pi)/2
 
-        ap=t*(a-d);bp=t*(b-d)
-        ea=exp(-ap*ap);eb=exp(-bp*bp)
+        ap=t*(a-d); bp=t*(b-d)
+        ea=dexp(-ap*ap); eb=dexp(-bp*bp)
 
 !        bin_coeffs=init_bin_coeffs(n,d*t)
 
-        ints(1)=fac/t*(erf(bp)-erf(ap))
+        ints(1)=SQRTPIOVERTWO/t*(derf(bp)-derf(ap))
         tf=0.5d0/t/t
         ints(2)=d*ints(1)+tf*(ea-eb)
         do i=3,n
@@ -2509,9 +2476,9 @@ module expo_m
         real(REAL64),allocatable :: temp_mat(:),x0
         integer :: ix2,icell, nlip,j
         integer :: idisp
-        real(REAL64),pointer :: points_out(:),cellh_in(:)
+        real(REAL64),pointer :: points_out(:), cellh_in(:)
         type(REAL64_2D),allocatable :: lip_coeffs(:)
-        real(REAL64) :: qmin_in,total_size_in
+        real(REAL64) :: qmin_in, total_size_in
 
         real(REAL64),pointer :: celld_in(:)
 
@@ -2551,7 +2518,7 @@ module expo_m
         points_out => grid_out%axis(crd)%get_coord()
         qmin_in       =  grid_in%axis(crd)%get_qmin()
         total_size_in =  grid_in%axis(crd)%get_delta()
-        cellh_in      => grid_in%axis(crd)%get_cell_steps()
+        cellh_in      => grid_in%axis(crd)%get_cell_scales()
 
         celld_in      => grid_in%axis(crd)%get_cell_starts()
 

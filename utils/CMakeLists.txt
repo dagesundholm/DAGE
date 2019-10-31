@@ -58,9 +58,9 @@ message("-- include_directories: ${F2PY_INCLUDE_DIRS}")
 message("-- compiler: ${CMAKE_Fortran_COMPILER}")
 message("-- f90 flags: ${CMAKE_Fortran_FLAGS}")
 message("-- binary dir: ${PROJECT_BINARY_DIR}")
-get_filename_component(PYTHON_NAME ${PYTHON_EXECUTABLE} NAME)
-#add_custom_target(dage_py ALL DEPENDS dage_py)
-get_filename_component(PYTHON_NAME ${PYTHON_EXECUTABLE} NAME)
+# get_filename_component(PYTHON_NAME ${PYTHON_EXECUTABLE} NAME)
+# add_custom_target(dage_py ALL DEPENDS dage_py)
+get_filename_component(PYTHON_NAME ${Python3_EXECUTABLE} NAME)
 add_custom_command(OUTPUT ${PROJECT_BINARY_DIR}/dage_fortran.so
     COMMAND f2py 
         -I${CMAKE_Fortran_MODULE_DIRECTORY}
@@ -79,19 +79,11 @@ add_custom_command(OUTPUT ${PROJECT_BINARY_DIR}/dage_fortran.so
 add_custom_target(dage ALL DEPENDS ${PROJECT_BINARY_DIR}/dage_fortran.so)
 add_dependencies(dage bubbles)
 
+set(VERSION_STRING ".cpython-37m-x86_64-linux-gnu") # yes, this is not in any way portable
+
 # target_link_libraries(dage bubbles getkw ${LIBS})
-install(FILES ${PROJECT_BINARY_DIR}/utils/dage_fortran.so DESTINATION
+install(FILES ${PROJECT_BINARY_DIR}/utils/dage_fortran${VERSION_STRING}.so DESTINATION
     lib/${PYTHON_NAME}/site-packages/dage COMPONENT dage)
 #add_dependencies(bubbles python_interface)
 
 
-#add_executable(interactor.x interactor.F90)
-#target_link_libraries(interactor.x genpot ${BLAS_LIBRARIES})
-#
-
-#set(CUBICLE_SOURCES 
-#    cubicle.F90
-#    intercube.F90
-#)
-#add_executable(cubicle.x ${CUBICLE_SOURCES})
-#target_link_libraries(cubicle.x genpot ${BLAS_LIBRARIES})

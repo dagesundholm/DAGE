@@ -72,7 +72,7 @@ module Helmholtz3D_class
         !! The resulting extra bubbles are injected to the cube
         integer                          :: lmax = 4
     contains
-        procedure :: operate_on          => Helmholtz3D_operate 
+        procedure :: operate_on          => Helmholtz3D_operate
         procedure :: transform_cube      => Helmholtz3D_cube
         procedure :: transform_bubbles   => Helmholtz3D_bubbles
         procedure :: destroy             => Helmholtz3D_destroy
@@ -458,13 +458,11 @@ contains
         real(REAL64), allocatable       :: centers(:, :)
         logical                         :: operate_bubbles
 
-               
         if (present (only_cube)) then
             operate_bubbles = .not. only_cube
         else
             operate_bubbles = .TRUE.
         end if
-
 
         ! Apply the modified coulomb operator
         call self%coulomb_operator%operate_on(func, new, only_cube = .TRUE.)
@@ -479,7 +477,7 @@ contains
             !call new%inject_extra_bubbles(self%lmax)
         end if
         call self%set_energy(0.0d0)
-        
+
     end subroutine
 
 
@@ -503,7 +501,7 @@ contains
 #endif
 
 
-    !> Convolutes the helmholtz kernel with the bubbles part
+    !> Convolves the helmholtz kernel with the bubbles part
     function Helmholtz3D_bubbles(self, bubsin) result(new)
         class(Helmholtz3D), intent(in) :: self
         !> Input bubbles. In order for this to work, this must be the bubbles
@@ -517,7 +515,7 @@ contains
     end function
     
 
-    !> Convolutes the helmholtz kernel with the bubbles part
+    !> Convolves the helmholtz kernel with the bubbles part
     subroutine Helmholtz3D_transform_bubbles_sub(self, bubsin, new)
         class(Helmholtz3D), intent(in) :: self
         !> Input bubbles. In order for this to work, this must be the bubbles
@@ -618,7 +616,7 @@ contains
                     temp1(:) = rpow * first_bessel_values(:, l) * vals0(:, id)
                     !call extrapolate_first_nlip7(6, temp1)
                     temp2(:) = rpow * second_bessel_values(:, l) * vals0(:, id)
-                    if (l == 0) call extrapolate_first_nlip7(3, temp2)
+                    if (l == 0) call extrapolate_first_nlip7(3, bubsin%gr(ibub)%p%get_grid_type(), temp2)
                     if (l /= 0) temp2(1) = 0.0d0
                     vals(:, id) =   &
                               (second_bessel_values(:, l)  *  &

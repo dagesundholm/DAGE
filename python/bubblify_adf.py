@@ -203,7 +203,7 @@ class AtomEnsemble:
 
 #    Check that file exists
         if not os.path.isfile(infile):
-            print "File "+infile+" not found"
+            print("File "+infile+" not found")
             quit()
 
         if ext=="t21":
@@ -824,12 +824,12 @@ if __name__=="__main__":
         # grep ADF result
         ADFval=float(subprocess.Popen(["grep","Coulomb.*=",basename+".out"],
                stdout=subprocess.PIPE).communicate()[0].split()[-1])
-        print "# Step (bohr)      Value (Hartree)    Error (mHartree)     Rel.err.(ppm)"
+        print("# Step (bohr)      Value (Hartree)    Error (mHartree)     Rel.err.(ppm)")
         for step,file in results:
             val=float(subprocess.Popen(["grep","Total   ",file],
                 stdout=subprocess.PIPE).communicate()[0].split()[-1])
-            print "{0:12.6f}{1:24.8f}{2:18.6f}{3:18.6f}".\
-                format(step,val,(val-ADFval)*1.e3,(val-ADFval)/ADFval*1.e6)
-        print " ADF value  {0:24.8f}".format(ADFval)
+            print("{0:12.6f}{1:24.8f}{2:18.6f}{3:18.6f}".\
+                format(step,val,(val-ADFval)*1.e3,(val-ADFval)/ADFval*1.e6))
+        print(" ADF value  {0:24.8f}".format(ADFval))
 
                        

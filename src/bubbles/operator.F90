@@ -43,7 +43,7 @@ module Operators_class
     use ISO_FORTRAN_ENV
     use timer_m
     use xmatrix_m
-    use LIPBasis_class
+!     use LIPBasis_class
     use mpi_m
     use Evaluators_class
     use Bubbles_class

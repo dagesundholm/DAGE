@@ -37,7 +37,7 @@
 
 __host__ inline void check_coulomb_errors(const char *filename, const int line_number) {
 #ifdef DEBUG_CUDA
-    cudaThreadSynchronize();
+    cudaDeviceSynchronize();
 #endif
     cudaError_t error = cudaGetLastError();
     if(error != cudaSuccess)
@@ -361,7 +361,6 @@ void GBFMMCoulomb3D::initIntegrators() {
                                                                     &this->centers[i*3]);
     }
 }
-
 
 
 /*

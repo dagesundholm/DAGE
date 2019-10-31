@@ -906,6 +906,7 @@ call check_memory_cuda()
         
     end subroutine
     
+
     !> Normalize the first 'number_of_orbitals' input orbitals 'orbitals'
     !! (or all if number_of_orbitals is not given).
     subroutine SCFCycle_normalize_orbitals(orbitals, number_of_orbitals)
@@ -922,7 +923,7 @@ call check_memory_cuda()
         
         do i = 1, number_of_orbitals_
             normalizing_factor = 1.0d0 / sqrt(orbitals(i) .dot. orbitals(i))
-            normalizing_factor = truncate_number(normalizing_factor, 4)
+            ! normalizing_factor = truncate_number(normalizing_factor, 4) ! used to be 4, lnw
             call orbitals(i)%product_in_place_REAL64(normalizing_factor)
         end do
     end subroutine
@@ -999,6 +1000,7 @@ call check_memory_cuda()
         deallocate(orbitals)
         call bigben%stop()
         self%coulomb_potential_is_valid = .FALSE.
+
     end subroutine
 
     subroutine SCFCycle_get_energy_order(self, order)
@@ -1171,7 +1173,7 @@ call check_memory_cuda()
         class(Function3D), allocatable    :: projection_result
         type(Grid3D), target              :: cubegrid
         class(ParallelInfo), allocatable  :: parallel_info    
-        type(Grid1D), target, allocatable ::bubble_grids(:)
+        type(Grid1D), target, allocatable :: bubble_grids(:)
         type(Grid1DPointer),  allocatable :: bubble_grid_pointers(:)
         
         
@@ -1428,12 +1430,9 @@ call check_memory_cuda()
         end if
     end subroutine
 
-   
-
 
     subroutine SCFCycle_diagonalize_worker(self)
         class(SCFCycle), intent(inout), target      :: self
-        integer                                     :: i
         real(REAL64), allocatable                   :: orthogonalizing_matrix(:, :)
 
         !call pinfo("Diagonalizing Hamiltonian matrix")
@@ -1450,12 +1449,13 @@ call check_memory_cuda()
 
         ! transform coefficients to original non-orthogonal basis
         self%coefficients = xmatmul(orthogonalizing_matrix, self%coefficients)
-        
+
         deallocate(orthogonalizing_matrix)
 
         call bigben%stop()
     end subroutine
-    
+
+
     !> calculate coulomb matrix from pre-calculated electron density
     subroutine SCFCycle_calculate_coulomb_matrix(self, evaluate_all)
         class(SCFCycle), intent(inout), target           :: self
@@ -1526,7 +1526,6 @@ call check_memory_cuda()
         type(Function3D), allocatable                    :: temp
         integer                                          :: i, j
 
-#ifdef HAVE_DFT        
         self%exchange_correlation_matrix = 0.0d0
         
         ! Go through all functions self%orbitals and calculate the coulomb
@@ -1554,7 +1553,6 @@ call check_memory_cuda()
             call temp%destroy()
             deallocate(temp)
         end do
-#endif
     end subroutine
 #endif
 
@@ -2005,7 +2003,7 @@ call check_memory_cuda()
     end subroutine
 
 
-    !> Calculates the matrices involving only on function on
+    !> Calculates the matrices involving only one function on
     !! each side, namely the overlap matrix, kinetic matrix and the
     !! nuclear electron attraction matrix. The result matrices are 
     !! calculated for 'self%orbitals' and stored in 'self'.
@@ -2047,7 +2045,7 @@ call check_memory_cuda()
                 if (evaluate_all) then
                     do i=1,j
                         self%kinetic_matrix(i,j) = self%orbitals(i) .dot. self%kin
-                        self%kinetic_matrix(i,j) = truncate_number(self%kinetic_matrix(i,j), 8)
+                        ! self%kinetic_matrix(i,j) = truncate_number(self%kinetic_matrix(i,j), 8) ! used to be 8, lnw
                         self%kinetic_matrix(j,i) = self%kinetic_matrix(i, j)
                         self%overlap_matrix(i,j) = self%orbitals(i) .dot. self%orbitals(j)
                         self%overlap_matrix(j,i) = self%overlap_matrix(i, j)
@@ -2056,7 +2054,7 @@ call check_memory_cuda()
                     end do
                 else
                     self%kinetic_matrix(j,j) = temp_function .dot. self%kin
-                    self%kinetic_matrix(j,j) = truncate_number(self%kinetic_matrix(j,j), 8)
+                    ! self%kinetic_matrix(j,j) = truncate_number(self%kinetic_matrix(j,j), 8) ! used to be 8, lnw
                     call temp_function%destroy()
                     self%overlap_matrix(j,j) = self%orbitals(j) .dot. self%orbitals(j)
                     self%nuclear_electron_matrix(j,j) = self%orbitals(j) .dot. self%temp
@@ -2277,6 +2275,7 @@ call check_memory_cuda()
     
     end function
 
+
     !> Print the current orbital energies and possibly the components 
     !! affecting to the energy.
     subroutine SCFCycle_print_orbital_energies(self, print_components)
@@ -2284,8 +2283,6 @@ call check_memory_cuda()
         !> If the components affecting to the orbital energies are printed
         logical,         intent(in) :: print_components
         integer                     :: i
-
-        
 
         if (print_components) then
             print '("-----------------------------------------------------------------&
@@ -2324,6 +2321,8 @@ call check_memory_cuda()
             print '("-------------------------------------------------------------")'
         end if
     end subroutine
+
+
 !--------------------------------------------------------------------!
 !        Helmholtz SCF Cycle  function implementations               !
 !--------------------------------------------------------------------! 
@@ -2349,7 +2348,7 @@ call check_memory_cuda()
             call self%temp2%destroy()
             deallocate(self%temp2)
         end if 
-        
+
         do iorbital = 1, size(orbitals)
             if (abs(occupations(iorbital)) >  1d-9) then
                 call orbitals(iorbital)%precalculate_taylor_series_bubbles()
@@ -2381,7 +2380,7 @@ call check_memory_cuda()
             deallocate(self%temp2)
         end if 
         call electron_density%communicate_cube(reversed_order = .TRUE.)
-        
+
     end subroutine 
 
     
@@ -2523,8 +2522,7 @@ call check_memory_cuda()
                         
                         ! and finally [ij|ji]
                         temp_value = self%temp .dot. pot
-                        call self%set_two_electron_integral_value(i, j, j, i, &
-                                    temp_value) 
+                        call self%set_two_electron_integral_value(i, j, j, i, temp_value) 
                     end do
                 end do
                 
@@ -2561,8 +2559,7 @@ call check_memory_cuda()
                         pot => self%potential2
                         
                         temp_value = self%temp .dot. pot
-                        call self%set_two_electron_integral_value(i, j, j, i, &
-                                    temp_value) 
+                        call self%set_two_electron_integral_value(i, j, j, i, temp_value) 
                     end do
                 end do
             end if
@@ -2877,8 +2874,6 @@ call check_memory_cuda()
             end do
         end do
 
-        write(*,*) 'diagonalizing'
-    
         ! diagonalize the subspace
         call matrix_generalized_eigensolver(hamiltonian_matrix, overlap_matrix, &
                                             orbital_coefficients, eigen_values)
@@ -2954,7 +2949,9 @@ call check_memory_cuda()
         call memoryfollower_print_status()
 
 #ifdef HAVE_CUDA
-        ! the usage of the helmholtz operator is done for this cycle, thus
+        ! the following two calls are empty unless GBFMM is used
+
+        ! the usage of the coulomb operator is done for this cycle, thus
         ! we can relieve the memory load caused by it
         call self%coulomb_operator%cuda_unprepare()
 
@@ -2991,13 +2988,13 @@ call check_memory_cuda()
 
             helmholtz_potential => self%helmholtz_potential
             !self%eigen_values(order(i)) = self%eigen_values(order(i)) - 0.1d0
-            call helmholtz_potential%product_in_place_REAL64((-1.0d0 / (2.0d0 * pi)))
+            call helmholtz_potential%product_in_place_REAL64((-1.0d0 / (2.0d0 * PI)))
             call helmholtz_potential%communicate_cube_borders(reversed_order = .TRUE.)
-            temp_val = self%helmholtz_potential%integrate() 
+            ! temp_val = self%helmholtz_potential%integrate() 
 
-            normalizing_factor = sqrt(helmholtz_potential .dot. helmholtz_potential)
-            normalizing_factor = anint(1.0d14 * normalizing_factor) / 1.0d14
-            !print *, "orbital update normalizing factor 0", normalizing_factor
+            ! normalizing_factor = sqrt(helmholtz_potential .dot. helmholtz_potential)
+            ! normalizing_factor = anint(1.0d14 * normalizing_factor) / 1.0d14
+            ! print *, "orbital update normalizing factor 0", normalizing_factor
             
             allocate(Function3D :: orbital_update)
             call orbital_update%init_copy(helmholtz_potential, copy_content = .TRUE.)
@@ -3008,12 +3005,11 @@ call check_memory_cuda()
 
             call orbital_update%communicate_cube_borders(reversed_order = .TRUE.)
             call orbital_update%precalculate_taylor_series_bubbles()
-            
-            ! get the norm of the update
-            normalizing_factor = sqrt(orbital_update .dot. orbital_update)
-            normalizing_factor = anint(1.0d14 * normalizing_factor) / 1.0d14
 
-            !print *, "orbital update normalizing factor", normalizing_factor, 'scaling_factor', scaling_factor
+            ! get the norm of the update
+            ! normalizing_factor = sqrt(orbital_update .dot. orbital_update)
+            ! normalizing_factor = anint(1.0d14 * normalizing_factor) / 1.0d14
+            ! print *, "orbital update normalizing factor", normalizing_factor, 'scaling_factor', scaling_factor
  
             ! scale the update with the input 'scaling_factor'
             call orbital_update%product_in_place_REAL64(scaling_factor)
@@ -3035,10 +3031,6 @@ call check_memory_cuda()
             ! undo the change to orbital energy made due to level shifting of orbital
             self%eigen_values(order(i)) = original_eigen_value
 
-            
-            
-
-            
             call memoryfollower_print_status()
         end do
  
@@ -3061,6 +3053,7 @@ call check_memory_cuda()
         call memoryfollower_print_status()
     end subroutine
     
+
     !> Destroy and deallocate the things defined in 
     !! HelmholtzSCFCycle
     subroutine HelmholtzSCFCycle_destroy(self)
@@ -3082,7 +3075,6 @@ call check_memory_cuda()
         end if
         
         nullify(self%helmholtz_operator)
-        
         
     end subroutine
 
@@ -3199,8 +3191,9 @@ call check_memory_cuda()
         occupations(nclosed+1:) = 0
         call self%calculate_electron_density_worker(self%orbitals, occupations, self%electron_density)
         call bigben%stop()
-        
+
     end subroutine
+
 
     !> Calculate the closed shell electron density from the 'self%orbitals'.
     subroutine RestrictedHelmholtzSCFCycle_calculate_open_shell_el_dens(self)
@@ -3393,7 +3386,6 @@ call check_memory_cuda()
                                                    old_orbital_energy, normalizing_factor, &
                                                    temp_val
         integer                                 :: k
-
         
         call self%calculate_spin_densities()
         call self%electron_density_a%add_in_place(self%electron_density_b)
@@ -3411,7 +3403,6 @@ call check_memory_cuda()
 
             ! call the worker routine
             call self%update_orbitals_worker(scaling_factor)
-
         end if
 
         ! get orbital potentials for orbitals with spin b
@@ -3426,15 +3417,15 @@ call check_memory_cuda()
 
             ! call the worker routine
             call self%update_orbitals_worker(scaling_factor)
-            
         end if
 
     end subroutine
 
+
     !> Diagonalizes orbitals
     subroutine UnRestrictedHelmholtzSCFCycle_diagonalize(self)
-        class(UnRestrictedHelmholtzSCFCycle), &
-                          intent(inout), target :: self
+        class(UnRestrictedHelmholtzSCFCycle), intent(inout), target :: self
+
         self%coefficients => self%coefficients_a
         self%hamiltonian_matrix => self%hamiltonian_matrix_a
         self%overlap_matrix => self%overlap_matrix_a
@@ -3449,8 +3440,8 @@ call check_memory_cuda()
         self%orbitals => self%orbitals_b
         call self%diagonalize_worker()
 
-        
     end subroutine
+
 
     !> Performs update by making a linear combination of molecular orbitals by
     !! using the coefficient store in 'self%coefficients_a' and 'self%coefficients_b'.
@@ -3597,7 +3588,6 @@ call check_memory_cuda()
         ! calculate matrices, start with coulomb (and nuclear), 
         ! then go to exchange matrix
         ! get the -Z/r (could be as well taken from any orbital)
-        i = 1
         nuclear_potential => self%coulomb_operator%get_nuclear_potential() 
         if (.not. self%coulomb_potential_is_valid) then
             call self%coulomb_operator%operate_on(self%electron_density, self%coulomb_potential)
@@ -3710,7 +3700,6 @@ call check_memory_cuda()
         real(REAL64), allocatable              :: orthogonalizing_matrix(:, :)
         logical                                :: do_update
         
-        
         call bigben%split("Creating Fock matrix")
 
         self%two_electron_integral_evaluated = .FALSE.
@@ -3718,10 +3707,8 @@ call check_memory_cuda()
         ! calculate the kinetic energy matrix, nuclear-electron attraction matrix and the overlap matrix
         call self%calculate_one_electron_matrices(evaluate_all)
         
-        
         ! calculate electron density
         call self%calculate_closed_shell_electron_density()
-
 
         ! calculate two electron integrals, do not evaluate all integrals, if we are not diagonalizing,
         ! and thus don't need the off-diagonal values
@@ -3838,12 +3825,11 @@ call check_memory_cuda()
         type(Grid3D)                            :: grid
         real(REAL64)                            :: tmp, total, energy, alpha, beta
       
-        
 #ifdef HAVE_CUDA_PROFILING
         call start_nvtx_timing("Orbital Potentials")
 #endif
         !call pinfo("Computing RHF Orbital Potential")
-        call bigben%split("RHF Orbital Potential Calculation")
+        call bigben%split("ROHF Orbital Potential Calculation")
         orbital_count=size(self%orbitals)
         nclosed = min(self%nocc_a, self%nocc_b)
         nocc    = max(self%nocc_a, self%nocc_b) 
@@ -3855,18 +3841,17 @@ call check_memory_cuda()
         ! calculate matrices, start with coulomb (and nuclear), 
         ! then go to exchange matrix
         ! get the -Z/r (could be as well taken from any orbital)
-        i = 1
         nuclear_potential => self%coulomb_operator%get_nuclear_potential() 
 
 
-        ! handle the nuclear-eleectron repulsion for all orbitals
+        ! handle the nuclear-electron repulsion for all orbitals
         do i = 1, size(self%orbitals)
             call nuclear_potential%multiply_sub(self%orbitals(i), self%temp)
             call self%orbital_potentials(i)%init_copy(self%temp, copy_content = .TRUE.)
         end do
 
 
-        ! handle then closed orbitals coulomb and exchange potentials
+        ! handle the closed orbitals coulomb and exchange potentials
         call self%calculate_closed_shell_electron_density()
         call self%coulomb_operator%operate_on(self%electron_density, self%coulomb_potential)
         coulomb_potential => self%coulomb_potential
@@ -4033,8 +4018,13 @@ call check_memory_cuda()
         real(REAL64)                            :: num_el, temp_value
         real(REAL64), allocatable               :: orthogonalizing_matrix(:, :)
         logical                                 :: do_update
-        
-        
+
+write(*,*) 'You are trying to run a restricted open shell HF calculation, but',&
+'this is not implemented.  If you do want to implement it, look for example at',&
+'the electron density which is wrong atm.'
+flush(6)
+call abort()
+
         call bigben%split("Creating Fock matrix")
         
         nclosed = min(self%nocc_a, self%nocc_b)
@@ -4044,10 +4034,8 @@ call check_memory_cuda()
         ! calculate the kinetic energy matrix, nuclear-electron attraction matrix and the overlap matrix
         call self%calculate_one_electron_matrices(evaluate_all)
         
-        
         ! calculate electron density
         call self%calculate_closed_shell_electron_density()
-
 
         ! calculate two electron integrals, do not evaluate all integrals, if we are not diagonalizing,
         ! and thus don't need the off-diagonal values
@@ -4060,6 +4048,7 @@ call check_memory_cuda()
             print *, "ERROR: diagonalizing is not possible currently for the ROHF."
             stop
         else
+
             call self%calculate_orbital_potentials()
 
             do i = 1, size(self%orbitals)
@@ -4069,6 +4058,7 @@ call check_memory_cuda()
 
             self%energy = 0.0d0
             do i = 1, nclosed
+
                 self%energy = self%energy +                                             &
                                   2.0d0 * self%kinetic_matrix(i,i)                      &
                                 + 2.0d0 * self%nuclear_electron_matrix(i,i)            
@@ -4282,6 +4272,7 @@ print *, 'i vne', self%nuclear_electron_matrix(i,i)
         call RHFCycle_destroy(self)
     end subroutine
 
+
 !--------------------------------------------------------------------!
 !        RDFT Cycle
 !--------------------------------------------------------------------!
@@ -4291,7 +4282,8 @@ print *, 'i vne', self%nuclear_electron_matrix(i,i)
                               exchange_functional, correlation_functional, &
                               xc_update_method, xc_lmax, laplacian_operator, &
                               coulomb_operator, helmholtz_operator, core_evaluator, &
-                              result_object, orbitals_density_evaluation) 
+                              result_object, orbitals_density_evaluation, &
+                              finite_diff_order) 
         type(Function3D), intent(in)                  :: orbitals(:)
         !> Input electron density holder
         type(Function3D), intent(in)                  :: electron_density
@@ -4318,6 +4310,7 @@ print *, 'i vne', self%nuclear_electron_matrix(i,i)
         !> If electron density and its gradient are evaluated using the more complex
         !! but accurate method in the exchange and correalation. 
         logical,        intent(in)                    :: orbitals_density_evaluation
+        integer(INT32), intent(in)                    :: finite_diff_order
 
         ! the result object
         integer                                       :: k, iorbital
@@ -4342,7 +4335,8 @@ print *, 'i vne', self%nuclear_electron_matrix(i,i)
 
         ! initialize the Exchange & Correlation calculator
         new%exchange_correlation = XC(new%electron_density_a, exchange_functional, correlation_functional, &
-                                      xc_lmax, laplacian_operator, core_evaluator, orbitals_density_evaluation)
+                                      xc_lmax, laplacian_operator, core_evaluator, orbitals_density_evaluation, &
+                                      finite_diff_order)
 
         ! set the pointers to correct arrays
         new%exchange_correlation_matrix => new%exchange_correlation_matrix_a
@@ -4351,6 +4345,7 @@ print *, 'i vne', self%nuclear_electron_matrix(i,i)
         ! store the update method
         new%xc_update_method = xc_update_method
     end subroutine
+
 
     subroutine RDFTCycle_destroy(self)
         class(RDFTCycle), intent(inout)         :: self
@@ -4361,9 +4356,9 @@ print *, 'i vne', self%nuclear_electron_matrix(i,i)
         call self%exchange_correlation%destroy()
         call RestrictedHelmholtzSCFCycle_destroy(self)
         
-       
     end subroutine
-    
+
+
     !> Calculates the application of the RDFT potential to each of the orbitals
     ! v_{eff} * \psi_i
     subroutine RDFTCycle_calculate_orbital_potentials(self)
@@ -4424,6 +4419,7 @@ print *, 'i vne', self%nuclear_electron_matrix(i,i)
         call memoryfollower_print_status()
     end subroutine
 
+
     subroutine RDFTCycle_calculate_hamiltonian_matrix(self, evaluate_all)
         class(RDFTCycle), intent(inout), target:: self
         logical,          intent(in)           :: evaluate_all
@@ -4431,39 +4427,40 @@ print *, 'i vne', self%nuclear_electron_matrix(i,i)
         type(Function3D), allocatable          :: temp, temp2
         integer                                :: i,j,k
         real(REAL64)                           :: xc_energy, temp_e
-        real(REAL64), allocatable              :: previous_kinetic_matrix(:, :), previous_coulomb_matrix(:, :), &
-                                                  previous_nuclear_electron_matrix(:, :), previous_xc_matrix(:, :), &
-                                                  previous_hamiltonian_matrix(:, :)
+!        real(REAL64), allocatable              :: previous_kinetic_matrix(:, :), previous_coulomb_matrix(:, :), &
+!                                                  previous_nuclear_electron_matrix(:, :), previous_xc_matrix(:, :), &
+!                                                  previous_hamiltonian_matrix(:, :)
         logical                                :: do_update
-        
+
         call memoryfollower_print_status()
         call bigben%split("RDFT SCF cycle")
-        previous_kinetic_matrix = self%kinetic_matrix
-        previous_coulomb_matrix = self%coulomb_matrix
-        previous_nuclear_electron_matrix = self%nuclear_electron_matrix
-        previous_xc_matrix = self%exchange_correlation_matrix_a
-        previous_hamiltonian_matrix = self%hamiltonian_matrix
-        
+        ! previous_kinetic_matrix = self%kinetic_matrix
+        ! previous_coulomb_matrix = self%coulomb_matrix
+        ! previous_nuclear_electron_matrix = self%nuclear_electron_matrix
+        ! previous_xc_matrix = self%exchange_correlation_matrix_a
+        ! previous_hamiltonian_matrix = self%hamiltonian_matrix
+
         call self%calculate_one_electron_matrices(evaluate_all)
-        
+        ! write(*,*) 'kin: ', self%kinetic_matrix
+        ! write(*,*) 'pot: ', self%nuclear_electron_matrix
         if ( .not. self%coulomb_potential_is_valid) then
             ! calculate electron density
             call self%calculate_closed_shell_electron_density()
-        
             call self%exchange_correlation%eval( &
                                                 self%electron_density, &
                                                 self%xc_potential_a, xc_energy_density, &
                                                 self%xc_energy, self%orbitals(:self%nocc))
             self%xc_potential => self%xc_potential_a
         end if
-        
         !call self%calculate_electron_density(non_overlapping = .FALSE.)
         ! calculate the coulomb and nuclear matrices
         call self%calculate_coulomb_matrix(evaluate_all)
+        ! write(*,*) 'J: ', self%coulomb_matrix
         call self%calculate_xc_matrix(evaluate_all)
+        ! write(*,*) 'xc: ', self%exchange_correlation_matrix_a
         !if (self%xc_update_method == 1) call self%exchange_correlation%eval_g(self%electron_density)
         !if (self%xc_update_method == 2) call self%exchange_correlation%eval_taylor(self%electron_density)
-        
+
 
         call xc_energy_density%destroy()
         call memoryfollower_print_status()
@@ -4483,13 +4480,12 @@ print *, 'i vne', self%nuclear_electron_matrix(i,i)
         
         
         call memoryfollower_print_status()
-        deallocate(previous_kinetic_matrix, previous_coulomb_matrix, &
-                   previous_nuclear_electron_matrix, previous_xc_matrix, &
-                                                  previous_hamiltonian_matrix)
+        ! deallocate(previous_kinetic_matrix, previous_coulomb_matrix, &
+        !            previous_nuclear_electron_matrix, previous_xc_matrix, &
+        !                                           previous_hamiltonian_matrix)
 
         ! stop scf cycle timing
         call bigben%stop()
-
      end subroutine RDFTCycle_calculate_hamiltonian_matrix
     
 #endif
@@ -4641,7 +4637,6 @@ print *, 'i vne', self%nuclear_electron_matrix(i,i)
         ! calculate matrices, start with coulomb (and nuclear), 
         ! then go to exchange matrix
         ! get the -Z/r (could be as well taken from any orbital)
-        i = 1
         nuclear_potential => self%coulomb_operator%get_nuclear_potential() 
         
         if (.not. self%coulomb_potential_is_valid) then
@@ -4709,6 +4704,7 @@ print *, 'i vne', self%nuclear_electron_matrix(i,i)
         self%orbital_potentials_are_valid = .TRUE.
     end subroutine
 
+
     subroutine URHFCycle_calculate_hamiltonian_matrix(self, evaluate_all)
         class(URHFCycle), intent(inout), target :: self
         !> if the complete hamiltonian matrix is evaluated, or only the ones
@@ -4768,7 +4764,7 @@ print *, 'i vne', self%nuclear_electron_matrix(i,i)
         self%nuclear_electron_matrix => self%nuclear_electron_matrix_b
         call self%calculate_one_electron_matrices(evaluate_all)
 
-        ! calculate the coulomb and exchange matrices for the orbitals with spin a
+        ! calculate the coulomb and exchange matrices for the orbitals with spin b
         self%coulomb_matrix => self%coulomb_matrix_b       
         self%exchange_matrix => self%exchange_matrix_b
         self%two_electron_integral_evaluated => self%two_electron_integral_evaluated_b
@@ -4776,10 +4772,8 @@ print *, 'i vne', self%nuclear_electron_matrix(i,i)
         call self%calculate_two_electron_integrals(evaluate_all)
         call self%calculate_coulomb_matrix(evaluate_all)
         call self%form_exchange_matrix()
-        
 
-
-        ! form the fock matrix for spin a
+        ! form the fock matrix for spin b
         self%hamiltonian_matrix_b = self%kinetic_matrix_b + self%nuclear_electron_matrix_b &
                                    + self%coulomb_matrix_b - self%exchange_matrix_b
         self%eigen_values_b = [(self%hamiltonian_matrix_b(i, i), i = 1, size(self%orbitals_b))]
@@ -5079,7 +5073,8 @@ print *, 'i vne', self%nuclear_electron_matrix(i,i)
                            laplacian_operator, coulomb_operator, core_evaluator, &
                            exchange_functional, correlation_functional, &
                            xc_update_method, xc_lmax, result_object, &
-                           orbital_coefficients, orbitals_density_evaluation)
+                           orbital_coefficients, orbitals_density_evaluation, &
+                           finite_diff_order)
         !> Input orbitals
         type(Function3D), intent(in)                  :: orbitals(:)
         !> Input electron density holder
@@ -5108,6 +5103,7 @@ print *, 'i vne', self%nuclear_electron_matrix(i,i)
         !> If electron density and its gradient are evaluated using the more complex
         !! but accurate method in the exchange and correalation. 
         logical,        intent(in)                    :: orbitals_density_evaluation
+        integer(INT32), intent(in)                    :: finite_diff_order
         type(LCMORDFTCycle), pointer                  :: new
         integer                                       :: iorbital, orbital_count, i
 
@@ -5145,7 +5141,8 @@ print *, 'i vne', self%nuclear_electron_matrix(i,i)
         new%coulomb_operator => coulomb_operator
         
         new%exchange_correlation = XC(new%electron_density_a, exchange_functional, correlation_functional, &
-                                      xc_lmax, laplacian_operator, core_evaluator, orbitals_density_evaluation)
+                                      xc_lmax, laplacian_operator, core_evaluator, orbitals_density_evaluation, &
+                                      finite_diff_order)
         
         
         new%nocc_a = nocc_a

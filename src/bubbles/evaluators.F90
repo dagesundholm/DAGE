@@ -376,7 +376,7 @@ module Evaluators_class
 
     interface
         pure subroutine Evaluator_evaluate_grid_cuda(evaluator, grid, result_cube, &
-                gradient_cube_x, gradient_cube_y, gradient_cube_z, gradient_direction) bind(C)
+                gradient_cube_x, gradient_cube_y, gradient_cube_z, gradient_direction, finite_diff_order) bind(C)
             use ISO_C_BINDING
             type(C_PTR),    value :: evaluator
             type(C_PTR),    value :: grid
@@ -385,6 +385,7 @@ module Evaluators_class
             type(C_PTR),    value :: gradient_cube_y
             type(C_PTR),    value :: gradient_cube_z
             integer(C_INT), value :: gradient_direction
+            integer(C_INT), value :: finite_diff_order
         end subroutine
     end interface
 
@@ -398,29 +399,32 @@ module Evaluators_class
     end interface
 
     interface
-        pure subroutine Evaluator_evaluate_grid_x_gradients_cuda(evaluator, grid, result_cube) bind(C)
+        pure subroutine Evaluator_evaluate_grid_x_gradients_cuda(evaluator, grid, result_cube, finite_diff_order) bind(C)
             use ISO_C_BINDING
             type(C_PTR),    value :: evaluator
             type(C_PTR),    value :: grid
             type(C_PTR),    value :: result_cube
+            integer(C_INT), value :: finite_diff_order
         end subroutine
     end interface
 
     interface
-        pure subroutine Evaluator_evaluate_grid_y_gradients_cuda(evaluator, grid, result_cube) bind(C)
+        pure subroutine Evaluator_evaluate_grid_y_gradients_cuda(evaluator, grid, result_cube, finite_diff_order) bind(C)
             use ISO_C_BINDING
             type(C_PTR),    value :: evaluator
             type(C_PTR),    value :: grid
             type(C_PTR),    value :: result_cube
+            integer(C_INT), value :: finite_diff_order
         end subroutine
     end interface
 
     interface
-        pure subroutine Evaluator_evaluate_grid_z_gradients_cuda(evaluator, grid, result_cube) bind(C)
+        pure subroutine Evaluator_evaluate_grid_z_gradients_cuda(evaluator, grid, result_cube, finite_diff_order) bind(C)
             use ISO_C_BINDING
             type(C_PTR),    value :: evaluator
             type(C_PTR),    value :: grid
             type(C_PTR),    value :: result_cube
+            integer(C_INT), value :: finite_diff_order
         end subroutine
     end interface
 
@@ -604,8 +608,6 @@ contains
         logical,        optional, intent(in) :: ignore_first
         type(Interpolator1D)                 :: new
 
-        integer(INT32)                       :: ncell
-
         new%grid => grid
         new%nlip = new%grid%get_nlip()
         new%grid_point_count = new%grid%get_shape()
@@ -625,16 +627,17 @@ contains
         new%polynomial_coefficients = new%grid%lip%coeffs(new%maximum_derivative_order)
     end function
 
+
     !> Interpolate at 'points', for 
     function Interpolator1D_eval_array(self, f_value_arrays, points) result(res)
         class(Interpolator1D), intent(in)  :: self
-        !> coordinates of points where f_vals is evaluated 
+        !> coordinates of points where f_vals is evaluated
         real(REAL64), intent(in)           :: f_value_arrays(:, :)
         real(REAL64), intent(in)           :: points(:)
         real(REAL64)                       :: res(size(points), self%maximum_derivative_order+1, &
                                                   size(f_value_arrays, 2))
-        integer(INT32)                     :: icell(size(points)), start(size(points))
-        real(REAL64)                       :: crd_cell(size(points)), h(size(points))
+        integer(INT32)                     :: icell, start
+        real(REAL64)                       :: crd_cell, h
         !! loop counters and size variables
         integer(INT32)                     :: ipoint, npoints, derivative_order, iarray
 
@@ -644,54 +647,52 @@ contains
         ! Iterate over points
 #ifdef HAVE_OMP
         !$OMP PARALLEL DO IF (npoints > 1000)
-#endif 
+#endif
         do ipoint=1, npoints
             ! Compute local cell coordinate
             ! Find the cell of the ith point
-            icell(ipoint) = self%grid%get_icell(points(ipoint))
+            icell = self%grid%get_icell(points(ipoint))
 
-            if (icell(ipoint) == 1 .and. self%ignore_first) then
+            if (icell == 1 .and. self%ignore_first) then
                 ! Change of variable to cell coordinates
-                crd_cell(ipoint) = self%grid%x2cell(points(ipoint), icell(ipoint))
+                crd_cell = self%grid%x2cell(points(ipoint), icell)
 
                 ! get the cell step of the cell we are handling
-                h(ipoint)        = self%grid%get_cell_step(icell(ipoint))
+                h        = self%grid%get_cell_scale(icell)
 
-                ! get the starting grid point index for the selected cell 
-                start(ipoint) = (icell(ipoint) - 1) * (self%nlip - 1) + 2
+                ! get the starting grid point index for the selected cell
+                start    = (icell - 1) * (self%nlip - 1) + 2 !  = 2
 
                 ! evaluate the derivatives for point ipoint
                 forall (derivative_order = 0 : self%maximum_derivative_order, iarray = 1 : size(f_value_arrays, 2))
                     ! Evaluate polynomials in cell coordinates
                     res(ipoint, derivative_order + 1, iarray) = sum(   &
-                            f_value_arrays(start(ipoint): start(ipoint) + (self%nlip - 2), iarray) &
-                            * eval_polys(self%lower_polynomial_coefficients(derivative_order+1)%p(:,:), crd_cell(ipoint) ) ) &
-                            * h(ipoint)**(-derivative_order)
-
+                            f_value_arrays(start: start + (self%nlip - 2), iarray) &
+                            * eval_polys(self%lower_polynomial_coefficients(derivative_order+1)%p(:,:), crd_cell) ) &
+                            * h**(-derivative_order)
                 end forall
-            else if (icell(ipoint) > 0) then
+
+            else if (icell > 0) then
                 ! Change of variable to cell coordinates
-                crd_cell(ipoint) = self%grid%x2cell(points(ipoint), icell(ipoint))
+                crd_cell = self%grid%x2cell(points(ipoint), icell)
 
                 ! get the cell step of the cell we are handling
-                h(ipoint)        = self%grid%get_cell_step(icell(ipoint))
+                h        = self%grid%get_cell_scale(icell)
 
-                ! get the starting grid point index for the selected cell 
-                start(ipoint) = (icell(ipoint) - 1) * (self%nlip - 1) + 1
+                ! get the starting grid point index for the selected cell
+                start    = (icell - 1) * (self%nlip - 1) + 1
 
                 ! evaluate the derivatives for point ipoint
                 forall (derivative_order = 0 : self%maximum_derivative_order, iarray = 1 : size(f_value_arrays, 2))
                     ! Evaluate polynomials in cell coordinates
                     res(ipoint, derivative_order + 1, iarray) = sum(   &
-                            f_value_arrays(start(ipoint): start(ipoint) + (self%nlip - 1), iarray) &
-                            * eval_polys(self%polynomial_coefficients(derivative_order+1)%p(:,:), crd_cell(ipoint) ) ) &
-                            * h(ipoint)**(-derivative_order)
-
+                            f_value_arrays(start: start + (self%nlip - 1), iarray) &
+                            * eval_polys(self%polynomial_coefficients(derivative_order+1)%p(:,:), crd_cell) ) &
+                            * h**(-derivative_order)
                 end forall
             else
                 res(ipoint, :, :) = 0
             end if
-            
         end do
 #ifdef HAVE_OMP
         !$OMP END PARALLEL DO
@@ -700,11 +701,12 @@ contains
         return
     end function
 
+
     !> Interpolate at gridpoints belonging to cells that contain 'points' for all f_value_arrays
-    !! 
+    !!
     function Interpolator1D_eval_point_cells_array(self, f_value_arrays, points) result(res)
         class(Interpolator1D), intent(in), target  :: self
-        !> coordinates of points where f_vals is evaluated 
+        !> coordinates of points where f_vals is evaluated
         real(REAL64), intent(in)                   :: f_value_arrays(:, :)
         real(REAL64), intent(in)                   :: points(:)
         real(REAL64)                               :: res(size(f_value_arrays, 1), self%maximum_derivative_order+1, &
@@ -735,7 +737,7 @@ contains
             coordinates(:, ipoint) = self%grid%get_coordinates([icell(ipoint), icell(ipoint)])
 
             ! get the cell step of the cell we are handling
-            h(ipoint)        = self%grid%get_cell_step(icell(ipoint))
+            h(ipoint)        = self%grid%get_cell_scale(icell(ipoint))
 
             ! evaluate the derivatives for point ipoint
             forall (derivative_order = 0 : self%maximum_derivative_order, &
@@ -767,8 +769,8 @@ contains
         real(REAL64), intent(in)           :: points(:)
         real(REAL64), intent(in)           :: f_vals(self%grid_point_count)
         real(REAL64)                       :: res(size(points), self%maximum_derivative_order+1)
-        integer(INT32)                     :: icell(size(points)), start(size(points))
-        real(REAL64)                       :: crd_cell(size(points)), h(size(points))
+        integer(INT32)                     :: icell, start
+        real(REAL64)                       :: crd_cell, h
         !! loop counters and size variables
         integer(INT32)                     :: ipoint, npoints, derivative_order
 
@@ -782,46 +784,46 @@ contains
         do ipoint=1, npoints
             ! Compute local cell coordinate
             ! Find the cell of the ith point
-            icell(ipoint) = self%grid%get_icell(points(ipoint))
+            icell = self%grid%get_icell(points(ipoint))
             
-            if (icell(ipoint) > 0 .and. self%ignore_first) then
+            if (icell > 0 .and. self%ignore_first) then
 
                 ! Change of variable to cell coordinates
-                crd_cell(ipoint) = self%grid%x2cell(points(ipoint), icell(ipoint))
+                crd_cell = self%grid%x2cell(points(ipoint), icell)
 
                 ! get the cell step of the cell we are handling
-                h(ipoint)        = self%grid%get_cell_step(icell(ipoint))
+                h        = self%grid%get_cell_scale(icell)
 
                 ! get the starting grid point index for the selected cell 
-                start(ipoint) = (icell(ipoint) - 1) * (self%nlip - 1) + 2
+                start    = (icell - 1) * (self%nlip - 1) + 2
 
                 ! evaluate the derivatives for point ipoint
                 forall (derivative_order = 0 : self%maximum_derivative_order)
                     ! Evaluate polynomials in cell coordinates
                     res(ipoint, derivative_order + 1) = sum(   &
-                            f_vals(start(ipoint): start(ipoint) + (self%nlip - 2)) &
-                            * eval_polys(self%lower_polynomial_coefficients(derivative_order+1)%p(:,:), crd_cell(ipoint) ) ) &
-                            * h(ipoint)**(-derivative_order)
+                            f_vals(start: start + (self%nlip - 2)) &
+                            * eval_polys(self%lower_polynomial_coefficients(derivative_order+1)%p(:,:), crd_cell) ) &
+                            * h**(-derivative_order)
                 end forall
 
-            else if (icell(ipoint) > 0) then
+            else if (icell > 0) then
 
                 ! Change of variable to cell coordinates
-                crd_cell(ipoint) = self%grid%x2cell(points(ipoint), icell(ipoint))
+                crd_cell = self%grid%x2cell(points(ipoint), icell)
 
                 ! get the cell step of the cell we are handling
-                h(ipoint)        = self%grid%get_cell_step(icell(ipoint))
+                h        = self%grid%get_cell_scale(icell)
 
                 ! get the starting grid point index for the selected cell 
-                start(ipoint) = (icell(ipoint) - 1) * (self%nlip - 1) + 1
+                start    = (icell - 1) * (self%nlip - 1) + 1
 
                 ! evaluate the derivatives for point ipoint
                 forall (derivative_order = 0 : self%maximum_derivative_order)
                     ! Evaluate polynomials in cell coordinates
                     res(ipoint, derivative_order + 1) = sum(   &
-                            f_vals(start(ipoint): start(ipoint) + (self%nlip - 1)) &
-                            * eval_polys(self%polynomial_coefficients(derivative_order+1)%p(:,:), crd_cell(ipoint) ) ) &
-                            * h(ipoint)**(-derivative_order)
+                            f_vals(start: start + (self%nlip - 1)) &
+                            * eval_polys(self%polynomial_coefficients(derivative_order+1)%p(:,:), crd_cell) ) &
+                            * h**(-derivative_order)
                 end forall
             else
                 res(ipoint, :) = 0.0d0
@@ -917,7 +919,7 @@ contains
         real(REAL64)                     :: crd_cell(self%ndim), polys(self%nlip)
 
         real(REAL64)                     :: h(self%ndim)
-        real(REAL64), pointer            :: cellh(:), celld(:)
+        ! real(REAL64), pointer            :: cellh(:), celld(:)
 
         type(REAL64_1D), allocatable, target :: tmp_array(:)
         type(REAL64_1D_Pointer), allocatable :: tmp(:)
@@ -969,7 +971,7 @@ contains
                     ! Change of variable to cell coordinates
                     crd_cell(idim)=self%gr(idim)%p%x2cell(points(idim, ipoint),&
                                                         icell(idim))
-                    h(idim)=self%gr(idim)%p%get_cell_step(icell(idim))
+                    h(idim)=self%gr(idim)%p%get_cell_scale(icell(idim))
                 end if
             end do
 
@@ -1038,7 +1040,7 @@ contains
         do idim=self%ndim,1,-1
             self%ncell(idim)=grids(idim)%get_ncell()
             self%blocksz(idim-1)=self%blocksz(idim)*grids(idim)%get_shape()
-            self%h(idim)%p=grids(idim)%get_cell_steps()
+            self%h(idim)%p=grids(idim)%get_cell_scales()
         end do
     end function
 
@@ -1112,7 +1114,7 @@ contains
         self%base_ints=grid%lip%integrals()
        
         self%ncell = grid%get_ncell()
-        self%h = grid%get_cell_steps()
+        self%h = grid%get_cell_scales()
     end function
 
     !> Destructor
@@ -1265,7 +1267,7 @@ contains
         new%n        = gr%get_nlip() - 1
         new%ncell    = gr%get_ncell()
         new%sz       = gr%get_shape()
-        new%h        =>gr%get_cell_steps()
+        new%h        =>gr%get_cell_scales()
         new%ints_in  = gr%lip%inward_integrals()
         new%ints_out = gr%lip%outward_integrals()
     end function
@@ -1327,13 +1329,14 @@ contains
     !! To use this method, the 'input_cube' or 'bubbles' has to have been
     !! uploaded and set before hand. Additionally, the 'grid' and 'result_cuda_cube'
     !! have to be set.
-    subroutine Evaluator_cuda_evaluate_grid_derivative(self, direction, results, set_to_zero, download)
+    subroutine Evaluator_cuda_evaluate_grid_derivative(self, direction, results, set_to_zero, download, finite_diff_order)
         !> evaluator object
         class(Evaluator),          intent(inout)    :: self
         integer,                   intent(in)       :: direction
         real(REAL64),              intent(inout)    :: results(:, :, :)
         logical,       optional,   intent(in)       :: set_to_zero,  download
         logical                                     :: set_to_zero_, download_
+        integer,                   intent(in)       :: finite_diff_order
 
         download_    = .TRUE.
         if (present(download))    download_ = download
@@ -1344,13 +1347,13 @@ contains
 
         if (direction == X_) then
             call Evaluator_evaluate_grid_x_gradients_cuda(self%cuda_interface, self%grid%get_cuda_interface(), &
-                                                          self%result_cuda_cube%cuda_interface)
+                                                          self%result_cuda_cube%cuda_interface, finite_diff_order)
         else if (direction == Y_) then
             call Evaluator_evaluate_grid_y_gradients_cuda(self%cuda_interface, self%grid%get_cuda_interface(), &
-                                                          self%result_cuda_cube%cuda_interface)
+                                                          self%result_cuda_cube%cuda_interface, finite_diff_order)
         else if (direction == Z_) then
             call Evaluator_evaluate_grid_z_gradients_cuda(self%cuda_interface, self%grid%get_cuda_interface(), &
-                                                          self%result_cuda_cube%cuda_interface)
+                                                          self%result_cuda_cube%cuda_interface, finite_diff_order)
         end if
         if (download_) call self%result_cuda_cube%download()
 
@@ -1580,33 +1583,57 @@ contains
    
 
 
-        !> Extrapolate and replace the frist values of 'values'
+    !> Extrapolate and replace the first values of 'values'
     !! using Lagrange interpolation polynomial of order 'order'.
-    pure subroutine extrapolate_first_nlip7(order, values)
-        integer,      intent(in)    :: order
+    pure subroutine extrapolate_first_nlip7(order, grid_type, values)
+        integer(INT32),      intent(in)    :: order
+        integer(INT32),      intent(in)    :: grid_type
         real(REAL64), intent(inout) :: values(:)
-        if (order == 2) then
-            values(1) = &
-                   2.0d0 * values(2) &
-                -  1.0d0 * values(3) 
-                        
-        else if (order == 3) then
-            values(1) = &
-                   3.0d0 * values(2) &
-                -  3.0d0 * values(3) &
-                +  1.0d0 * values(4)
-                
-        else if (order == 6) then
-            values(1) = &
-                  6.0d0 * values(2) &
-                - 15.0d0 * values(3) &
-                + 20.0d0 * values(4) &
-                - 15.0d0 * values(5) &
-                +  6.0d0 * values(6) &
-                -  1.0d0 * values(7)
+
+        if (grid_type == 1) then ! equidistant
+            if (order == 2) then
+                values(1) = &
+                       2.0d0 * values(2) &
+                    -  1.0d0 * values(3)
+
+            else if (order == 3) then
+                values(1) = &
+                       3.0d0 * values(2) &
+                    -  3.0d0 * values(3) &
+                    +  1.0d0 * values(4)
+
+            else if (order == 6) then
+                values(1) = &
+                       6.0d0 * values(2) &
+                    - 15.0d0 * values(3) &
+                    + 20.0d0 * values(4) &
+                    - 15.0d0 * values(5) &
+                    +  6.0d0 * values(6) &
+                    -  1.0d0 * values(7)
+            end if
+       else if (grid_type == 2) then ! lobatto
+            if (order == 2) then
+                values(1) = &
+                      1.46980575696  * values(2) &
+                    - 0.469805756961 * values(3)
+
+            else if (order == 3) then
+                values(1) = &
+                      1.77037274348  * values(2) &
+                    - 1.00204109193  * values(3) &
+                    + 0.231668348449 * values(4)
+
+            else if (order == 6) then
+                values(1) = &
+                      2.41108834235  * values(2) &
+                    - 3.01108834235  * values(3) &
+                    + 3.2d0          * values(4) &
+                    - 3.01108834235  * values(5) &
+                    + 2.41108834235  * values(6) &
+                    - 1.d0           * values(7)
+            end if
         end if
     end subroutine
-
 
 end module
 

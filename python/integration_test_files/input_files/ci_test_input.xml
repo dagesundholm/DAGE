@@ -4,6 +4,9 @@
     <settings path="settings/ci_settings_lcmo_rdft_0.07.xml" />
     <settings path="settings/ci_settings_rdft_0.07.xml" />
 
+    <structure path="structures/He.xml"/>
+    <basis_set path="basis_sets/cc-pVDZ.xml" />
+
     <action structure_name="He"
             settings_name="ci_settings_lcmo_0.07"
             name="optimize_electron_structure"

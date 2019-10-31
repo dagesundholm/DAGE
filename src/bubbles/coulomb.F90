@@ -23,7 +23,7 @@
 module Coulomb3D_class
     use Function3D_class ! contains the Projector3D & Operator3D classes
     use Function3D_types_m
-    use Grid_class 
+    use Grid_class
     use globals_m
     use GaussQuad_class
     use Bubbles_class
@@ -39,11 +39,11 @@ module Coulomb3D_class
 #ifdef HAVE_OMP
     use omp_lib
 #endif
- 
+
     public :: Coulomb3D
     public    :: assignment(=)
 
-     !> Computes the electrostatic potential of Function3D in the output grid.
+    !> Computes the electrostatic potential of Function3D in the output grid.
     type, extends(Operator3D)        :: Coulomb3D
         logical, public              :: cut_end_borders(3)
         type(Function3D)             :: nuclear_potential
@@ -51,6 +51,7 @@ module Coulomb3D_class
         class(ParallelInfo), pointer :: in_parallel_info
     contains
         procedure, public :: get_potential_bubbles => Coulomb3D_get_potential_bubbles
+        procedure, public :: get_potential_cube => Coulomb3D_get_potential_cube
         procedure, public :: get_nuclear_potential => Coulomb3D_get_nuclear_potential
         procedure, private :: get_off_diagonal_nuclear_bubbles => &
                                   Coulomb3D_get_off_diagonal_nuclear_bubbles
@@ -67,7 +68,7 @@ module Coulomb3D_class
         procedure, public   :: cuda_unprepare => Coulomb3D_cuda_unprepare
 #endif
     end type
-    
+
     interface Coulomb3D
         module procedure :: Coulomb3D_init
     end interface
@@ -94,15 +95,15 @@ contains
 
         allocate(operator1, source = operator2)
     end subroutine
-    
+
     subroutine Coulomb3D_init_copy_sub(self, original_operator)
         class(Coulomb3D),   intent(inout)          :: self
         type(Coulomb3D),    intent(in)             :: original_operator
-        
+
         call self%init_explicit_sub(original_operator%in_parallel_info, original_operator%result_parallelization_info, &
                                     original_operator%nuclear_potential%bubbles, original_operator%gaussian_quadrature)
     end subroutine
-    
+
     !> Constructor for Coulomb operator (\f$ \hat{O}(\rho)\rightarrow V\f$)
     !! \sa bubbles_genpot
     subroutine Coulomb3D_init_explicit_sub(self, input_parallel_info, output_parallel_info, bubbls, gauss)
@@ -116,12 +117,12 @@ contains
         !> Parameters for the Gaussian quadrature. Default initialization if not
         !! given (see gaussquad)
         type(GaussQuad),     intent(in), optional   :: gauss
-        
 
 
-        real(REAL64),pointer                       :: tp(:), tw(:)
-        real(REAL64)                               :: tic, toc
-        
+
+        real(REAL64), pointer                       :: tp(:), tw(:)
+        real(REAL64)                                :: tic, toc
+
 
         integer(INT32) :: sz, ip, i, ibub, j, k
 
@@ -129,7 +130,7 @@ contains
 
         call bigben%split("Coulomb operator initialization")
         if(verbo_g>0) call pinfo("Coulomb operator initialization")
-        
+
         call bigben%split("Gaussian Quadrature initialization")
         if(present(gauss)) then
             self%gaussian_quadrature=gauss
@@ -162,7 +163,9 @@ contains
         self%nuclear_potential = Function3D(self%result_parallelization_info, type=F3D_TYPE_NUCP)
         self%nuclear_potential%bubbles =  self%get_potential_bubbles(bubbls)
         self%nuclear_potential%cube = 0.0d0
-        call self%nuclear_potential%precalculate_taylor_series_bubbles()
+        ! self%nuclear_potential%cube => self%get_potential_cube(pot_index=1, rad=5.d0)
+        call self%nuclear_potential%precalculate_taylor_series_bubbles() ! calc taylor series + mem alloc
+
         self%cut_end_borders = .FALSE.
         self%suboperator = .FALSE.
 
@@ -186,8 +189,7 @@ contains
         !! given (see gaussquad)
         type(GaussQuad),     intent(in), optional   :: gauss
         type(Coulomb3D)                             :: new
-         
-        
+
 
         call new%init_explicit_sub(input_parallel_info, output_parallel_info, bubbls, gauss)
     end function
@@ -354,9 +356,9 @@ contains
         new => self%nuclear_potential
         ! TODO: coda term is missing from the cube part, investigate if this is
         ! needed
-        
 
     end function
+
 
     function Coulomb3D_get_potential_bubbles(self, input_bubbles) result(potential_bubbles)
         !> Input function
@@ -368,15 +370,18 @@ contains
         real(REAL64), pointer               :: bubble_values(:, :)
         lmax = 3
 
-        ! init new bubbles from the input_function bubbles with all bubbles present, 
+        ! init new bubbles from the input_function bubbles with all bubbles present,
         ! and set k of 'new' to -1 (values will be multiplied with r^-1 at evaluation)
-        diagonal_bubbles = Bubbles(lmax = lmax, centers = input_bubbles%get_global_centers(),&
-                                   global_centers = input_bubbles%get_global_centers(), & 
+        diagonal_bubbles = Bubbles(lmax = lmax, &
+                                   centers = input_bubbles%get_global_centers(),&
+                                   global_centers = input_bubbles%get_global_centers(), &
                                    grids = input_bubbles%get_global_grid(), &
                                    global_grids = input_bubbles%get_global_grid(), &
-                                   z = input_bubbles%get_global_z(), global_z = input_bubbles%get_global_z(), &
-                                   k = -1, ibubs = [(i, i = 1, input_bubbles%get_nbub_global())], &
-                                   nbub_global = input_bubbles%get_nbub_global()) 
+                                   z = input_bubbles%get_global_z(),&
+                                   global_z = input_bubbles%get_global_z(), &
+                                   k = -1, &
+                                   ibubs = [(i, i = 1, input_bubbles%get_nbub_global())], &
+                                   nbub_global = input_bubbles%get_nbub_global())
         diagonal_bubbles = 0.0d0
 
         ! set value of the l = 0 bubble to -charge
@@ -385,10 +390,52 @@ contains
             bubble_values(:, 1) = - diagonal_bubbles%get_z(ibub)
             nullify(bubble_values)
         end do
-        
+
         potential_bubbles = Bubbles(diagonal_bubbles, copy_content = .TRUE.) ! + off_diagonal_bubbles
         call diagonal_bubbles%destroy()
     end function
+
+
+    function Coulomb3D_get_potential_cube(self, pot_index, rad) result(potential_cube)
+        implicit none
+        class(Coulomb3D), intent(in)  :: self
+        integer, intent(in)           :: pot_index ! look-up-table index for the potential
+        real(REAL64), intent(in)      :: rad ! a radius, can be used for other potential shapes as a characteristic length
+
+        real(REAL64), pointer         :: potential_cube(:,:,:)
+        integer                       :: dim1, dim2, dim3
+        integer                       :: x, y, z
+        real(REAL64)                  :: coord_x, coord_y, coord_z, r2d, r
+        real(REAL64), allocatable     :: grid1(:), grid2(:), grid3(:)
+
+        dim1 = self%nuclear_potential%grid%axis(1)%get_shape()
+        dim2 = self%nuclear_potential%grid%axis(2)%get_shape()
+        dim3 = self%nuclear_potential%grid%axis(3)%get_shape()
+        allocate(grid1(dim1), source=self%nuclear_potential%grid%axis(1)%get_coordinates())
+        allocate(grid2(dim2), source=self%nuclear_potential%grid%axis(2)%get_coordinates())
+        allocate(grid3(dim3), source=self%nuclear_potential%grid%axis(3)%get_coordinates())
+        allocate(potential_cube(dim1, dim2, dim3))
+
+        do x = 1, dim1
+            coord_x = grid1(x)
+            do y = 1, dim2
+                coord_y = grid2(y)
+                do z = 1, dim3
+                    coord_z = grid3(z)
+                    r2d = dsqrt(coord_x**2 + coord_y**2)
+                    r = dsqrt((r2d - rad)**2 + coord_z**2)
+                    if (pot_index == 1) then
+                        potential_cube(x, y, z) = r**2 ! provide your own function here
+                    else
+                        write(*,*)'invalid index'
+                        call abort()
+                    endif
+                enddo
+            enddo
+        enddo
+        deallocate(grid1, grid2, grid3)
+    end function
+
 
     function Coulomb3D_get_off_diagonal_nuclear_bubbles(self, input_bubbles) result(off_diagonal_bubbles)
         !> Input function
@@ -403,7 +450,6 @@ contains
         real(REAL64), pointer               :: r(:)
         lmax = 2
 
-        
         centers     = input_bubbles%get_centers()
         all_charges = input_bubbles%get_z()
 
@@ -495,7 +541,7 @@ contains
         else
             gau=GaussQuad()
         end if
- 
+
         ! calculate the limits in the in cube (or in the f matrix of self)
         in_cube_limits(1, :) = (in_cell_limits(1, :) - (/1, 1, 1/)) * (self%gridin%get_nlip() - 1) + 1
         in_cube_limits(2, :) = (in_cell_limits(2, :)) * (self%gridin%get_nlip() - 1) + 1        
@@ -503,14 +549,14 @@ contains
         ! calculate the limits in the out cube (or in the f matrix of self)
         out_cube_limits(1, :) = (out_cell_limits(1, :) - (/1, 1, 1/)) * (self%gridout%get_nlip() - 1) + 1
         out_cube_limits(2, :) = (out_cell_limits(2, :)) * (self%gridout%get_nlip() - 1) + 1
-         
+
         ! set input and output grids         
         new%gridout => output_parallel_info%get_grid()
         new%gridin  => input_parallel_info%get_grid()
             
         ! get the shapes of the grids in gridpoints
-        grid_in_shape = new%gridin%get_shape()  
-        grid_out_shape = new%gridout%get_shape()  
+        grid_in_shape = new%gridin%get_shape()
+        grid_out_shape = new%gridout%get_shape()
 
         ! if the parallelization info was given in the initialization of the main operator use it
         ! in other cases the parallelization info of the input function3d is used

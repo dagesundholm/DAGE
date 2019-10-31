@@ -1,17 +1,17 @@
 <?xml version="1.0"?>
 <input_definition version="1.0">
-    <parameter required="true" visible="false" name="number_of_settings" title="Number of Settings Objects" type="int" 
+    <parameter required="true" visible="false" name="number_of_settings" title="Number of Settings Objects" type="int"
                 comment="Number of Settings Objects" default="0" />
-    <parameter required="true" visible="false" name="number_of_structures" title="Number of Structures" type="int"  
+    <parameter required="true" visible="false" name="number_of_structures" title="Number of Structures" type="int"
                 comment="Number of Structure Objects" default="0" />
-    <parameter required="true" visible="false" name="number_of_actions" title="Number of Actions" type="int" 
+    <parameter required="true" visible="false" name="number_of_actions" title="Number of Actions" type="int"
                 comment="Number of Action Objects present in input file" default="0" />
-    <parameter required="true" visible="false" name="number_of_basis_sets" title="Number of Basis Set Objects" type="int" 
+    <parameter required="true" visible="false" name="number_of_basis_sets" title="Number of Basis Set Objects" type="int"
                 comment="Number of Basis Set Objects" default="0" />
     <parameter required="true" visible="false" name="total_number_of_atoms" type="int" title="Total Number of Atoms in Objects" default="0" />
-    
+
     <parameter required="true" name="total_number_of_orbitals" type="int" title="Total Number of Orbitals" visible="false" default="0" />
-    
+
     <parameter required="true" visible="false" default="0" name="total_number_of_shells" type="int" title="Total Number of Shells in all Basis Set Definitions" comment="Number of shells (with quantum number n for atom_type) in all input basis sets."/>
     <parameter required="true" visible="false" default="0" name="total_number_of_subshells" type="int" title="Number of Sub shells in Basis Set Definitions" comment="Number of subshells in all input basis sets."/>
     <parameter required="true" visible="false" default="0" name="total_number_of_folders" type="int" title="Total Number of Folders in all Basis Set Definitions" comment="Number of folders (with quantum number n for atom_type) in all input basis sets."/>
@@ -20,7 +20,7 @@
     <settings_input name="settings" global_index_counter="number_of_settings" fortran_name="ProgramSettings" comment="Type containing all the settings related to functionalities.">
         <parameter generate_fortran="false" name="expert" type="bool" default="False" title="Expert mode" />
         <parameter generate_fortran="false" name="name" type="string" default="Default Settings" title="Settings Identifier" />
-        
+
         <class abbreviation="f3d" name="function3d_settings" fortran_name="Function3DSettings" comment="Type containing settings related to the Function3D objects" >
             <parameter name="bubble_cell_count" title="Bubble Cell Count" type="int" default="6000"
                     comment="Number of cells used in the Bubbles objects (Note: the number is scaled with corresponding atom charge)" />
@@ -32,13 +32,17 @@
                     comment="The spacing between grid points in cube in atomic units (a0). Note: the actual number is scaled to fit other parameter values." />
             <parameter name="cube_cutoff_radius" title="Cube Cutoff Radius" type="double" default="7.00" minval="1.0"
                     comment="The radius from atoms centers, where the cube ends." />
-            <parameter name="bubbles_center_offset" title="Bubbles center offset" type="double[]" shape="3" 
+            <parameter name="bubbles_center_offset" title="Bubbles center offset" type="double[]" shape="3" default="0.0, 0.0, 0.0"
                     comment="The offset of bubbles from the center of the cube. This offset is given as cube grid points in x, y and z directions."/>
             <parameter visible="#{..general_settings.expert_mode}" name="bubbles_nlip" title="Bubbles LIP Count" type="int" default="7" fixed="True" input_type="int" minval="3" maxval="7"
                     comment="Number of Lagrange interpolation polynomials used in Cube grid."  />
             <parameter visible="#{..general_settings.expert_mode}" name="cube_nlip" title="Cube LIP Count" type="int" default="7" fixed="True" input_type="int" minval="3" maxval="7"
                     comment="Number of Lagrange interpolation polynomials used in Bubbles grids."  />
-            <parameter name="taylor_order" title="Taylor Order in Multiplication" type="int" default="2" minval="2" maxval="10" 
+            <parameter visible="#{..general_settings.expert_mode}" name="bubbles_grid_type" title="Bubbles grid type" type="int" default="1" fixed="True" input_type="int" minval="1" maxval="1"
+                    comment="grid type in cells of the bubbles."  />
+            <parameter visible="#{..general_settings.expert_mode}" name="cube_grid_type" title="Cube grid type" type="int" default="1" fixed="True" input_type="int" minval="1" maxval="2"
+                    comment="grid type in cells of the cube."  />
+            <parameter name="taylor_order" title="Taylor Order in Multiplication" type="int" default="2" minval="2" maxval="10"
                     comment="Maximum derivate order used in creating the cross terms in Function3D multiplication"/>
         </class>
         <class abbreviation="quad" comment="Type containing settings related to the Gaussian Quadrature objects used in Coulomb and Helmholtz operators" visible="#{..general_settings.expert}" name="quadrature_settings" fortran_name="QuadratureSettings" >
@@ -48,29 +52,29 @@
                     comment="Number of logarithmic parameters used in gaussian quadrature." />
             <parameter name="tstart" title="t-start value" type="double" default="0.0" minval="0" maxval="300"
                     comment="t-start value" />
-            <parameter name="tlin" title="t-lin value" type="double" default="2.0" minval="0.0" 
+            <parameter name="tlin" title="t-lin value" type="double" default="2.0" minval="0.0"
                     comment="t-lin value" />
-            <parameter name="tlog" title="t-log value" type="double" default="500.0" minval="0.0" 
+            <parameter name="tlog" title="t-log value" type="double" default="500.0" minval="0.0"
                     comment="t-log value" />
         </class>
+
         <class abbreviation="c3d" comment="Type containing settings related to the Coulomb operator"  name="coulomb3d_settings" fortran_name="Coulomb3DSettings">
             <parameter name="gbfmm" title="Toggle GBFMM" type="bool" default="True"
-                    comment="Is the used coulomb operator based on Grid Based Fast Multipole Method" />
+                    comment="Is the used Coulomb operator based on Grid Based Fast Multipole Method" />
             <parameter visible="#{gbfmm}" title="l-maximum" name="farfield_potential_input_lmax" type="int" default="12" maxval="22"
                     comment="Maximum angular momentum quantum number l value for the multipole evaluation. Increasing this number will increase the accuracy of the farfield potential evaluation." />
-            
         </class>
         <class abbreviation="h3d" comment="Type containing settings related to the Helmholtz operator" name="helmholtz3d_settings" fortran_parameter_name="helmholtz3d_settings" fortran_name="Helmholtz3DSettings">
             <parameter name="gbfmm" title="Toggle GBFMM" type="bool" default="True"
-                    comment="Is the used helmholtz operator based on Grid Based Fast Multipole Method" />
-            <parameter visible="#{gbfmm}"  title="Farfield Input l-maximum" name="farfield_potential_input_lmax" type="int" default="22" maxval="22"
+                    comment="Is the used Helmholtz operator based on Grid Based Fast Multipole Method" />
+            <parameter visible="#{gbfmm}"  title="Farfield Input l-maximum" name="farfield_potential_input_lmax" type="int" default="17" maxval="22"
                     comment="Maximum angular momentum quantum number l value for the multipole evaluation. Increasing this number will increase the accuracy of the farfield potential evaluation." />
-            <parameter visible="#{gbfmm}" title="Farfield l-maximum" name="farfield_potential_lmax" type="int" default="22" maxval="22"
+            <parameter visible="#{gbfmm}" title="Farfield l-maximum" name="farfield_potential_lmax" type="int" default="17" maxval="22"
                     comment="Maximum angular momentum quantum number l value for the potential evaluation. Increasing this number will increase the accuracy of the farfield potential evaluation." />
-            <parameter visible="#{gbfmm and ..general_settings.expert_mode}" name="multipole_evaluation" type="bool" default="false" maxval="22"
+            <parameter visible="#{gbfmm and ..general_settings.expert_mode}" name="multipole_evaluation" type="bool" default="false"
                     comment="If the evaluation of farfield potential will be made using with no multipole to local expansion conversions. Using this setting will increase the execution time. Should be used only for debugging purposes." />
-            
         </class>
+
         <class abbreviation="qd" comment="Type containing settings related to the quantum dot simulations." name="qd_settings" fortran_parameter_name="qd_settings" fortran_name="QuantumDotSettings" >
             <parameter name="electron_effective_mass_x" title="Electron's effective mass (x-axis)" type="double" default="1.00" minval="0.0"
                     comment="Effective mass of electron in the x-direction." />
@@ -95,7 +99,7 @@
                 <option value="2" text="DFT" text_value="dft" fortran_option_name="SCF_METHOD_DFT" comment="Density Functional Theory" />
             </parameter>
             <parameter name="type" default="1" type="int" title="Type" comment="Determines the type of SCF loop: LCMO or Helmholtz-SCF." >
-                <option value="1" text="Helmholtz SCF" text_value="helmholtz" 
+                <option value="1" text="Helmholtz SCF" text_value="helmholtz"
                         fortran_option_name="SCF_TYPE_HELMHOLTZ" comment="Bound-state Helmholtz-operator updated SCF." />
                 <option value="2" text="LCMO"           text_value="lcmo"
                         fortran_option_name="SCF_TYPE_LCMO"      comment="Linear Combination of Molecular Orbitals SCF." />
@@ -139,7 +143,8 @@
                 <option value="2" text="D" text_value="D" comment="D" />
                 <option value="3" text="F" text_value="F" comment="F" />
             </parameter>
-            <parameter name="orbitals_density_evaluation" 
+            <parameter name="fin_diff_order" comment="finite difference order for GGA evaluation, 9 is hardly any improvement" type="int" default="7" minval="7" maxval="9" />
+            <parameter name="orbitals_density_evaluation"
                        title="Molecular orbitals density evaluation"
                        comment="Determines if the electron density and its gradient are (re-)evaluated from molecular orbitals. Using this setting makes the calculation more accurate but slows it down a bit."
                        type="bool" default="false"  />
@@ -151,17 +156,17 @@
             </parameter>
             <parameter name="maximum_iterations" title="Max iteration count" type="int" default="50"
                     comment="The maximum number of scf-loop iterations." />
-            <parameter  title="Total Energy Convergence Threshold" name="total_energy_convergence_threshold" type="double" default="0.00000001" 
+            <parameter  title="Total Energy Convergence Threshold" name="total_energy_convergence_threshold" type="double" default="0.00000001"
                     comment="Maximum error allowed for the total energy to achieve SCF-convergence." />
-            <parameter  title="Eigenvalue Convergence Threshold" name="eigenvalue_convergence_threshold" type="double" default="0.00001" 
+            <parameter  title="Eigenvalue Convergence Threshold" name="eigenvalue_convergence_threshold" type="double" default="0.00001"
                     comment="Maximum error allowed for each eigenvalue to achieve SCF-convergence." />
-            <parameter title="Stored Iteration Count" name="stored_iteration_count" type="int" default="4" 
+            <parameter title="Stored Iteration Count" name="stored_iteration_count" type="int" default="4"
                     comment="Number of iterations stored in memory. This parameter only affects to optimizers taking advantage of iteration history, like DIIS and KAIN." />
-            <parameter title="Initialization Iteration Count" name="initialization_iteration_count" type="int" default="1" 
+            <parameter title="Initialization Iteration Count" name="initialization_iteration_count" type="int" default="1"
                     comment="Number of iterations needed to before the optimization method of the optimizer is used. Before this, the power method is used." />
-            <parameter title="Initialization Threshold" name="initialization_threshold" type="double" default="0.1" 
+            <parameter title="Initialization Threshold" name="initialization_threshold" type="double" default="0.1"
                     comment="Maximum error for the optimization method of the optimizer is used. If this threshold has not been breached, the power method is used." />
-           
+
         </class>
         <class abbreviation="ci" comment="Type containing settings related to the Configuration Interaction"
                name="ci_settings" fortran_parameter_name="ci_settings" fortran_name="CISettings">
@@ -175,14 +180,14 @@
                        comment="Determines if triple-excitations are included in the calculation." />
             <parameter name="quadruples" title="Include Quadruple-Excitations" type="bool" default="false"
                        comment="Determines if quadruple-excitations are included in the calculation."  />
-           
+
         </class>
-        
+
     </settings_input>
     <structure_input abbreviation="struct" name="structures" required="true" fortran_variable_name="structures" global_index_counter="number_of_structures">
         <parameter name="number_of_atoms" type="int" title="Number of Atoms" visible="false" required="true" default="0" />
         <parameter name="number_of_orbitals" type="int" title="Number of Orbitals" visible="false" default="0" />
-        <parameter name="external_electric_field" type="double[]" shape="3" title="External electric field " comment="homogeneous electric field" />
+        <parameter name="external_electric_field" type="double[]" shape="3" default="0.0, 0.0, 0.0" title="External electric field " comment="homogeneous electric field" required="false"/>
         <parameter name="number_of_virtual_orbitals" type="int" title="Number of Virtual Orbitals" default="0" />
         <parameter name="multiplicity" type="int"  required="false" default="0" comment="Spin multiplicity of the electronic state." >
             <option value="0" text_value="automatic" text="automatic" />
@@ -194,13 +199,14 @@
             <option value="6" text_value="sextet" text="sextet" />
             <option value="7" text_value="septet" text="septet" />
         </parameter>
+        <parameter name="system_charge" type="double" title="System charge" required="false" default="0" comment="sum of all nuclear and electronic charges"/>
         <class name="atom" global_index_counter="total_number_of_atoms" local_index_counter="number_of_atoms" fortran_variable_name="structures">
             <parameter name="atom_type" type="int"  title="Atom Type" required="true" comment="Index linking the basis set with the 'atom type' of structure. By default the 'atom_type' is the order number of atom in periodic table, but other values can also be given."/>
             <parameter name="coordinates" type="double[]" shape="3" title="Atom Coordinates" required="true" />
-            <parameter name="charge" type="double" title="Atom Charge" required="true" />
-            <parameter name="number_of_basis_functions" title="Number of basis functions" 
+            <parameter name="nuclear_charge" type="double" title="Atom Charge" required="true" />
+            <parameter name="number_of_basis_functions" title="Number of basis functions"
                        comment="The number of basis functions used for this atom. If -1 the number of available basis functions is used." type="int" default="-1" />
-            
+
             <parameter name="ignored_basis_functions" type="int[]" shape="100" default="0" title="Ignored basis functions" comment="Indeces of the ignored basis functions" />
         </class>
         <parameter name="name" type="string"  title="Name of the Structure" comment="Name or abbreviation identifying the structure." />
@@ -224,7 +230,7 @@
             <option value="1" text_value="optimize_electron_structure" text="Optimize Electron Structure" fortran_option_name="ACTION_OPTIMIZE_ELECTRON_STRUCTURE" />
             <option value="101" text_value="input_output_test" text="Perform Input/Output Test"           fortran_option_name="ACTION_INPUT_OUTPUT_TEST" />
         </parameter>
-        <parameter name="resume" title="Resume Previous Run" comment="Resume to previous execution by reading in the orbitals etc. if possible" type="bool" default="true"  /> 
+        <parameter name="resume" title="Resume Previous Run" comment="Resume to previous execution by reading in the orbitals etc. if possible" type="bool" default="true"  />
         <parameter name="intermediate_orbital_store_interval" title="Intermediate Orbital Store Interval" comment="The interval of mid-storing of orbitals as number of iterations. (0: no mid-execution storage)" type="int" default="0" />
         <parameter name="store_result_functions" title="Store Result Functions" comment="Store the result orbitals and other functions." type="int" default="0" >
             <option value="0" text_value="no" text="No" fortran_option_name="DO_NOT_STORE_RESULT_FUNCTIONS"  />
@@ -240,7 +246,7 @@
         <parameter required="true" name="basis_set_type" type="int" default="1" >
             <option value="1" text="STO - basis" text_value="sto" comment="Basis set consisting of Slater Type Orbitals." fortran_option_name="BASIS_SET_TYPE_STO" />
             <option value="2" text="GTO - basis" text_value="gto" comment="Basis set consisting of Gaussian Type Orbitals." fortran_option_name="BASIS_SET_TYPE_GTO" />
-            <option value="3" text="Bubbles - basis" text_value="bubbles" comment="Basis set consisting of orbitals made of Bubbles." fortran_option_name="BASIS_SET_TYPE_BUBBLES" />  
+            <option value="3" text="Bubbles - basis" text_value="bubbles" comment="Basis set consisting of orbitals made of Bubbles." fortran_option_name="BASIS_SET_TYPE_BUBBLES" />
         </parameter>
         <parameter required="true" default="1" name="size" type="int" title="Maximum Number of Elementary Basis Functions Per Orbital" comment="This parameter is used to determine the order number in the basis set type. For instance if the basis set is of type GTO and this parameter is '5' then each basis function consist of 1-5 gaussian functions." minval="1" maxval="10"/>
         <parameter required="true" visible="false" default="0" name="number_of_shells" type="int" title="Number of Shells" comment="Number of 'shells' in current basis set."/>
@@ -270,7 +276,7 @@
                        comment="The order numbers of iterations." />
             <parameter name="total_energy" type="double" title="Total energy of the iteration." default="0.0"
                        comment="The total energy of the iterations."/>
-            <parameter name="eigen_values" type="double[]" shape="1000" title="Eigen values of orbitals." 
+            <parameter name="eigen_values" type="double[]" shape="1000" title="Eigen values of orbitals."
                        comment="The eigen values of orbitals in the iterations."/>
         </class>
     </scf_energetics_input>

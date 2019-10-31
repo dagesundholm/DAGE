@@ -25,11 +25,11 @@
 import sys
 
 if len(sys.argv) != 3:
-	print 'gridur.py len n'
+	print('gridur.py len n')
 	sys.exit(1)
 
 l=float(sys.argv[1])
 n=int(sys.argv[2])
 np=(2*n+1)*6+7 
 
-print np, l/np, np**3*8/1024/1024
+print(np, l/np, np**3*8/1024/1024)
