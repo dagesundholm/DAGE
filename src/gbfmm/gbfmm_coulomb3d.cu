@@ -311,8 +311,6 @@ GBFMMCoulomb3D::GBFMMCoulomb3D(
                int *output_start_indices_z, int *output_end_indices_z, 
                // the main streamcontainer used to extract the boxwise streamcontainers from 
                StreamContainer *streamContainer) {
-
-printf("GBFMMCoulomb3D::GBFMMCoulomb3D, streamsperdevice: %d\n", streamContainer->getStreamsPerDevice());
     
     // init the common things using the function defined in gbfmm_potential_operator.cu
     initGBFMMPotentialOperator(grid_in, grid_out, lmax, domain,
@@ -356,7 +354,6 @@ void GBFMMCoulomb3D::destroyHarmonics() {
 void GBFMMCoulomb3D::initIntegrators() {
     // init the subgrids and the streamcontainers for each domain box
     for (int i = 0; i <= this->domain[1]-this->domain[0]; i++) {
-printf("GBFMMCoulomb3D::initIntegrators, streamsperdevice: %d (1)\n", this->streamContainers[i]->getStreamsPerDevice());
         // initialize the Integrator needed for multipole evaluation with a buffer for (this->lmax+1)*(this->lmax+1) results 
         this->integrators[i] = new GBFMMCoulomb3DMultipoleEvaluator(this->streamContainers[i],
                                                                     this->input_grids[i],
@@ -364,7 +361,6 @@ printf("GBFMMCoulomb3D::initIntegrators, streamsperdevice: %d (1)\n", this->stre
                                                                     &this->centers[i*3]);
     }
 }
-
 
 
 /*
@@ -390,17 +386,9 @@ void GBFMMCoulomb3D::downloadMultipoleMoments(double *host_multipole_moments) {
  * NOTE: this function IS NOT BLOCKING with regards to CUDA
  */
 void GBFMMCoulomb3D::calculateMultipoleMomentsBox(int i, CudaCube *cube) {
-printf("anyone? 1\n");
-fflush(stdout);
     this->integrators[i]->setIntegrationCube(cube);
-printf("anyone? 2\n");
-fflush(stdout);
     this->integrators[i]->integrate();
-printf("anyone? 3\n");
-fflush(stdout);
     this->integrators[i]->setIntegrationCube(NULL);
-printf("anyone? 4\n");
-fflush(stdout);
     //int *cube_device_memory_shape = cube->getDeviceMemoryShape();
     //int *integration_device_memory_shape = this->integrators[i]->getIntegrationCube()->getDeviceMemoryShape();
     //int lm_cube_offset = 0;
@@ -618,7 +606,6 @@ extern "C" GBFMMCoulomb3D *gbfmmcoulomb3d_init_cuda(
                int *output_start_indices_z, int *output_end_indices_z, 
                // the main streamcontainer used to extract the boxwise streamcontainers from 
                StreamContainer *streamContainer) {
-printf("GBFMMCoulomb3D *gbfmmcoulomb3d_init_cuda, streamsperdevice: %d\n", streamContainer->getStreamsPerDevice());
     GBFMMCoulomb3D *new_gbfmm_coulomb3d = new GBFMMCoulomb3D(grid_in, grid_out, lmax, domain,
                                                              input_start_indices_x, input_end_indices_x, 
                                                              input_start_indices_y, input_end_indices_y,

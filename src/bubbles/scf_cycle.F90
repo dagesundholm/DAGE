@@ -2291,9 +2291,6 @@ write(*,*) 'end SCFCycle_calculate_one_electron_mats'
         logical,         intent(in) :: print_components
         integer                     :: i
 
-        
-write(*,*) 'kin,pot,eval', self%kinetic_matrix(1, 1), self%nuclear_electron_matrix(1,1), self%eigen_values(1)
-
         if (print_components) then
             print '("-----------------------------------------------------------------&
                       &-----------------------------")'
@@ -3722,8 +3719,6 @@ write(*,*) 'end UnRestrictedHelmholtzSCFCycle_update_orbitals'
         real(REAL64)                           :: num_el, temp_value
         real(REAL64), allocatable              :: orthogonalizing_matrix(:, :)
         logical                                :: do_update
-write(*,*) 'begin RHFCycle_calculate_hamiltonian_matrix'
-flush(6)
         
         call bigben%split("Creating Fock matrix")
 
@@ -3773,8 +3768,6 @@ flush(6)
 
         ! stop fock matrix creation timing
         call bigben%stop()
-write(*,*) 'end RHFCycle_calculate_hamiltonian_matrix'
-flush(6)
     end subroutine
 
 !--------------------------------------------------------------------!
@@ -4399,7 +4392,6 @@ print *, 'i vne', self%nuclear_electron_matrix(i,i)
         type(Function3D), allocatable          :: temp2
         integer                                :: i,j,k, orbital_count
         real(REAL64)                           :: test
-write(*,*) 'begin RDFTCycle_calculate_orbital_potentials'
       
         call memoryfollower_print_status()        
         !call pinfo("Computing RDFT Orbital Potential")
@@ -4447,7 +4439,6 @@ write(*,*) 'begin RDFTCycle_calculate_orbital_potentials'
         nullify(nuclear_potential)
         call bigben%stop() 
         call memoryfollower_print_status()
-write(*,*) 'end RDFTCycle_calculate_orbital_potentials'
     end subroutine
 
 

@@ -219,37 +219,23 @@ contains
         else
             previous_energy = self%scf_energetics%total_energy(self%iteration_count-1)
         end if
-write(*,*) 'foo0'
-flush(6)
             
         do
             call bigben%split("PowerMethod loop")
             ! if we have energy for this iteration, do not reevaluate it
             if (abs(self%scf_energetics%total_energy(self%iteration_count)) < 1d-6) then
-write(*,*) 'foo1'
-flush(6)
                 ! evaluate the matrix elements and evaluate the energy
                 call self%scf_cycle%calculate_hamiltonian_matrix(self%diagonalize)
 
-write(*,*) 'foo2'
-flush(6)
                 ! diagonalize and update via doing a linear combination of orbitals,
                 ! if self%diagonalize is .TRUE.
                 if (self%diagonalize) then
-write(*,*) 'foo3'
-flush(6)
                     call self%scf_cycle%diagonalize()
-write(*,*) 'foo4'
-flush(6)
                     call self%scf_cycle%update_orbitals_linear_combination()
-write(*,*) 'foo5'
-flush(6)
                 end if
                 ! store the energetics to history
                 call self%store_energetics()
                 current_energy = self%scf_cycle%energy
-write(*,*) 'current energy', current_energy
-flush(6)
             else
                 current_energy = self%scf_energetics%total_energy(self%iteration_count)
                 self%scf_cycle%energy = current_energy - self%scf_energetics%nuclear_repulsion_energy

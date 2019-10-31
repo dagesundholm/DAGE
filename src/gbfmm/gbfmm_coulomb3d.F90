@@ -644,6 +644,7 @@ contains
     end subroutine
 #endif
     
+
     !> Implementation of the FMM algorithm as an operator. This method is called with
     !! .apply. operator
     subroutine GBFMMCoulomb3D_calculate_potential(self, func, new, cell_limits, only_cube)
@@ -680,7 +681,6 @@ contains
         integer                              :: nmpiproc = 1
         integer                              :: iproc = 0
         logical                              :: calculate_bubbles
-write(*,*) 'begin GBFMMCoulomb3D_calculate_potential'
 
         call bigben%split("Calculate GBFMM Coulomb Potential")
         calculate_bubbles = .TRUE.
@@ -816,7 +816,6 @@ write(*,*) 'begin GBFMMCoulomb3D_calculate_potential'
         call bigben%stop()
 
         !print *, "Coulomb potential nearfield time", toc-tic
-write(*,*) 'begin GBFMMCoulomb3D_calculate_potential'
     end subroutine
 
 
