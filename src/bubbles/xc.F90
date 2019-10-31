@@ -1544,7 +1544,6 @@ module XC_class
         integer                                            :: output_shape(3), i, j, l(1), counter
         type(Function3D)                                   :: temp
 
-write(*,*) 'begin XC_evaluate_cube'
         call bigben%split('XC-cube')
         output_shape = output_grid%get_shape()
 #ifdef HAVE_CUDA
@@ -1674,7 +1673,6 @@ write(*,*) 'begin XC_evaluate_cube'
         deallocate(potential_density, energy_per_particle_)
         call bigben%stop()
 
-write(*,*) 'end XC_evaluate_cube'
     end subroutine
 
     subroutine smoothen_bubbles(bubbls)
@@ -2002,7 +2000,6 @@ write(*,*) 'end XC_evaluate_cube'
         type(Points), allocatable                   :: becke_points(:)
         type(Function3D), allocatable               :: core_density(:)
 
-write(*,*) 'begin XC_eval'
         call potential%init_copy(density, lmax = density%bubbles%get_lmax())
         potential = 0.0d0
         call potential_contracted_gradients_x%init_copy(density, lmax = density%bubbles%get_lmax())
@@ -2187,7 +2184,6 @@ write(*,*) 'begin XC_eval'
 
         !call input_density%destroy()
         
-write(*,*) 'end XC_eval'
     end subroutine XC_eval
 
 

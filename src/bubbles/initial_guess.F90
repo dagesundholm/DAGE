@@ -1900,16 +1900,12 @@ basis_object%exponentials(iexp,j), positions(:,i)  )
         real(REAL64), allocatable  :: c1(:,:),c1old(:,:)
         real(REAL64)               :: cdelta
 
-write(*,*) 'begin SolidGaussianBasis_scf'
-
         if(present(imaxin)) then
             imax = imaxin
         else
             ! 10 iterations should be enough
             imax = 10
         end if
-
-print *, 'nocc', nocc
 
         ! init
         overlap_matrix = basis%calculate_overlap_matrix()

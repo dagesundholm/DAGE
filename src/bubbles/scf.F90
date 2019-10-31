@@ -255,7 +255,7 @@ contains
             write(*, '("Energy change:     ", f24.16,"")')  energy_change
             write(*, '("-----------------------------------------------------------------------")')
 
-! flush(6)
+flush(6)
 ! call abort()
 
             if (self%is_converged()) then

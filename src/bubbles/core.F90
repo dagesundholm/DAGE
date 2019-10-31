@@ -96,7 +96,6 @@ contains
         type(SCFEnergetics)      :: scf_energetics
         integer                  :: iaction, ierr, provided
         logical                  :: action_success, success, initialized
-write(*,*) 'begin Core_run'
 
 #ifdef BUBBLES_REVISION_NUMBER
         print *, "Bubbles library revision number: ", BUBBLES_REVISION_NUMBER
@@ -158,8 +157,6 @@ write(*,*) 'begin Core_run'
         success = .TRUE.
         do iaction = 1, size(self%actions)
             !call check_memory_status_cuda()
-write(*,*) 'action', iaction
-flush(6)
 
             ! check that the structure in action is valid
             action_success = self%validate_structure_id(self%actions(iaction)%structure_id)
@@ -222,8 +219,6 @@ flush(6)
         !call mpi_finalize(ierr)
 #endif
 #endif
-write(*,*) 'end Core_run'
-flush(6)
     end function
 
 !--------------------------------------------------------------------------------------------!
@@ -278,45 +273,30 @@ flush(6)
         print '("       Optimizing electron structure of ", a )', trim(struct%name)
         print '("----------------------------------------------------------")'
         bigben = Chrono("Optimize Electron Structure", iproc)
-flush(6)
         
         ! get the cube grid and the bubble grids
-write(*,*) 'get cube grid'
-flush(6)
         call self%get_cube_grid(action_, struct, settings, cubegrid, orbital_parallel_info, electron_density_parallel_info)
-write(*,*) 'get bub grid'
-flush(6)
         call self%get_bubble_grids(action_, struct, settings, bubble_grids)
                                       
-write(*,*)'get orbs'
-flush(6)
         ! create the orbitals
         call self%get_orbitals(action_, struct, settings, orbital_parallel_info, &
                                electron_density_parallel_info, bubble_grids, &
                                basis_set, orbitals_a, orbitals_b, electron_density)
         
-write(*,*)'init core eval'
-flush(6)
         ! init the core evaluator
         core_evaluator = CoreEvaluator(orbitals_a(1))
 
-write(*,*)'init ops'
-flush(6)
         ! init the coulomb, laplacian, and helmholtz operators along with the gaussian quadrature
         call self%init_operators(settings, cubegrid, orbital_parallel_info, &
                                  electron_density_parallel_info, &
                                  orbitals_a(1), quadrature, &
                                  coulomb_operator, laplacian_operator, helmholtz_operator)
 
-write(*,*)'init scf'
-flush(6)
         ! init the correct SCF cycle
         call SCFCycle_init(settings, struct, basis_set, orbitals_a, orbitals_b, electron_density, &
                            laplacian_operator, coulomb_operator, helmholtz_operator, &
                            core_evaluator, scf_cycle)
         
-write(*,*)'calc nuc pot'
-flush(6)
         ! calculate the nuclear repulsion enrgy
         if (abs(scf_energetics%nuclear_repulsion_energy) < 1d-5) then
             scf_energetics%nuclear_repulsion_energy= &
@@ -324,13 +304,9 @@ flush(6)
                                         orbitals_a(1)%bubbles%get_global_centers())
         end if
 
-write(*,*)'init scf opt'
-flush(6)
         ! init the SCFOptimizer to 'scf_optimizer'
         call SCFOptimizer_init(settings, action_, scf_cycle, scf_energetics, scf_optimizer)
         
-write(*,*)'scf opt'
-flush(6)
         ! --- PERFORM CALCULATION --- !
         ! do the optimization
         call start_memory_follower()
@@ -518,8 +494,6 @@ flush(6)
         class(ParallelInfo),       intent(inout), allocatable :: orbital_parallel_info
         !> The output parallelinfo object used in electron density initialization
         class(ParallelInfo),       intent(inout), allocatable :: electron_density_parallel_info
-write(*,*) 'begin Core_get_cube_grid'
-flush(6)
         
         ! get the grid3d of the cube from file or by initing from parameters
         if (action_%resume .and. file_exists(action_%output_folder, "cubegrid.g3d")) then
@@ -550,8 +524,6 @@ flush(6)
                                        cubegrid = cubegrid, &
                                        gbfmm = settings%coulomb3d_settings%gbfmm, &
                                        is_potential_input = .TRUE.)
-write(*,*) 'end Core_get_cube_grid'
-flush(6)
     end subroutine
     
     
@@ -842,8 +814,6 @@ flush(6)
                 end select
             end if
 #ifdef HAVE_CUDA
-write(*,*) 'coulomb op, cuda init' 
-flush(6)
             call coulomb_operator%cuda_init()
 #endif
                 
@@ -866,8 +836,6 @@ flush(6)
                 end select
             end if
 #ifdef HAVE_CUDA
-write(*,*) 'laplacian op, cuda init' 
-flush(6)
             call laplacian_operator%cuda_init()
 #endif
         end if
@@ -898,8 +866,6 @@ flush(6)
             end if
             
 #ifdef HAVE_CUDA
-write(*,*) 'helmholtz op, cuda init' 
-flush(6)
             call helmholtz_operator%cuda_init_child_operator()
 #endif
         end if
@@ -1068,7 +1034,6 @@ flush(6)
 
 
         end if
-write(*,*) 'end SCFCycle_init'
     end subroutine
 
 !--------------------------------------------------------------------------------------------!

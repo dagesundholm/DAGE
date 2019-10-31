@@ -1464,7 +1464,6 @@ call check_memory_cuda()
   
         integer                                          :: i,j
         real(REAL64)                                     :: temp_e
-write(*,*) 'begin SCFCycle_calculate_coulomb_matrix'
 
         if (size(self%orbitals) > 0) then
 #ifdef HAVE_CUDA_PROFILING
@@ -1514,7 +1513,6 @@ write(*,*) 'begin SCFCycle_calculate_coulomb_matrix'
             call stop_nvtx_timing()
 #endif
         end if
-write(*,*) 'end SCFCycle_calculate_coulomb_matrix'
     end subroutine
     
     
@@ -1528,7 +1526,6 @@ write(*,*) 'end SCFCycle_calculate_coulomb_matrix'
         type(Function3D), allocatable                    :: temp
         integer                                          :: i, j
 
-write(*,*) 'begin SCFCycle_calculate_xc_matrix'
         self%exchange_correlation_matrix = 0.0d0
         
         ! Go through all functions self%orbitals and calculate the coulomb
@@ -1556,8 +1553,6 @@ write(*,*) 'begin SCFCycle_calculate_xc_matrix'
             call temp%destroy()
             deallocate(temp)
         end do
-write(*,*) 'end SCFCycle_calculate_xc_matrix'
-flush(6)
     end subroutine
 #endif
 
@@ -2021,7 +2016,6 @@ flush(6)
         integer                                 :: i,j, orbital_count
         real(REAL64)                            :: temp
         type(Function3D)                        :: temp_function
-write(*,*) 'begin SCFCycle_calculate_one_electron_mats'
         
         if (size(self%orbitals) > 0) then
             orbital_count = size(self%orbitals)
@@ -2075,7 +2069,6 @@ write(*,*) 'begin SCFCycle_calculate_one_electron_mats'
             call stop_nvtx_timing()
 #endif
         end if
-write(*,*) 'end SCFCycle_calculate_one_electron_mats'
     end subroutine
     
     
@@ -2346,8 +2339,6 @@ write(*,*) 'end SCFCycle_calculate_one_electron_mats'
         !> The result electron density
         type(Function3D),                   intent(inout) :: electron_density
         integer                                           :: iorbital
-write(*,*) 'begin HelmholtzSCFCycle_calculate_electron_density_worker'
-
 
         if (allocated(self%temp)) then
             call self%temp%destroy()
@@ -2390,7 +2381,6 @@ write(*,*) 'begin HelmholtzSCFCycle_calculate_electron_density_worker'
         end if 
         call electron_density%communicate_cube(reversed_order = .TRUE.)
 
-write(*,*) 'end HelmholtzSCFCycle_calculate_electron_density_worker'
     end subroutine 
 
     
@@ -2884,8 +2874,6 @@ write(*,*) 'end HelmholtzSCFCycle_calculate_electron_density_worker'
             end do
         end do
 
-        write(*,*) 'diagonalizing'
-    
         ! diagonalize the subspace
         call matrix_generalized_eigensolver(hamiltonian_matrix, overlap_matrix, &
                                             orbital_coefficients, eigen_values)
@@ -3196,7 +3184,6 @@ write(*,*) 'end HelmholtzSCFCycle_calculate_electron_density_worker'
         class(RestrictedHelmholtzSCFCycle), intent(inout) :: self
         real(REAL64)                                      :: occupations(size(self%orbitals))
         integer                                           :: nclosed
-write(*,*) 'begin RestrictedHelmholtzSCFCycle_calculate_closed_shell_el_dens'
         
         call bigben%split("Computing closed shell electron density")
         nclosed = min(self%nocc_a, self%nocc_b)
@@ -3205,7 +3192,6 @@ write(*,*) 'begin RestrictedHelmholtzSCFCycle_calculate_closed_shell_el_dens'
         call self%calculate_electron_density_worker(self%orbitals, occupations, self%electron_density)
         call bigben%stop()
 
-write(*,*) 'end RestrictedHelmholtzSCFCycle_calculate_closed_shell_el_dens'
     end subroutine
 
 
@@ -3214,7 +3200,6 @@ write(*,*) 'end RestrictedHelmholtzSCFCycle_calculate_closed_shell_el_dens'
         class(RestrictedHelmholtzSCFCycle), intent(inout) :: self
         real(REAL64)                                      :: occupations(size(self%orbitals))
         integer                                           :: nclosed, nocc
-write(*,*) 'begin RestrictedHelmholtzSCFCycle_calculate_open_shell_el_dens'
         
         call bigben%split("Computing open shell electron density")
         nclosed = min(self%nocc_a, self%nocc_b)
@@ -3225,7 +3210,6 @@ write(*,*) 'begin RestrictedHelmholtzSCFCycle_calculate_open_shell_el_dens'
         call self%calculate_electron_density_worker(self%orbitals, occupations, self%electron_density)
         call bigben%stop()
         
-write(*,*) 'end RestrictedHelmholtzSCFCycle_calculate_open_shell_el_dens'
     end subroutine
 
 
@@ -3233,7 +3217,6 @@ write(*,*) 'end RestrictedHelmholtzSCFCycle_calculate_open_shell_el_dens'
         class(RestrictedHelmholtzSCFCycle), &
                           intent(inout), target :: self
         real(REAL64),     intent(in)            :: scaling_factor
-write(*,*) 'begin RestrictedHelmholtzSCFCycle_update_orbitals'
 
         ! get orbital potentials, if they are not valid
         if (.not. self%orbital_potentials_are_valid) then
@@ -3243,7 +3226,6 @@ write(*,*) 'begin RestrictedHelmholtzSCFCycle_update_orbitals'
         ! call the worker routine that does the hard work
         call self%update_orbitals_worker(scaling_factor)
         
-write(*,*) 'end RestrictedHelmholtzSCFCycle_update_orbitals'
     end subroutine
     
     !> Destroy and deallocate the things defined in 
@@ -3404,7 +3386,6 @@ write(*,*) 'end RestrictedHelmholtzSCFCycle_update_orbitals'
                                                    old_orbital_energy, normalizing_factor, &
                                                    temp_val
         integer                                 :: k
-write(*,*) 'begin UnRestrictedHelmholtzSCFCycle_update_orbitals'
         
         call self%calculate_spin_densities()
         call self%electron_density_a%add_in_place(self%electron_density_b)
@@ -3438,7 +3419,6 @@ write(*,*) 'begin UnRestrictedHelmholtzSCFCycle_update_orbitals'
             call self%update_orbitals_worker(scaling_factor)
         end if
 
-write(*,*) 'end UnRestrictedHelmholtzSCFCycle_update_orbitals'
     end subroutine
 
 
@@ -3845,8 +3825,6 @@ write(*,*) 'end UnRestrictedHelmholtzSCFCycle_update_orbitals'
         type(Grid3D)                            :: grid
         real(REAL64)                            :: tmp, total, energy, alpha, beta
       
-write(*,*) 'begin ROHFCycle_calculate_orbital_potentials'
-        
 #ifdef HAVE_CUDA_PROFILING
         call start_nvtx_timing("Orbital Potentials")
 #endif
@@ -4454,7 +4432,6 @@ print *, 'i vne', self%nuclear_electron_matrix(i,i)
 !                                                  previous_hamiltonian_matrix(:, :)
         logical                                :: do_update
 
-write(*,*) 'begin RDFTCycle_calculate_hamiltonian_matrix'
         call memoryfollower_print_status()
         call bigben%split("RDFT SCF cycle")
         ! previous_kinetic_matrix = self%kinetic_matrix
@@ -4464,8 +4441,8 @@ write(*,*) 'begin RDFTCycle_calculate_hamiltonian_matrix'
         ! previous_hamiltonian_matrix = self%hamiltonian_matrix
 
         call self%calculate_one_electron_matrices(evaluate_all)
-write(*,*) 'kin: ', self%kinetic_matrix
-write(*,*) 'pot: ', self%nuclear_electron_matrix
+        ! write(*,*) 'kin: ', self%kinetic_matrix
+        ! write(*,*) 'pot: ', self%nuclear_electron_matrix
         if ( .not. self%coulomb_potential_is_valid) then
             ! calculate electron density
             call self%calculate_closed_shell_electron_density()
@@ -4478,9 +4455,9 @@ write(*,*) 'pot: ', self%nuclear_electron_matrix
         !call self%calculate_electron_density(non_overlapping = .FALSE.)
         ! calculate the coulomb and nuclear matrices
         call self%calculate_coulomb_matrix(evaluate_all)
-write(*,*) 'J: ', self%coulomb_matrix
+        ! write(*,*) 'J: ', self%coulomb_matrix
         call self%calculate_xc_matrix(evaluate_all)
-write(*,*) 'xc: ', self%exchange_correlation_matrix_a
+        ! write(*,*) 'xc: ', self%exchange_correlation_matrix_a
         !if (self%xc_update_method == 1) call self%exchange_correlation%eval_g(self%electron_density)
         !if (self%xc_update_method == 2) call self%exchange_correlation%eval_taylor(self%electron_density)
 
@@ -4509,8 +4486,6 @@ write(*,*) 'xc: ', self%exchange_correlation_matrix_a
 
         ! stop scf cycle timing
         call bigben%stop()
-write(*,*) 'end RDFTCycle_calculate_hamiltonian_matrix'
-
      end subroutine RDFTCycle_calculate_hamiltonian_matrix
     
 #endif

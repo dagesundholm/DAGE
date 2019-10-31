@@ -3741,8 +3741,6 @@ contains
 
         type(Bubbles)                 :: result_bubbles
         !call pinfo("Applying operator")
-write(*,*) 'begin Operator3D_operate_on_Function3D'
-flush(6)
         
         ! allocate the default function as Function3D
         if (.not. allocated(new)) then
@@ -3752,16 +3750,10 @@ flush(6)
             
             call new%init_explicit(self%result_parallelization_info, &
                             label=trim(func%label)//".copy" )
-write(*,*) 'g1'
-flush(6)
             call new%set_type(self%get_result_type())
-write(*,*) 'g2'
-flush(6)
         else 
             new%cube = 0.0d0
             call new%bubbles%destroy()
-write(*,*) 'g3'
-flush(6)
             if (allocated(new%cube_contaminants)) deallocate(new%cube_contaminants)
             
    
@@ -3769,8 +3761,6 @@ flush(6)
                 call new%taylor_series_bubbles%destroy()
                 deallocate(new%taylor_series_bubbles)
             end if
-write(*,*) 'g4'
-flush(6)
         end if
         
         if (present(only_cube)) then
@@ -3784,33 +3774,21 @@ flush(6)
         end if 
     
         call self%operator_bubbles(func, new, operate_bubbles)
-write(*,*) 'g5'
-flush(6)
 
         if (present(cell_limits)) then
-write(*,*) 'g6'
-flush(6)
             call self%operator_cube(func, new, cell_limits)
         else
-write(*,*) 'g7'
-flush(6)
             call self%operator_cube(func, new)
         end if
 
         if (operate_bubbles) then
-write(*,*) 'g8'
-flush(6)
             call new%parallelization_info%communicate_bubbles(new%bubbles)
-write(*,*) 'g9'
-flush(6)
             call new%precalculate_taylor_series_bubbles()
         end if
         
         if(debug_g>0) then
             call new%bubbles%print(new%get_label())
         end if
-write(*,*) 'end Operator3D_operate_on_Function3D'
-flush(6)
     end subroutine
 
 
