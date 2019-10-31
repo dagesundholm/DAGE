@@ -1373,12 +1373,10 @@ contains
         xgrid=>self%axis(X_)%get_coord()
         ygrid=>self%axis(Y_)%get_coord()
         zgrid=>self%axis(Z_)%get_coord()
-print *, 'xyzgrid', xgrid, ygrid, zgrid ! remove, lnw 
 
         nx = self%axis(X_)%get_shape()
         ny = self%axis(Y_)%get_shape()
         nz = self%axis(Z_)%get_shape()
-print *, 'xyzshape', nx, ny, nz ! remove, lnw
 
         do iz=1,nz
             grid_points(Z_, (iz - 1) * (nx * ny) + 1: iz * (nx * ny)) = zgrid(iz)

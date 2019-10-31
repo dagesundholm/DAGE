@@ -155,7 +155,6 @@ __device__ inline void getXYZ3D__(int *x, int *y, int *z) {
 // all threads of the block enter this routine (possibly with value = 0.0)
 template <unsigned int blockSize> 
 __device__  void contractBlock(const int locThreadId, double &value, double *shared_data) {
-// printf("begin contractBlock, bs: %u\n", blockSize);
 #if (__CUDA_ARCH__ >= 350) && (__CUDA_ARCH__ < 700)
     // sum the results warp-wise
     value += __shfl_down(value, 1);
@@ -189,35 +188,23 @@ __device__  void contractBlock(const int locThreadId, double &value, double *sha
 // printf("tID: %d, tIDx: %d, active mask: %u\n",  locThreadId, threadIdx.x, __ballot_sync(FULL_MASK, true));
     // sum the results warp-wise
     // const unsigned int mask = __ballot_sync(FULL_MASK, true);
-#if 1
     value += __shfl_down_sync(FULL_MASK, value, 1);
     value += __shfl_down_sync(FULL_MASK, value, 2);
     value += __shfl_down_sync(FULL_MASK, value, 4);
     value += __shfl_down_sync(FULL_MASK, value, 8);
     value += __shfl_down_sync(FULL_MASK, value, 16);
-#endif
 
-#if 1
     if (locThreadId < 32) {
         shared_data[locThreadId] = 0.0;
     }
-#endif
-#if 1
     __syncthreads();
-#endif
-// zero 32 vals in SM
 
-#if 1
+    // write to SM the value in the beginning of each warp
     if (locThreadId % 32 == 0) {
         shared_data[locThreadId / 32] = value;
     }
-#endif
-#if 1
     __syncthreads();
-// write to SM the value in the beginning of each warp
-#endif
 
-#if 1
     // sum the warp results together at the first warp
     if (locThreadId < 32 ) {
         value = shared_data[locThreadId];
@@ -227,7 +214,6 @@ __device__  void contractBlock(const int locThreadId, double &value, double *sha
         if (blockSize >= 256)  value += __shfl_down_sync(FULL_MASK, value, 8);
         if (blockSize >= 512)  value += __shfl_down_sync(FULL_MASK, value, 16);
     }
-#endif
     
 #else
      shared_data[locThreadId] = value;
@@ -297,7 +283,6 @@ __device__  void contractBlock(const int locThreadId, double &value, double *sha
         }
     }
 #endif
-// printf("end contractBlock\n");
 }
 
 
